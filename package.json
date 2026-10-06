@@ -1,0 +1,13 @@
+{
+  "name": "my-project-docs",
+  "version": "1.0.0",
+  "description": "Documentation for the AI-powered Film Photography Contest Platform",
+  "scripts": {
+    "build:docx": "echo 'Run Pandoc to convert MD to DOCX'",
+    "build:pdf": "echo 'Run Pandoc to convert MD to PDF'"
+  },
+  "dependencies": {},
+  "devDependencies": {
+    "markdown-to-jsx": "^7.1.9"
+  }
+}
