@@ -30,7 +30,6 @@ jobs:
       - name: Validate code file names
         env:
           BASE_REF: ${{ github.base_ref }}
-          BEFORE_SHA: ${{ github.event.before }}
         shell: bash
         run: |
           set -euo pipefail
@@ -38,8 +37,10 @@ jobs:
 
           if [[ -n "$BASE_REF" ]]; then
             changed_files="origin/${BASE_REF}...HEAD"
+          elif git rev-parse --verify HEAD^ >/dev/null 2>&1; then
+            changed_files='HEAD^...HEAD'
           else
-            changed_files="${BEFORE_SHA}...HEAD"
+            changed_files='HEAD'
           fi
 
           while IFS= read -r file; do
@@ -85,17 +86,17 @@ jobs:
           set -euo pipefail
           has_error=0
 
-          if rg -n --glob '*.{ts,tsx,js,jsx}' 'console\.log\s*\(' src/frontend/src; then
+          if grep -RInE --include='*.ts' --include='*.tsx' --include='*.js' --include='*.jsx' 'console\.log[[:space:]]*\(' src/frontend/src; then
             echo 'Remove console.log before merging.'
             has_error=1
           fi
 
-          if rg -n --glob '*.{ts,tsx}' '(:\s*any\b|as\s+any\b)' src/frontend/src; then
+          if grep -RInE --include='*.ts' --include='*.tsx' '(:[[:space:]]*any\b|as[[:space:]]+any\b)' src/frontend/src; then
             echo 'Explicit any is forbidden; use a safe TypeScript type instead.'
             has_error=1
           fi
 
-          if rg -n --glob '*.java' '(System\.out\.println\s*\(|\.printStackTrace\s*\()' src/backend/src; then
+          if grep -RInE --include='*.java' '(System\.out\.println[[:space:]]*\(|\.printStackTrace[[:space:]]*\()' src/backend/src; then
             echo 'Use the application logger instead of debug output.'
             has_error=1
           fi
