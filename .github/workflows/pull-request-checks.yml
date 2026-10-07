@@ -104,7 +104,14 @@ jobs:
           exit "$has_error"
 
       - name: Check whitespace errors
-        run: git diff --check origin/${{ github.base_ref }}...HEAD
+        env:
+          BASE_REF: ${{ github.base_ref }}
+        run: |
+          if [[ -n "$BASE_REF" ]]; then
+            git diff --check "origin/$BASE_REF...HEAD"
+          else
+            git diff --check HEAD^...HEAD || git diff --check HEAD
+          fi
 
   frontend:
     name: Frontend lint and build
