@@ -21,14 +21,51 @@ jobs:
     steps:
       - name: Check out source
         uses: actions/checkout@v4
+        with:
+          fetch-depth: 0
 
-      - name: Validate pull request title
+      - name: Validate code file names
         env:
-          PR_TITLE: ${{ github.event.pull_request.title }}
+          BASE_REF: ${{ github.base_ref }}
+        shell: bash
         run: |
-          pattern='^(feat|fix|refactor|style|docs|test|chore)(\([a-z0-9-]+\))?: .+'
-          if ! [[ "$PR_TITLE" =~ $pattern ]]; then
-            echo "PR title must follow Conventional Commits, for example: feat(judge): add scoring panel"
+          set -euo pipefail
+          has_error=0
+
+          while IFS= read -r file; do
+            case "$file" in
+              src/backend/src/*.java)
+                file_name="${file##*/}"
+                if ! [[ "$file_name" =~ ^[A-Z][A-Za-z0-9]*\.java$ ]]; then
+                  echo "Java file must use PascalCase: $file"
+                  has_error=1
+                fi
+                ;;
+              src/frontend/src/*.tsx)
+                file_name="${file##*/}"
+                if [[ "$file_name" != 'page.tsx' && "$file_name" != 'main.tsx' ]] && ! [[ "$file_name" =~ ^[A-Z][A-Za-z0-9]*\.tsx$ ]]; then
+                  echo "React component file must use PascalCase (except page.tsx and main.tsx): $file"
+                  has_error=1
+                fi
+                ;;
+              src/frontend/src/*.ts)
+                file_name="${file##*/}"
+                if [[ "$file_name" != *.d.ts ]] && ! [[ "$file_name" =~ ^[a-z][A-Za-z0-9]*\.ts$ ]]; then
+                  echo "TypeScript file must use camelCase: $file"
+                  has_error=1
+                fi
+                ;;
+            esac
+
+            # Source file paths must remain portable across Windows, macOS, and Linux.
+            if [[ "$file" =~ [[:space:]] ]] || ! printf '%s\n' "$file" | LC_ALL=C grep -q '^[ -~]*$'; then
+              echo "Code file path must not contain spaces, accents, or special characters: $file"
+              has_error=1
+            fi
+          done < <(git diff --name-only --diff-filter=AMR "origin/${BASE_REF}...HEAD")
+
+          if [[ "$has_error" -ne 0 ]]; then
+            echo 'Rename the invalid code files before merging.'
             exit 1
           fi
 

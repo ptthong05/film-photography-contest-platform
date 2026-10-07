@@ -10,7 +10,7 @@ Describe the change and why it is needed.
 
 ## Review checklist
 
-- [ ] PR title follows Conventional Commits: `type(scope): description`
+- [ ] New or renamed code files use the required naming convention.
 - [ ] No secrets, debug logs, commented-out code, or generated files are included.
 - [ ] UI changes include screenshots where applicable.
 - [ ] The change has been reviewed by at least one team member.
