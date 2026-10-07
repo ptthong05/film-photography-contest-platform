@@ -1,0 +1,119 @@
+name: Pull Request Checks
+
+on:
+  pull_request:
+    branches:
+      - main
+      - develop
+    types: [opened, synchronize, reopened, ready_for_review]
+
+permissions:
+  contents: read
+
+concurrency:
+  group: pr-checks-${{ github.event.pull_request.number }}
+  cancel-in-progress: true
+
+jobs:
+  conventions:
+    name: Convention checks
+    runs-on: ubuntu-latest
+    steps:
+      - name: Check out source
+        uses: actions/checkout@v4
+
+      - name: Validate pull request title
+        env:
+          PR_TITLE: ${{ github.event.pull_request.title }}
+        run: |
+          pattern='^(feat|fix|refactor|style|docs|test|chore)(\([a-z0-9-]+\))?: .+'
+          if ! [[ "$PR_TITLE" =~ $pattern ]]; then
+            echo "PR title must follow Conventional Commits, for example: feat(judge): add scoring panel"
+            exit 1
+          fi
+
+      - name: Reject debug code and explicit any
+        shell: bash
+        run: |
+          set -euo pipefail
+          has_error=0
+
+          if rg -n --glob '*.{ts,tsx,js,jsx}' 'console\.log\s*\(' src/frontend/src; then
+            echo 'Remove console.log before merging.'
+            has_error=1
+          fi
+
+          if rg -n --glob '*.{ts,tsx}' '(:\s*any\b|as\s+any\b)' src/frontend/src; then
+            echo 'Explicit any is forbidden; use a safe TypeScript type instead.'
+            has_error=1
+          fi
+
+          if rg -n --glob '*.java' '(System\.out\.println\s*\(|\.printStackTrace\s*\()' src/backend/src; then
+            echo 'Use the application logger instead of debug output.'
+            has_error=1
+          fi
+
+          exit "$has_error"
+
+      - name: Check whitespace errors
+        run: git diff --check origin/${{ github.base_ref }}...HEAD
+
+  frontend:
+    name: Frontend lint and build
+    runs-on: ubuntu-latest
+    defaults:
+      run:
+        working-directory: src/frontend
+    steps:
+      - name: Check out source
+        uses: actions/checkout@v4
+
+      - name: Set up Node.js 20
+        uses: actions/setup-node@v4
+        with:
+          node-version: 20
+          cache: npm
+          cache-dependency-path: src/frontend/package-lock.json
+
+      - name: Install dependencies
+        run: npm ci
+
+      - name: Run ESLint
+        run: npm run lint
+
+      - name: Build frontend
+        run: npm run build
+
+  backend:
+    name: Backend verify
+    runs-on: ubuntu-latest
+    defaults:
+      run:
+        working-directory: src/backend
+    steps:
+      - name: Check out source
+        uses: actions/checkout@v4
+
+      - name: Set up Java 17
+        uses: actions/setup-java@v4
+        with:
+          distribution: temurin
+          java-version: '17'
+          cache: maven
+
+      - name: Verify backend
+        run: mvn --batch-mode --no-transfer-progress verify
+
+  secret-scan:
+    name: Secret scan
+    runs-on: ubuntu-latest
+    steps:
+      - name: Check out source
+        uses: actions/checkout@v4
+        with:
+          fetch-depth: 0
+
+      - name: Scan for committed secrets
+        uses: gitleaks/gitleaks-action@v2
+        env:
+          GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}

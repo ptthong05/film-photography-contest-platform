@@ -6,3 +6,10 @@ node_modules/
 *.docx
 dist/
 build/
+target/
+*.class
+*.tsbuildinfo
+
+# Ignore local environment files; commit only .env.example.
+.env
+.env.local
