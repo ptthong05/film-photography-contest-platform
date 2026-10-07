@@ -6,12 +6,15 @@ on:
       - main
       - develop
     types: [opened, synchronize, reopened, ready_for_review]
+  push:
+    branches:
+      - main
 
 permissions:
   contents: read
 
 concurrency:
-  group: pr-checks-${{ github.event.pull_request.number }}
+  group: checks-${{ github.workflow }}-${{ github.event.pull_request.number || github.ref }}
   cancel-in-progress: true
 
 jobs:
@@ -27,10 +30,17 @@ jobs:
       - name: Validate code file names
         env:
           BASE_REF: ${{ github.base_ref }}
+          BEFORE_SHA: ${{ github.event.before }}
         shell: bash
         run: |
           set -euo pipefail
           has_error=0
+
+          if [[ -n "$BASE_REF" ]]; then
+            changed_files="origin/${BASE_REF}...HEAD"
+          else
+            changed_files="${BEFORE_SHA}...HEAD"
+          fi
 
           while IFS= read -r file; do
             case "$file" in
@@ -62,7 +72,7 @@ jobs:
               echo "Code file path must not contain spaces, accents, or special characters: $file"
               has_error=1
             fi
-          done < <(git diff --name-only --diff-filter=AMR "origin/${BASE_REF}...HEAD")
+          done < <(git diff --name-only --diff-filter=AMR "$changed_files")
 
           if [[ "$has_error" -ne 0 ]]; then
             echo 'Rename the invalid code files before merging.'
