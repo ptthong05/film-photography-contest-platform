@@ -19,11 +19,11 @@ export default function RootPage() {
 
   return (
     <div className="relative">
-      <BackButton label="Về Trang Chủ" onClick={goHome} />
+      {activePortal !== 'JUDGE' && <BackButton label="Về Trang Chủ" onClick={goHome} />}
       {activePortal === 'AUTH' && <AuthPage onLoginSuccess={setActivePortal} />}
       {activePortal === 'ADMIN' && <AdminPage />}
       {activePortal === 'ORGANIZER' && <OrganizerPage />}
-      {activePortal === 'JUDGE' && <JudgePage />}
+      {activePortal === 'JUDGE' && <JudgePage onExit={goHome} />}
       {activePortal === 'PARTICIPANT' && <ParticipantPage />}
     </div>
   );
