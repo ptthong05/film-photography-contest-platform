@@ -253,7 +253,6 @@ refactor(frontend): extract BackButton component
 - [ ] Frontend: `npm run lint` và `npm run build` **không lỗi**.
 - [ ] Backend: `mvn clean verify` **không lỗi**.
 - [ ] Không chứa file thừa (`target/`, `node_modules/`, `dist/`, `.env.local`, `*.tsbuildinfo`).
-- [ ] Ít nhất **1 thành viên review & approve** trước khi merge.
 - [ ] PR nhỏ gọn (< 400 dòng thay đổi nếu có thể).
 
 ---
