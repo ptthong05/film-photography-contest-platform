@@ -3,22 +3,20 @@
 > Hệ thống **Quản lý Cuộc thi Nhiếp ảnh Film**
 > Backend: **Spring Boot 3 + MongoDB** (port `8081`) · Frontend: **Vite + React 19 + TypeScript + Tailwind CSS v4**
 
-Mọi thành viên **bắt buộc** đọc và tuân thủ tài liệu này trước khi tạo Pull Request.
-
 ---
 
 ## 1. Quy tắc chung
 
-| # | Quy tắc |
-|---|---------|
-| 1.1 | Encoding **UTF-8**, xuống dòng **LF**, file kết thúc bằng 1 dòng trống. |
-| 1.2 | Thụt lề: **Java = 4 spaces**, **TS/TSX/CSS/JSON = 2 spaces**. Không dùng Tab. |
-| 1.3 | Độ dài dòng tối đa **120 ký tự** (trừ chuỗi className Tailwind). |
+| #   | Quy tắc                                                                                                             |
+| --- | ------------------------------------------------------------------------------------------------------------------- |
+| 1.1 | Encoding **UTF-8**, xuống dòng **LF**, file kết thúc bằng 1 dòng trống.                                             |
+| 1.2 | Thụt lề: **Java = 4 spaces**, **TS/TSX/CSS/JSON = 2 spaces**. Không dùng Tab.                                       |
+| 1.3 | Độ dài dòng tối đa **120 ký tự** (trừ chuỗi className Tailwind).                                                    |
 | 1.4 | **Tên biến, hàm, class, file viết bằng tiếng Anh.** Text hiển thị cho người dùng & message lỗi viết **tiếng Việt**. |
-| 1.5 | Comment giải thích **tại sao** (why), không giải thích **cái gì** (what). Comment có thể viết tiếng Việt. |
-| 1.6 | Không commit code bị comment-out, `console.log`, `System.out.println` debug. |
-| 1.7 | **Không commit secret** (`.env.local`, mật khẩu DB, API key). Chỉ commit `.env.example`. |
-| 1.8 | Không để hard-code URL/port trong code — luôn đọc từ biến môi trường. |
+| 1.5 | Comment giải thích **tại sao** (why), không giải thích **cái gì** (what). Comment có thể viết tiếng Việt.           |
+| 1.6 | Không commit code bị comment-out, `console.log`, `System.out.println` debug.                                        |
+| 1.7 | **Không commit secret** (`.env.local`, mật khẩu DB, API key). Chỉ commit `.env.example`.                            |
+| 1.8 | Không để hard-code URL/port trong code — luôn đọc từ biến môi trường.                                               |
 
 ---
 
@@ -40,15 +38,15 @@ com.example.backend
 
 ### 2.2. Đặt tên
 
-| Thành phần | Quy tắc | Ví dụ |
-|-----------|---------|-------|
-| Class | `PascalCase` + hậu tố theo layer | `ContestController`, `ContestService`, `ContestRepository` |
-| Entity | Danh từ số ít | `Contest`, `Submission`, `User` |
-| DTO | `<Entity>Request` / `<Entity>Response` | `ContestRequest`, `ContestResponse` |
-| Exception | `<Lý do>Exception` | `ResourceNotFoundException`, `DuplicateResourceException` |
-| Method / biến | `camelCase`, động từ đứng đầu | `getContestById`, `createSubmission` |
-| Hằng số | `UPPER_SNAKE_CASE` | `DEFAULT_ROLE`, `MAX_FILE_SIZE` |
-| Collection MongoDB | `snake_case`, số nhiều | `@Document(collection = "contest_submissions")` |
+| Thành phần         | Quy tắc                                | Ví dụ                                                      |
+| ------------------ | -------------------------------------- | ---------------------------------------------------------- |
+| Class              | `PascalCase` + hậu tố theo layer       | `ContestController`, `ContestService`, `ContestRepository` |
+| Entity             | Danh từ số ít                          | `Contest`, `Submission`, `User`                            |
+| DTO                | `<Entity>Request` / `<Entity>Response` | `ContestRequest`, `ContestResponse`                        |
+| Exception          | `<Lý do>Exception`                     | `ResourceNotFoundException`, `DuplicateResourceException`  |
+| Method / biến      | `camelCase`, động từ đứng đầu          | `getContestById`, `createSubmission`                       |
+| Hằng số            | `UPPER_SNAKE_CASE`                     | `DEFAULT_ROLE`, `MAX_FILE_SIZE`                            |
+| Collection MongoDB | `snake_case`, số nhiều                 | `@Document(collection = "contest_submissions")`            |
 
 ### 2.3. Quy tắc phân lớp (bắt buộc)
 
@@ -77,13 +75,13 @@ public class ContestService {
 
 ### 2.4. REST API
 
-| Quy tắc | Ví dụ |
-|---------|-------|
-| Prefix `/api`, danh từ **số nhiều**, `kebab-case` | `/api/contests`, `/api/activity-logs` |
-| Tài nguyên con lồng nhau tối đa 1 cấp | `/api/contests/{id}/submissions` |
-| Đúng HTTP method | `GET` đọc · `POST` tạo · `PUT` cập nhật toàn bộ · `PATCH` cập nhật 1 phần · `DELETE` xóa |
-| Đúng status code | `200` OK · `201` Created · `204` No Content · `400` Validation · `401/403` Auth · `404` Not Found · `409` Conflict · `500` Server |
-| Request body phải có `@Valid` | `@Valid @RequestBody ContestRequest request` |
+| Quy tắc                                           | Ví dụ                                                                                                                             |
+| ------------------------------------------------- | --------------------------------------------------------------------------------------------------------------------------------- |
+| Prefix `/api`, danh từ **số nhiều**, `kebab-case` | `/api/contests`, `/api/activity-logs`                                                                                             |
+| Tài nguyên con lồng nhau tối đa 1 cấp             | `/api/contests/{id}/submissions`                                                                                                  |
+| Đúng HTTP method                                  | `GET` đọc · `POST` tạo · `PUT` cập nhật toàn bộ · `PATCH` cập nhật 1 phần · `DELETE` xóa                                          |
+| Đúng status code                                  | `200` OK · `201` Created · `204` No Content · `400` Validation · `401/403` Auth · `404` Not Found · `409` Conflict · `500` Server |
+| Request body phải có `@Valid`                     | `@Valid @RequestBody ContestRequest request`                                                                                      |
 
 **Định dạng lỗi thống nhất** (frontend đang đọc `data.message`):
 
@@ -129,18 +127,18 @@ src/
 
 ### 3.2. Đặt tên
 
-| Thành phần | Quy tắc | Ví dụ |
-|-----------|---------|-------|
-| File component | `PascalCase.tsx` | `ScoringPanel.tsx`, `UserModal.tsx` |
-| File trang | `page.tsx` | `app/judge/page.tsx` |
-| File service / util / hook | `camelCase.ts` | `contestService.ts`, `useAuth.ts` |
-| Component | `PascalCase` | `CreateContestForm` |
-| Props interface | `<Component>Props` | `ScoringPanelProps` |
-| Biến / hàm | `camelCase` | `selectedContest`, `handleSubmit` |
-| Event handler | `handle<Event>` (bên trong) / `on<Event>` (props) | `handleSave` / `onSave` |
-| Boolean | tiền tố `is/has/can/should` | `isLoading`, `hasError` |
-| Hằng số | `UPPER_SNAKE_CASE` | `API_BASE_URL`, `MAX_SCORE` |
-| Type union | `PascalCase` | `type Portal = 'HOME' \| 'AUTH' \| 'ADMIN'` |
+| Thành phần                 | Quy tắc                                           | Ví dụ                                       |
+| -------------------------- | ------------------------------------------------- | ------------------------------------------- |
+| File component             | `PascalCase.tsx`                                  | `ScoringPanel.tsx`, `UserModal.tsx`         |
+| File trang                 | `page.tsx`                                        | `app/judge/page.tsx`                        |
+| File service / util / hook | `camelCase.ts`                                    | `contestService.ts`, `useAuth.ts`           |
+| Component                  | `PascalCase`                                      | `CreateContestForm`                         |
+| Props interface            | `<Component>Props`                                | `ScoringPanelProps`                         |
+| Biến / hàm                 | `camelCase`                                       | `selectedContest`, `handleSubmit`           |
+| Event handler              | `handle<Event>` (bên trong) / `on<Event>` (props) | `handleSave` / `onSave`                     |
+| Boolean                    | tiền tố `is/has/can/should`                       | `isLoading`, `hasError`                     |
+| Hằng số                    | `UPPER_SNAKE_CASE`                                | `API_BASE_URL`, `MAX_SCORE`                 |
+| Type union                 | `PascalCase`                                      | `type Portal = 'HOME' \| 'AUTH' \| 'ADMIN'` |
 
 ### 3.3. Component
 
@@ -156,7 +154,7 @@ interface ScoringPanelProps {
 }
 
 export function ScoringPanel({ submission, onSave }: ScoringPanelProps) {
-  const [comment, setComment] = useState('');
+  const [comment, setComment] = useState("");
   const total = calculateTotal(submission.scores);
 
   const handleSave = () => {
@@ -195,15 +193,15 @@ export function ScoringPanel({ submission, onSave }: ScoringPanelProps) {
 
 ```tsx
 // 1. Thư viện bên ngoài
-import { useState } from 'react';
-import { Star } from 'lucide-react';
+import { useState } from "react";
+import { Star } from "lucide-react";
 // 2. Module nội bộ (services, types, hooks, utils)
-import { contestService } from '../../services/contestService';
-import type { Contest } from '../../types/contest';
+import { contestService } from "../../services/contestService";
+import type { Contest } from "../../types/contest";
 // 3. Component cùng cấp
-import { ScoringPanel } from './components/ScoringPanel';
+import { ScoringPanel } from "./components/ScoringPanel";
 // 4. CSS
-import './styles.css';
+import "./styles.css";
 ```
 
 ---
@@ -212,12 +210,12 @@ import './styles.css';
 
 ### 4.1. Branch
 
-| Loại | Format | Ví dụ |
-|------|--------|-------|
-| Tính năng | `feature/<mô-tả-ngắn>` | `feature/judge-scoring` |
-| Sửa lỗi | `fix/<mô-tả-ngắn>` | `fix/login-redirect` |
-| Refactor | `refactor/<mô-tả-ngắn>` | `refactor/user-service` |
-| Tài liệu | `docs/<mô-tả-ngắn>` | `docs/update-readme` |
+| Loại      | Format                  | Ví dụ                   |
+| --------- | ----------------------- | ----------------------- |
+| Tính năng | `feature/<mô-tả-ngắn>`  | `feature/judge-scoring` |
+| Sửa lỗi   | `fix/<mô-tả-ngắn>`      | `fix/login-redirect`    |
+| Refactor  | `refactor/<mô-tả-ngắn>` | `refactor/user-service` |
+| Tài liệu  | `docs/<mô-tả-ngắn>`     | `docs/update-readme`    |
 
 - `main`: code ổn định, **không push trực tiếp**.
 - `develop`: nhánh tích hợp; mọi PR merge vào `develop`.
@@ -228,15 +226,15 @@ import './styles.css';
 <type>(<scope>): <mô tả ngắn, thì hiện tại>
 ```
 
-| Type | Ý nghĩa |
-|------|---------|
-| `feat` | Thêm tính năng |
-| `fix` | Sửa lỗi |
-| `refactor` | Tái cấu trúc, không đổi hành vi |
-| `style` | Format, khoảng trắng (không đổi logic) |
-| `docs` | Tài liệu |
-| `test` | Thêm/sửa test |
-| `chore` | Cấu hình, dependency, build |
+| Type       | Ý nghĩa                                |
+| ---------- | -------------------------------------- |
+| `feat`     | Thêm tính năng                         |
+| `fix`      | Sửa lỗi                                |
+| `refactor` | Tái cấu trúc, không đổi hành vi        |
+| `style`    | Format, khoảng trắng (không đổi logic) |
+| `docs`     | Tài liệu                               |
+| `test`     | Thêm/sửa test                          |
+| `chore`    | Cấu hình, dependency, build            |
 
 Ví dụ:
 
