@@ -1,4 +1,4 @@
-import React from 'react';
+﻿import React from 'react';
 import { X, Heart, Eye, Share2, Camera, Film, Aperture, Clock, Award } from 'lucide-react';
 
 export interface PhotoDetailData {
@@ -26,7 +26,7 @@ export function PhotoDetailModal({ photo, onClose }: PhotoDetailModalProps) {
   return (
     <div className="fixed inset-0 z-50 overflow-y-auto bg-black/80 backdrop-blur-md flex items-center justify-center p-4 sm:p-6 animate-in fade-in">
       <div className="relative w-full max-w-4xl bg-slate-900 border border-slate-800 rounded-3xl shadow-2xl overflow-hidden text-white">
-        
+
         {/* Close Button */}
         <button
           onClick={onClose}
@@ -67,7 +67,7 @@ export function PhotoDetailModal({ photo, onClose }: PhotoDetailModalProps) {
               {/* Film Technical Specs */}
               <div className="space-y-3 pt-2 border-t border-slate-800">
                 <div className="text-xs font-semibold text-slate-400 uppercase tracking-wider">Thông số tác phẩm</div>
-                
+
                 <div className="flex items-center gap-2.5 text-xs text-slate-300">
                   <Film className="w-4 h-4 text-amber-400 shrink-0" />
                   <span>Cuộn phim: <strong className="text-white">{photo.filmStock || 'Kodak Portra 400'}</strong></span>

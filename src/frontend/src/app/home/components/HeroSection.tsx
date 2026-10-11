@@ -1,4 +1,4 @@
-import React from 'react';
+﻿import React from 'react';
 import { ArrowRight, Sparkles, Compass, Camera, Film, Award } from 'lucide-react';
 
 interface HeroSectionProps {
@@ -22,7 +22,7 @@ export function HeroSection({ onRegisterClick, onExploreClick }: HeroSectionProp
       </div>
 
       {/* Decorative analog film grain pattern */}
-      <div 
+      <div
         className="absolute inset-0 opacity-10 pointer-events-none mix-blend-overlay"
         style={{
           backgroundImage: `radial-gradient(rgba(255, 255, 255, 0.4) 1px, transparent 0)`,
@@ -33,7 +33,7 @@ export function HeroSection({ onRegisterClick, onExploreClick }: HeroSectionProp
       {/* Content Container */}
       <div className="relative z-10 max-w-7xl mx-auto px-6 sm:px-8 lg:px-12 pt-14 pb-24 sm:pt-16 sm:pb-28 lg:pt-20 lg:pb-32">
         <div className="grid grid-cols-1 lg:grid-cols-12 gap-12 items-center">
-          
+
           {/* Left Text Column (7 cols) */}
           <div className="lg:col-span-7 space-y-6">
             {/* Tagline Badge */}
@@ -85,7 +85,7 @@ export function HeroSection({ onRegisterClick, onExploreClick }: HeroSectionProp
           {/* Right Visual Collage (5 cols) */}
           <div className="lg:col-span-5 relative flex justify-center lg:justify-end">
             <div className="relative w-full max-w-md">
-              
+
               {/* Backpacker in front of mountains card */}
               <div className="relative rounded-2xl overflow-hidden shadow-2xl border-2 border-white/20 bg-slate-800 transform rotate-1 hover:rotate-0 transition-transform duration-500">
                 <img
@@ -94,7 +94,7 @@ export function HeroSection({ onRegisterClick, onExploreClick }: HeroSectionProp
                   className="w-full h-72 object-cover filter contrast-[1.05]"
                 />
                 <div className="absolute inset-0 bg-gradient-to-t from-black/80 via-transparent to-transparent" />
-                
+
                 {/* Film frame aesthetic details */}
                 <div className="absolute bottom-3 left-4 right-4 flex items-center justify-between text-xs text-white/90">
                   <div className="flex items-center gap-2">

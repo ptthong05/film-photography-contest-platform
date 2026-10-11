@@ -1,4 +1,4 @@
-import React, { useState } from 'react';
+﻿import React, { useState } from 'react';
 import type { Portal } from '../../../types/portal';
 import { Navbar } from '../components/Navbar';
 import { Footer } from '../components/Footer';
@@ -83,7 +83,7 @@ export function ContestDetailPage({
       />
 
       <main className="flex-1 max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 py-6 sm:py-8 w-full space-y-6">
-        
+
         {/* Breadcrumb matching image */}
         <nav className="flex items-center gap-2 text-xs sm:text-sm text-slate-500 font-medium">
           <button
@@ -208,7 +208,7 @@ export function ContestDetailPage({
         {/* Tab Content Section (Two Columns) */}
         {activeTab === 'info' && (
           <div className="grid grid-cols-1 lg:grid-cols-12 gap-8">
-            
+
             {/* Left Column: Thông tin cuộc thi */}
             <div className="lg:col-span-8 bg-white p-6 sm:p-8 rounded-3xl border border-slate-200/90 shadow-xs space-y-5">
               <h2 className="text-xl sm:text-2xl font-bold text-slate-900 tracking-tight">
@@ -248,7 +248,7 @@ export function ContestDetailPage({
                   <div key={idx} className="relative group">
                     {/* Circle Step Dot */}
                     <div className="absolute -left-6 top-1 w-5 h-5 rounded-full bg-blue-600 border-4 border-white shadow-xs flex items-center justify-center text-white" />
-                    
+
                     <div>
                       <h4 className="text-sm font-bold text-slate-900 group-hover:text-blue-600 transition-colors">
                         {item.title}

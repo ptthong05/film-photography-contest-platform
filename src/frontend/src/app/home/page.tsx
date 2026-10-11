@@ -1,4 +1,4 @@
-import React, { useState } from 'react';
+﻿import React, { useState } from 'react';
 import type { Portal } from '../../types/portal';
 import { Navbar } from './components/Navbar';
 import { HeroSection } from './components/HeroSection';
@@ -62,7 +62,7 @@ export default function HomePage({
 
   return (
     <div className="min-h-screen bg-slate-50 text-slate-800 flex flex-col font-sans selection:bg-blue-100 selection:text-blue-900">
-      
+
       {/* 1. Header / Navbar */}
       <Navbar
         activeTab={activeTab}

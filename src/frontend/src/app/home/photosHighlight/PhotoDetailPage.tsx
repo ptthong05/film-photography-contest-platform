@@ -1,4 +1,4 @@
-import React, { useState } from 'react';
+﻿import React, { useState } from 'react';
 import type { Portal } from '../../../types/portal';
 import { Navbar } from '../components/Navbar';
 import { Footer } from '../components/Footer';
@@ -94,7 +94,7 @@ export function PhotoDetailPage({
 
       {/* Main Content */}
       <main className="flex-1 max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 py-6 sm:py-8 w-full space-y-6">
-        
+
         {/* Breadcrumb */}
         <div className="flex items-center justify-between">
           <nav className="flex items-center gap-2 text-xs sm:text-sm text-slate-500 font-medium">
@@ -128,7 +128,7 @@ export function PhotoDetailPage({
 
         {/* Two Columns Photo Showcase Grid */}
         <div className="grid grid-cols-1 lg:grid-cols-12 gap-8 items-start">
-          
+
           {/* Left Column: High-Res Photo Display (7-8 cols) */}
           <div className="lg:col-span-8 space-y-4">
             <div className="relative rounded-3xl overflow-hidden bg-slate-950 border border-slate-800 shadow-2xl flex items-center justify-center min-h-[420px] sm:min-h-[550px] group">
@@ -219,7 +219,7 @@ export function PhotoDetailPage({
 
           {/* Right Column: Full Details & Camera EXIF Specs (4-5 cols) */}
           <div className="lg:col-span-4 space-y-6">
-            
+
             {/* Author Profile Card */}
             <div className="bg-white p-6 rounded-3xl border border-slate-200/90 shadow-xs space-y-4">
               <div
@@ -384,7 +384,7 @@ export function PhotoDetailPage({
                   alt={item.title}
                   className="w-full h-full object-cover group-hover:scale-105 transition-transform duration-500"
                 />
-                
+
                 {/* Heart Button floating at top-right corner */}
                 <button
                   type="button"

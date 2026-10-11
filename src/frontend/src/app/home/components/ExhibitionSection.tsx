@@ -1,4 +1,4 @@
-import React from 'react';
+﻿import React from 'react';
 import { Award, ArrowRight, Eye, Heart } from 'lucide-react';
 
 export function ExhibitionSection({
@@ -109,7 +109,7 @@ export function ExhibitionSection({
               </button>
 
               <div className="absolute inset-0 bg-gradient-to-t from-black/70 via-transparent to-transparent opacity-80 group-hover:opacity-90 transition-opacity pointer-events-none" />
-              
+
               <div className="absolute bottom-3 left-3 right-3 text-white pointer-events-none">
                 <span className="inline-block px-2 py-0.5 rounded-md bg-amber-500/90 text-[10px] font-bold text-white mb-1">
                   {photo.award}

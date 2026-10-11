@@ -1,4 +1,4 @@
-import React, { useState, useMemo } from 'react';
+﻿import React, { useState, useMemo } from 'react';
 import type { Portal } from '../../../types/portal';
 import { Navbar } from '../components/Navbar';
 import { Footer } from '../components/Footer';
@@ -180,7 +180,7 @@ export default function ContestsPage({
         {/* Filter Bar & Search */}
         <div className="bg-white p-4 sm:p-5 rounded-2xl border border-slate-200/90 shadow-xs space-y-4">
           <div className="flex flex-col md:flex-row md:items-center justify-between gap-4">
-            
+
             {/* Status Filter Tabs */}
             <div className="flex flex-wrap items-center gap-1.5 sm:gap-2">
               <button

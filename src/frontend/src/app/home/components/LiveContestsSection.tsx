@@ -1,4 +1,4 @@
-import React, { useState, useEffect, useRef } from 'react';
+﻿import React, { useState, useEffect, useRef } from 'react';
 import { Trophy, Calendar, Users, ArrowRight } from 'lucide-react';
 
 export interface ContestItem {
@@ -112,7 +112,7 @@ export function LiveContestsSection({ onSelectContest, onViewAll }: LiveContests
     if (!scrollContainerRef.current) return;
     const { scrollLeft, scrollWidth, clientWidth } = scrollContainerRef.current;
     const maxScroll = scrollWidth - clientWidth;
-    
+
     if (scrollLeft >= maxScroll - 15) {
       // Loop smoothly back to beginning
       scrollContainerRef.current.scrollTo({ left: 0, behavior: 'smooth' });
@@ -125,7 +125,7 @@ export function LiveContestsSection({ onSelectContest, onViewAll }: LiveContests
   const scrollPrev = () => {
     if (!scrollContainerRef.current) return;
     const { scrollLeft, scrollWidth, clientWidth } = scrollContainerRef.current;
-    
+
     if (scrollLeft <= 15) {
       // Loop smoothly to the end
       scrollContainerRef.current.scrollTo({ left: scrollWidth, behavior: 'smooth' });

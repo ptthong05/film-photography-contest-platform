@@ -1,4 +1,4 @@
-import React, { useState } from 'react';
+﻿import React, { useState } from 'react';
 import { X, Calendar, Users, Award, ShieldCheck, MapPin, Share2, Info, FileText, CheckCircle2 } from 'lucide-react';
 import type { ContestItem } from './LiveContestsSection';
 
@@ -16,7 +16,7 @@ export function ContestDetailModal({ contest, onClose, onRegisterSubmit }: Conte
   return (
     <div className="fixed inset-0 z-50 overflow-y-auto bg-black/60 backdrop-blur-xs flex items-center justify-center p-4 sm:p-6 animate-in fade-in">
       <div className="relative w-full max-w-4xl bg-white rounded-3xl shadow-2xl overflow-hidden border border-slate-200">
-        
+
         {/* Close Button */}
         <button
           onClick={onClose}

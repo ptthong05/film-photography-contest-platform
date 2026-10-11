@@ -1,4 +1,4 @@
-import React, { useState } from 'react';
+﻿import React, { useState } from 'react';
 import { Camera, Mail, Send, Check } from 'lucide-react';
 
 export function Footer() {
@@ -18,7 +18,7 @@ export function Footer() {
     <footer className="bg-[#0B1528] text-slate-400 text-sm border-t border-slate-800/80">
       <div className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 py-14">
         <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-12 gap-8 lg:gap-10">
-          
+
           {/* Brand Column (4 cols) */}
           <div className="lg:col-span-4 space-y-4">
             <div className="flex items-center gap-2.5">

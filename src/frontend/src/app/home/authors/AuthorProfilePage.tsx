@@ -1,4 +1,4 @@
-import React, { useState } from 'react';
+﻿import React, { useState } from 'react';
 import type { Portal } from '../../../types/portal';
 import { Navbar } from '../components/Navbar';
 import { Footer } from '../components/Footer';
@@ -103,7 +103,7 @@ export function AuthorProfilePage({
               className="w-full h-full object-cover opacity-60 filter contrast-[1.1]"
             />
             <div className="absolute inset-0 bg-gradient-to-t from-black/80 via-black/30 to-transparent" />
-            
+
             <div className="absolute top-4 right-4 z-10">
               <button
                 onClick={handleShare}
@@ -315,7 +315,7 @@ export function AuthorProfilePage({
                       className="w-full h-full object-cover group-hover:scale-105 transition-transform duration-500"
                     />
                     <div className="absolute inset-0 bg-gradient-to-t from-black/80 via-transparent to-transparent" />
-                    
+
                     <div className="absolute top-3 left-3">
                       <span className="inline-flex items-center gap-1.5 px-3 py-1 rounded-full text-xs font-bold bg-amber-500 text-white shadow-md">
                         <span>{award.rankIcon}</span>
