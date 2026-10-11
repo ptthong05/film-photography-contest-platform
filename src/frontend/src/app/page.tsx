@@ -1,6 +1,5 @@
 import { useState } from 'react';
 import type { Portal } from '../types/portal';
-import { BackButton } from '../components/BackButton';
 import HomePage from './home/page';
 import AuthPage from './auth/page';
 import AdminPage from './admin/page';
@@ -9,7 +8,7 @@ import JudgePage from './judge/page';
 import ParticipantPage from './participant/page';
 
 export default function RootPage() {
-  const [activePortal, setActivePortal] = useState<Portal>('HOME');
+  const [activePortal, setActivePortal] = useState<Portal>('PARTICIPANT');
 
   const goHome = () => setActivePortal('HOME');
 
@@ -18,13 +17,12 @@ export default function RootPage() {
   }
 
   return (
-    <div className="relative">
-      <BackButton label="Về Trang Chủ" onClick={goHome} />
+    <div className="relative min-h-screen bg-slate-50 text-slate-800">
       {activePortal === 'AUTH' && <AuthPage onLoginSuccess={setActivePortal} />}
       {activePortal === 'ADMIN' && <AdminPage />}
       {activePortal === 'ORGANIZER' && <OrganizerPage />}
       {activePortal === 'JUDGE' && <JudgePage />}
-      {activePortal === 'PARTICIPANT' && <ParticipantPage />}
+      {activePortal === 'PARTICIPANT' && <ParticipantPage onGoHome={goHome} />}
     </div>
   );
 }
