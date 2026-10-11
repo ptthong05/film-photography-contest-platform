@@ -1,9 +1,9 @@
-﻿import React, { useState, useMemo } from 'react';
-import type { Portal } from '../../../types/portal';
-import { Navbar } from '../components/Navbar';
-import { Footer } from '../components/Footer';
-import { ContestDetailModal } from '../components/ContestDetailModal';
-import type { ContestItem } from '../components/LiveContestsSection';
+import React, { useState, useMemo } from 'react';
+import type { Portal } from '../../../../types/portal';
+import { Navbar } from '../Navbar';
+import { Footer } from '../Footer';
+import { ContestDetailModal } from '../ContestDetailModal';
+import type { ContestItem } from '../LiveContestsSection';
 import { Trophy, Search, Calendar, Users } from 'lucide-react';
 
 interface ContestsPageProps {

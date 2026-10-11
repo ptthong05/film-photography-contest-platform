@@ -1,7 +1,7 @@
 import React, { useState, useMemo } from 'react';
-import type { Portal } from '../../../types/portal';
-import { Navbar } from '../components/Navbar';
-import { Footer } from '../components/Footer';
+import type { Portal } from '../../../../types/portal';
+import { Navbar } from '../Navbar';
+import { Footer } from '../Footer';
 import type { PhotoDetailItem } from './data';
 import { ALL_PHOTOS_DATA } from './data';
 import {

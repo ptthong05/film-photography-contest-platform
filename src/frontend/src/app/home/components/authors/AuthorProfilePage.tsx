@@ -1,7 +1,7 @@
-﻿import React, { useState } from 'react';
-import type { Portal } from '../../../types/portal';
-import { Navbar } from '../components/Navbar';
-import { Footer } from '../components/Footer';
+import React, { useState } from 'react';
+import type { Portal } from '../../../../types/portal';
+import { Navbar } from '../Navbar';
+import { Footer } from '../Footer';
 import type { AuthorProfile } from './data';
 import { ALL_AUTHORS_DATA } from './data';
 import {
