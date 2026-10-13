@@ -133,9 +133,9 @@ export default function RootPage() {
   return (
     <div className="relative min-h-screen bg-slate-50 text-slate-800">
       {(activePortal as string) === 'AUTH' && (
-        <AuthPage 
+        <AuthPage
           initialMode={authMode}
-          onLoginSuccess={(dashboardRole: Portal) => setActivePortal(dashboardRole)} 
+          onLoginSuccess={(dashboardRole: Portal) => setActivePortal(dashboardRole)}
         />
       )}
       {activePortal === 'ADMIN' && <AdminPage />}
