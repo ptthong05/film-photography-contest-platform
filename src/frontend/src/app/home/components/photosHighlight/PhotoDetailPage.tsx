@@ -32,6 +32,7 @@ interface PhotoDetailPageProps {
   onOpenAuth: (mode: 'LOGIN' | 'REGISTER') => void;
   onOpenAuthorProfile?: (authorName: string) => void;
   onOpenWinningPhotos?: () => void;
+  onSelectPortal?: (portal: Portal) => void;
 }
 
 export function PhotoDetailPage({
@@ -42,30 +43,78 @@ export function PhotoDetailPage({
   onOpenAuth,
   onOpenAuthorProfile,
   onOpenWinningPhotos,
+  onSelectPortal,
 }: PhotoDetailPageProps) {
   // Find photo by id or fallback to default
   const photo: PhotoDetailItem = ALL_PHOTOS_DATA[photoId] || ALL_PHOTOS_DATA.p1;
 
-  const [likesCount, setLikesCount] = useState(photo.likes || 120);
-  const [isLiked, setIsLiked] = useState(false);
+  const [isLiked, setIsLiked] = useState(() => {
+    try {
+      const saved = localStorage.getItem('film_contest_liked_photos');
+      if (saved) {
+        const parsed = JSON.parse(saved);
+        return !!parsed[photo.id];
+      }
+    } catch {}
+    return false;
+  });
+
+  const [likesCount, setLikesCount] = useState(() => {
+    const base = photo.likes || 120;
+    try {
+      const saved = localStorage.getItem('film_contest_photo_likes_counts');
+      if (saved) {
+        const parsed = JSON.parse(saved);
+        if (parsed[photo.id] !== undefined) return parsed[photo.id];
+      }
+    } catch {}
+    return base;
+  });
+
   const [copied, setCopied] = useState(false);
-  const [likedRelated, setLikedRelated] = useState<Record<string, boolean>>({});
+  const [likedRelated, setLikedRelated] = useState<Record<string, boolean>>(() => {
+    try {
+      const saved = localStorage.getItem('film_contest_liked_photos');
+      return saved ? JSON.parse(saved) : {};
+    } catch {
+      return {};
+    }
+  });
 
   const handleToggleLikeRelated = (e: React.MouseEvent, id: string) => {
     e.stopPropagation();
-    setLikedRelated((prev) => ({
-      ...prev,
-      [id]: !prev[id],
-    }));
+    setLikedRelated((prev) => {
+      const updated = {
+        ...prev,
+        [id]: !prev[id],
+      };
+      try {
+        localStorage.setItem('film_contest_liked_photos', JSON.stringify(updated));
+      } catch (err) {
+        console.error(err);
+      }
+      return updated;
+    });
   };
 
   const handleLike = () => {
-    if (isLiked) {
-      setLikesCount((prev) => prev - 1);
-      setIsLiked(false);
-    } else {
-      setLikesCount((prev) => prev + 1);
-      setIsLiked(true);
+    const nextLiked = !isLiked;
+    setIsLiked(nextLiked);
+    const nextCount = nextLiked ? likesCount + 1 : Math.max(photo.likes || 0, likesCount - 1);
+    setLikesCount(nextCount);
+
+    try {
+      const savedLiked = localStorage.getItem('film_contest_liked_photos');
+      const likedMap = savedLiked ? JSON.parse(savedLiked) : {};
+      likedMap[photo.id] = nextLiked;
+      localStorage.setItem('film_contest_liked_photos', JSON.stringify(likedMap));
+
+      const savedCounts = localStorage.getItem('film_contest_photo_likes_counts');
+      const countsMap = savedCounts ? JSON.parse(savedCounts) : {};
+      countsMap[photo.id] = nextCount;
+      localStorage.setItem('film_contest_photo_likes_counts', JSON.stringify(countsMap));
+    } catch (e) {
+      console.error(e);
     }
   };
 
@@ -413,7 +462,7 @@ export function PhotoDetailPage({
       </main>
 
       {/* Footer */}
-      <Footer />
+      <Footer onSelectPortal={onSelectPortal} onGoHome={onGoHome} />
     </div>
   );
 }

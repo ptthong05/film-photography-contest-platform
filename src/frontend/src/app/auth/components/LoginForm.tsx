@@ -1,5 +1,6 @@
 import React, { useState } from 'react';
-import { Eye, EyeOff } from 'lucide-react';
+import { Eye, EyeOff, AlertCircle } from 'lucide-react';
+import { validateLoginIdentifier } from '../../../utils/phoneValidator';
 
 interface LoginFormProps {
   onSwitchToRegister: () => void;
@@ -7,17 +8,26 @@ interface LoginFormProps {
 }
 
 export function LoginForm({ onSwitchToRegister, onSubmitSuccess }: LoginFormProps) {
-  const [email, setEmail] = useState('');
+  const [identifier, setIdentifier] = useState('');
+  const [identifierError, setIdentifierError] = useState('');
   const [password, setPassword] = useState('');
   const [showPassword, setShowPassword] = useState(false);
   const [rememberMe, setRememberMe] = useState(true);
 
   const handleSubmit = (e: React.FormEvent) => {
     e.preventDefault();
+
+    const check = validateLoginIdentifier(identifier);
+    if (!check.isValid) {
+      setIdentifierError(check.error);
+      return;
+    }
+    setIdentifierError('');
+
     if (onSubmitSuccess) {
       onSubmitSuccess();
     } else {
-      alert(`Đăng nhập thành công với tài khoản: ${email || 'user@filmcontest.vn'}`);
+      alert(`Đăng nhập thành công với tài khoản: ${check.normalizedValue}`);
     }
   };
 
@@ -77,17 +87,39 @@ export function LoginForm({ onSwitchToRegister, onSubmitSuccess }: LoginFormProp
 
           {/* Form */}
           <form onSubmit={handleSubmit} className="space-y-4">
-            {/* Email Field */}
+            {/* Email or Phone Field */}
             <div className="space-y-1.5">
-              <label className="text-xs font-semibold text-slate-700">Email</label>
+              <div className="flex items-center justify-between">
+                <label className="text-xs font-semibold text-slate-700">Email hoặc Số điện thoại</label>
+                <span className="text-[11px] text-slate-400">10 số VN</span>
+              </div>
               <input
-                type="email"
-                value={email}
-                onChange={(e) => setEmail(e.target.value)}
-                placeholder="Nhập email của bạn"
+                type="text"
+                value={identifier}
+                onChange={(e) => {
+                  setIdentifier(e.target.value);
+                  if (identifierError) setIdentifierError('');
+                }}
+                onBlur={() => {
+                  if (identifier.trim()) {
+                    const check = validateLoginIdentifier(identifier);
+                    if (!check.isValid) setIdentifierError(check.error);
+                  }
+                }}
+                placeholder="Nhập email hoặc số điện thoại (10 số)"
                 required
-                className="w-full px-4 py-3 rounded-xl bg-slate-50 border border-slate-200 text-slate-900 text-sm placeholder-slate-400 focus:outline-none focus:ring-2 focus:ring-blue-500/20 focus:border-blue-500 transition-all"
+                className={`w-full px-4 py-3 rounded-xl bg-slate-50 border text-slate-900 text-sm placeholder-slate-400 focus:outline-none focus:ring-2 transition-all ${
+                  identifierError
+                    ? 'border-rose-500 focus:ring-rose-500/20 focus:border-rose-500'
+                    : 'border-slate-200 focus:ring-blue-500/20 focus:border-blue-500'
+                }`}
               />
+              {identifierError && (
+                <p className="text-[11px] text-rose-600 font-medium flex items-center gap-1 mt-0.5">
+                  <AlertCircle className="w-3.5 h-3.5 shrink-0" />
+                  <span>{identifierError}</span>
+                </p>
+              )}
             </div>
 
             {/* Password Field */}

@@ -1,7 +1,13 @@
-﻿import React, { useState } from 'react';
-import { Camera, Mail, Send, Check } from 'lucide-react';
+import React, { useState } from 'react';
+import type { Portal } from '../../../types/portal';
+import { Camera, Send, Check } from 'lucide-react';
 
-export function Footer() {
+export interface FooterProps {
+  onSelectPortal?: (portal: Portal) => void;
+  onGoHome?: () => void;
+}
+
+export function Footer({ onSelectPortal, onGoHome }: FooterProps) {
   const [email, setEmail] = useState('');
   const [subscribed, setSubscribed] = useState(false);
 
@@ -14,6 +20,44 @@ export function Footer() {
     }
   };
 
+  const handleGoHome = (e?: React.MouseEvent) => {
+    e?.preventDefault();
+    if (onGoHome) {
+      onGoHome();
+    } else if (onSelectPortal) {
+      onSelectPortal('HOME');
+    }
+    window.location.hash = '#/';
+    window.scrollTo({ top: 0, behavior: 'smooth' });
+  };
+
+  const handleNavigatePortal = (portal: Portal, e?: React.MouseEvent) => {
+    e?.preventDefault();
+    if (onSelectPortal) {
+      onSelectPortal(portal);
+    }
+    window.scrollTo({ top: 0, behavior: 'smooth' });
+  };
+
+  const handleFaqClick = (e: React.MouseEvent) => {
+    e.preventDefault();
+    const faqEl = document.getElementById('faq-section');
+    if (faqEl) {
+      faqEl.scrollIntoView({ behavior: 'smooth' });
+      window.location.hash = '#/faq-section';
+    } else {
+      if (onGoHome) {
+        onGoHome();
+      } else if (onSelectPortal) {
+        onSelectPortal('HOME');
+      }
+      window.location.hash = '#/faq-section';
+      setTimeout(() => {
+        document.getElementById('faq-section')?.scrollIntoView({ behavior: 'smooth' });
+      }, 200);
+    }
+  };
+
   return (
     <footer className="bg-[#0B1528] text-slate-400 text-sm border-t border-slate-800/80">
       <div className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 py-14">
@@ -21,15 +65,18 @@ export function Footer() {
 
           {/* Brand Column (4 cols) */}
           <div className="lg:col-span-4 space-y-4">
-            <div className="flex items-center gap-2.5">
-              <div className="w-9 h-9 rounded-xl bg-blue-600 flex items-center justify-center text-white shadow-sm">
+            <button
+              onClick={handleGoHome}
+              className="flex items-center gap-2.5 text-left group cursor-pointer"
+            >
+              <div className="w-9 h-9 rounded-xl bg-blue-600 flex items-center justify-center text-white shadow-sm group-hover:bg-blue-500 transition-colors">
                 <Camera className="w-5 h-5" />
               </div>
-              <span className="font-extrabold text-xl tracking-tight text-white flex items-center gap-1">
+              <span className="font-extrabold text-xl tracking-tight text-white flex items-center gap-1 group-hover:text-blue-300 transition-colors">
                 FilmContest
                 <span className="w-1.5 h-1.5 rounded-full bg-blue-500"></span>
               </span>
-            </div>
+            </button>
 
             <p className="text-slate-400 text-xs sm:text-sm leading-relaxed max-w-sm">
               Nền tảng tổ chức và quản lý cuộc thi nhiếp ảnh phim tích hợp trí tuệ nhân tạo.
@@ -47,24 +94,36 @@ export function Footer() {
             </h4>
             <ul className="space-y-2 text-xs">
               <li>
-                <a href="#about" className="hover:text-white transition-colors">
+                <button
+                  onClick={(e) => handleNavigatePortal('ABOUT', e)}
+                  className="hover:text-white transition-colors cursor-pointer text-left"
+                >
                   Giới thiệu
-                </a>
+                </button>
               </li>
               <li>
-                <a href="#terms" className="hover:text-white transition-colors">
+                <button
+                  onClick={(e) => handleNavigatePortal('TERMS', e)}
+                  className="hover:text-white transition-colors cursor-pointer text-left"
+                >
                   Điều khoản sử dụng
-                </a>
+                </button>
               </li>
               <li>
-                <a href="#privacy" className="hover:text-white transition-colors">
+                <button
+                  onClick={(e) => handleNavigatePortal('PRIVACY', e)}
+                  className="hover:text-white transition-colors cursor-pointer text-left"
+                >
                   Chính sách bảo mật
-                </a>
+                </button>
               </li>
               <li>
-                <a href="#contact" className="hover:text-white transition-colors">
+                <button
+                  onClick={(e) => handleNavigatePortal('CONTACT', e)}
+                  className="hover:text-white transition-colors cursor-pointer text-left"
+                >
                   Liên hệ
-                </a>
+                </button>
               </li>
             </ul>
           </div>
@@ -76,19 +135,28 @@ export function Footer() {
             </h4>
             <ul className="space-y-2 text-xs">
               <li>
-                <a href="#guide" className="hover:text-white transition-colors">
+                <button
+                  onClick={(e) => handleNavigatePortal('GUIDE', e)}
+                  className="hover:text-white transition-colors cursor-pointer text-left"
+                >
                   Hướng dẫn
-                </a>
+                </button>
               </li>
               <li>
-                <a href="#faq" className="hover:text-white transition-colors">
+                <button
+                  onClick={handleFaqClick}
+                  className="hover:text-white transition-colors cursor-pointer text-left"
+                >
                   Câu hỏi thường gặp
-                </a>
+                </button>
               </li>
               <li>
-                <a href="#support" className="hover:text-white transition-colors">
+                <button
+                  onClick={(e) => handleNavigatePortal('CONTACT', e)}
+                  className="hover:text-white transition-colors cursor-pointer text-left"
+                >
                   Liên hệ hỗ trợ
-                </a>
+                </button>
               </li>
             </ul>
           </div>
@@ -100,19 +168,20 @@ export function Footer() {
             </h4>
             <ul className="space-y-2 text-xs">
               <li>
-                <a href="#news" className="hover:text-white transition-colors">
+                <button
+                  onClick={(e) => handleNavigatePortal('ARTICLES', e)}
+                  className="hover:text-white transition-colors cursor-pointer text-left"
+                >
                   Tin tức
-                </a>
+                </button>
               </li>
               <li>
-                <a href="#events" className="hover:text-white transition-colors">
+                <button
+                  onClick={(e) => handleNavigatePortal('EVENTS', e)}
+                  className="hover:text-white transition-colors cursor-pointer text-left"
+                >
                   Sự kiện
-                </a>
-              </li>
-              <li>
-                <a href="#connect" className="hover:text-white transition-colors">
-                  Kết nối cộng đồng
-                </a>
+                </button>
               </li>
             </ul>
 
@@ -122,7 +191,9 @@ export function Footer() {
               </h5>
               <div className="flex items-center gap-2 text-slate-400">
                 <a
-                  href="#fb"
+                  href="https://facebook.com"
+                  target="_blank"
+                  rel="noreferrer"
                   className="w-8 h-8 rounded-lg bg-slate-800/80 hover:bg-blue-600 hover:text-white flex items-center justify-center transition-colors"
                   aria-label="Facebook"
                 >
@@ -131,7 +202,9 @@ export function Footer() {
                   </svg>
                 </a>
                 <a
-                  href="#ig"
+                  href="https://instagram.com"
+                  target="_blank"
+                  rel="noreferrer"
                   className="w-8 h-8 rounded-lg bg-slate-800/80 hover:bg-pink-600 hover:text-white flex items-center justify-center transition-colors"
                   aria-label="Instagram"
                 >
@@ -140,7 +213,9 @@ export function Footer() {
                   </svg>
                 </a>
                 <a
-                  href="#yt"
+                  href="https://youtube.com"
+                  target="_blank"
+                  rel="noreferrer"
                   className="w-8 h-8 rounded-lg bg-slate-800/80 hover:bg-red-600 hover:text-white flex items-center justify-center transition-colors"
                   aria-label="YouTube"
                 >
@@ -149,7 +224,9 @@ export function Footer() {
                   </svg>
                 </a>
                 <a
-                  href="#tw"
+                  href="https://x.com"
+                  target="_blank"
+                  rel="noreferrer"
                   className="w-8 h-8 rounded-lg bg-slate-800/80 hover:bg-sky-500 hover:text-white flex items-center justify-center transition-colors"
                   aria-label="Twitter"
                 >

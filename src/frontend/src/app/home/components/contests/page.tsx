@@ -156,7 +156,12 @@ export default function ContestsPage({
         onGoHome={onGoHome}
         onNavigateTab={(tab) => {
           if (tab === 'Trang chủ') onGoHome();
+          else if (tab === 'Bảng xếp hạng') onSelectPortal?.('LEADERBOARD');
+          else if (tab === 'Kho ảnh đạt giải') onSelectPortal?.('WINNING_PHOTOS');
+          else if (tab === 'Hướng dẫn') onSelectPortal?.('GUIDE');
+          else if (tab === 'Tin tức') onSelectPortal?.('ARTICLES');
         }}
+        onSelectPortal={onSelectPortal}
         onLoginClick={() => onOpenAuth('LOGIN')}
         onRegisterClick={() => onOpenAuth('REGISTER')}
       />
@@ -350,7 +355,7 @@ export default function ContestsPage({
       </main>
 
       {/* 3. Footer */}
-      <Footer />
+      <Footer onSelectPortal={onSelectPortal} onGoHome={onGoHome} />
 
       {/* Contest Detail Modal */}
       {selectedContest && (

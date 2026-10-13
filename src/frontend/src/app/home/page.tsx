@@ -1,4 +1,4 @@
-﻿import React, { useState } from 'react';
+import React, { useState } from 'react';
 import type { Portal } from '../../types/portal';
 import { Navbar } from './components/Navbar';
 import { HeroSection } from './components/HeroSection';
@@ -7,6 +7,8 @@ import { LiveContestsSection, type ContestItem } from './components/LiveContests
 import { FeaturedArticlesSection } from './components/FeaturedArticlesSection';
 import { ExhibitionSection } from './components/ExhibitionSection';
 import { AiTechSection } from './components/AiTechSection';
+import { FaqSection } from './components/FaqSection';
+import { ContestStepsGuideSection } from './components/ContestStepsGuideSection';
 import { Footer } from './components/Footer';
 import { ContestDetailModal } from './components/ContestDetailModal';
 
@@ -15,6 +17,8 @@ interface HomePageProps {
   onOpenAuth?: (mode: 'LOGIN' | 'REGISTER') => void;
   onOpenContestDetail?: (contestId: string) => void;
   onOpenPhotoDetail?: (photoId: string) => void;
+  onOpenArticleDetail?: (articleId: string) => void;
+  onViewAllArticles?: () => void;
 }
 
 export default function HomePage({
@@ -22,6 +26,8 @@ export default function HomePage({
   onOpenAuth,
   onOpenContestDetail,
   onOpenPhotoDetail,
+  onOpenArticleDetail,
+  onViewAllArticles,
 }: HomePageProps) {
   const [activeTab, setActiveTab] = useState<string>('Trang chủ');
   const [selectedContest, setSelectedContest] = useState<ContestItem | null>(null);
@@ -30,15 +36,23 @@ export default function HomePage({
     setActiveTab(tab);
     if (tab === 'Cuộc thi') {
       onSelectPortal('CONTESTS');
+    } else if (tab === 'Bảng xếp hạng') {
+      onSelectPortal('LEADERBOARD');
     } else if (tab === 'Tin tức') {
-      const el = document.getElementById('featured-articles');
-      el?.scrollIntoView({ behavior: 'smooth' });
+      if (onViewAllArticles) {
+        onViewAllArticles();
+      } else {
+        onSelectPortal('ARTICLES');
+      }
     } else if (tab === 'Kho ảnh đạt giải') {
       onSelectPortal('WINNING_PHOTOS');
+    } else if (tab === 'Hướng dẫn') {
+      onSelectPortal('GUIDE');
     } else if (tab === 'Trang chủ') {
       window.scrollTo({ top: 0, behavior: 'smooth' });
     }
   };
+
 
   const handleRegister = () => {
     if (onOpenAuth) {
@@ -103,10 +117,18 @@ export default function HomePage({
         <div id="featured-articles">
           <FeaturedArticlesSection
             onSelectArticle={(article) => {
-              alert(`Xem bài viết: "${article.title}"`);
+              if (onOpenArticleDetail) {
+                onOpenArticleDetail(article.id);
+              } else {
+                onSelectPortal('ARTICLE_DETAIL');
+              }
             }}
             onViewAll={() => {
-              alert('Chuyển tới trang toàn bộ tin tức & kiến thức nhiếp ảnh');
+              if (onViewAllArticles) {
+                onViewAllArticles();
+              } else {
+                onSelectPortal('ARTICLES');
+              }
             }}
           />
         </div>
@@ -123,10 +145,19 @@ export default function HomePage({
 
         {/* 7. Công nghệ AI hỗ trợ cuộc thi ảnh phim */}
         <AiTechSection />
+
+        {/* 8. Câu hỏi thường gặp & Hỗ trợ (FAQ) */}
+        <FaqSection />
+
+        {/* 9. Hướng dẫn các bước tham gia cuộc thi */}
+        <ContestStepsGuideSection
+          onSelectPortal={onSelectPortal}
+          onOpenAuth={onOpenAuth}
+        />
       </main>
 
-      {/* 8. Footer */}
-      <Footer />
+      {/* 10. Footer */}
+      <Footer onSelectPortal={onSelectPortal} onGoHome={() => handleNavigateTab('Trang chủ')} />
 
       {/* Interactive Contest Detail Modal */}
       {selectedContest && (

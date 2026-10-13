@@ -1,5 +1,6 @@
 import React, { useState } from 'react';
-import { Eye, EyeOff, Check } from 'lucide-react';
+import { Eye, EyeOff, Check, AlertCircle } from 'lucide-react';
+import { validateVietnamesePhone } from '../../../utils/phoneValidator';
 
 interface RegisterFormProps {
   onSwitchToLogin: () => void;
@@ -10,6 +11,7 @@ export function RegisterForm({ onSwitchToLogin, onSubmitSuccess }: RegisterFormP
   const [fullName, setFullName] = useState('');
   const [email, setEmail] = useState('');
   const [phone, setPhone] = useState('');
+  const [phoneError, setPhoneError] = useState('');
   const [password, setPassword] = useState('');
   const [confirmPassword, setConfirmPassword] = useState('');
   const [showPassword, setShowPassword] = useState(false);
@@ -22,6 +24,15 @@ export function RegisterForm({ onSwitchToLogin, onSubmitSuccess }: RegisterFormP
       alert('Vui lòng đồng ý với Điều khoản sử dụng và Chính sách bảo mật');
       return;
     }
+
+    // Validate số điện thoại Việt Nam 10 số
+    const phoneCheck = validateVietnamesePhone(phone);
+    if (!phoneCheck.isValid) {
+      setPhoneError(phoneCheck.error);
+      return;
+    }
+    setPhoneError('');
+
     if (password !== confirmPassword) {
       alert('Mật khẩu xác nhận không khớp!');
       return;
@@ -30,7 +41,7 @@ export function RegisterForm({ onSwitchToLogin, onSubmitSuccess }: RegisterFormP
     if (onSubmitSuccess) {
       onSubmitSuccess();
     } else {
-      alert(`Đăng ký thành công tài khoản: ${fullName} (${email})!`);
+      alert(`Đăng ký thành công tài khoản: ${fullName} (${email} - SĐT: ${phoneCheck.normalizedPhone})!`);
       onSwitchToLogin();
     }
   };
@@ -135,15 +146,41 @@ export function RegisterForm({ onSwitchToLogin, onSubmitSuccess }: RegisterFormP
 
             {/* Phone Number Field */}
             <div className="space-y-1">
-              <label className="text-xs font-semibold text-slate-700">Số điện thoại</label>
+              <div className="flex items-center justify-between">
+                <label className="text-xs font-semibold text-slate-700">Số điện thoại *</label>
+                <span className="text-[11px] text-slate-400">10 số (03, 05, 07, 08, 09)</span>
+              </div>
               <input
                 type="tel"
                 value={phone}
-                onChange={(e) => setPhone(e.target.value)}
-                placeholder="Nhập số điện thoại"
+                onChange={(e) => {
+                  setPhone(e.target.value);
+                  if (phoneError) {
+                    const check = validateVietnamesePhone(e.target.value);
+                    if (check.isValid) setPhoneError('');
+                  }
+                }}
+                onBlur={() => {
+                  if (phone.trim()) {
+                    const check = validateVietnamesePhone(phone);
+                    if (!check.isValid) setPhoneError(check.error);
+                  }
+                }}
+                placeholder="Ví dụ: 0912345678"
                 required
-                className="w-full px-4 py-2.5 rounded-xl bg-slate-50 border border-slate-200 text-slate-900 text-sm placeholder-slate-400 focus:outline-none focus:ring-2 focus:ring-blue-500/20 focus:border-blue-500 transition-all"
+                maxLength={11}
+                className={`w-full px-4 py-2.5 rounded-xl bg-slate-50 border text-slate-900 text-sm placeholder-slate-400 focus:outline-none focus:ring-2 transition-all ${
+                  phoneError
+                    ? 'border-rose-500 focus:ring-rose-500/20 focus:border-rose-500'
+                    : 'border-slate-200 focus:ring-blue-500/20 focus:border-blue-500'
+                }`}
               />
+              {phoneError && (
+                <p className="text-[11px] text-rose-600 font-medium flex items-center gap-1 mt-0.5">
+                  <AlertCircle className="w-3.5 h-3.5 shrink-0" />
+                  <span>{phoneError}</span>
+                </p>
+              )}
             </div>
 
             {/* Password Field */}

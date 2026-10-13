@@ -1,54 +1,15 @@
 import React from 'react';
 import { Newspaper, Calendar, ArrowRight } from 'lucide-react';
+import { ALL_ARTICLES_LIST, type ArticleItem } from './articles/data';
 
-export interface ArticleItem {
-  id: string;
-  title: string;
-  date: string;
-  image: string;
-  category?: string;
-  readTime?: string;
-}
+export type { ArticleItem };
 
 interface FeaturedArticlesSectionProps {
   onSelectArticle?: (article: ArticleItem) => void;
   onViewAll?: () => void;
 }
 
-export const FEATURED_ARTICLES: ArticleItem[] = [
-  {
-    id: '5-meo-chup-phim',
-    title: '5 mẹo chụp phim cho người mới bắt đầu',
-    date: '10/06/2025',
-    image: 'https://images.unsplash.com/photo-1516035069371-29a1b244cc32?auto=format&fit=crop&w=800&q=80',
-    category: 'Cơ bản',
-    readTime: '5 phút đọc',
-  },
-  {
-    id: 'nhung-cuon-phim-kinh-dien',
-    title: 'Những cuộn phim kinh điển nên thử',
-    date: '05/06/2025',
-    image: 'https://images.unsplash.com/photo-1495745966610-2a67f2297e5e?auto=format&fit=crop&w=800&q=80',
-    category: 'Film Stock',
-    readTime: '8 phút đọc',
-  },
-  {
-    id: 'ky-thuat-scan-phim',
-    title: 'Kỹ thuật scan phim cho chất lượng tốt',
-    date: '28/05/2025',
-    image: 'https://images.unsplash.com/photo-1452780212940-6f5c0d14d848?auto=format&fit=crop&w=800&q=80',
-    category: 'Hậu kỳ & Scan',
-    readTime: '6 phút đọc',
-  },
-  {
-    id: 'cau-chuyen-nhiep-anh-phim',
-    title: 'Câu chuyện về nhiếp ảnh phim',
-    date: '20/05/2025',
-    image: 'https://images.unsplash.com/photo-1534447677768-be436bb09401?auto=format&fit=crop&w=800&q=80',
-    category: 'Cảm hứng',
-    readTime: '10 phút đọc',
-  },
-];
+export const FEATURED_ARTICLES: ArticleItem[] = ALL_ARTICLES_LIST.slice(0, 4);
 
 export function FeaturedArticlesSection({
   onSelectArticle,

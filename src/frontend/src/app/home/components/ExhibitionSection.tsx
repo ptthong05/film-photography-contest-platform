@@ -1,5 +1,8 @@
-﻿import React from 'react';
+import React from 'react';
 import { Award, ArrowRight, Eye, Heart } from 'lucide-react';
+
+const STORAGE_LIKED_KEY = 'film_contest_liked_photos';
+const STORAGE_LIKES_COUNT_KEY = 'film_contest_photo_likes_counts';
 
 export function ExhibitionSection({
   onExploreMore,
@@ -8,7 +11,23 @@ export function ExhibitionSection({
   onExploreMore?: () => void;
   onSelectPhoto?: (photoId: string) => void;
 }) {
-  const [likedMap, setLikedMap] = React.useState<Record<string, boolean>>({});
+  const [likedMap, setLikedMap] = React.useState<Record<string, boolean>>(() => {
+    try {
+      const saved = localStorage.getItem(STORAGE_LIKED_KEY);
+      return saved ? JSON.parse(saved) : {};
+    } catch {
+      return {};
+    }
+  });
+
+  const [likesCountMap, setLikesCountMap] = React.useState<Record<string, number>>(() => {
+    try {
+      const saved = localStorage.getItem(STORAGE_LIKES_COUNT_KEY);
+      return saved ? JSON.parse(saved) : {};
+    } catch {
+      return {};
+    }
+  });
 
   const winningPhotos = [
     {
@@ -48,6 +67,30 @@ export function ExhibitionSection({
       likes: 189,
     },
   ];
+
+  const handleToggleLike = (e: React.MouseEvent, photoId: string, baseLikes: number) => {
+    e.stopPropagation();
+    const isCurrentlyLiked = !!likedMap[photoId];
+    const newLiked = !isCurrentlyLiked;
+
+    const newLikedMap = { ...likedMap, [photoId]: newLiked };
+    setLikedMap(newLikedMap);
+    try {
+      localStorage.setItem(STORAGE_LIKED_KEY, JSON.stringify(newLikedMap));
+    } catch (err) {
+      console.error('Failed to save liked photos:', err);
+    }
+
+    const currentCount = likesCountMap[photoId] ?? (baseLikes + (isCurrentlyLiked ? 1 : 0));
+    const newCount = isCurrentlyLiked ? Math.max(baseLikes, currentCount - 1) : currentCount + 1;
+    const newLikesCountMap = { ...likesCountMap, [photoId]: newCount };
+    setLikesCountMap(newLikesCountMap);
+    try {
+      localStorage.setItem(STORAGE_LIKES_COUNT_KEY, JSON.stringify(newLikesCountMap));
+    } catch (err) {
+      console.error('Failed to save likes count:', err);
+    }
+  };
 
   return (
     <section className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 py-10">
@@ -89,13 +132,7 @@ export function ExhibitionSection({
               {/* Heart Button floating at top-right corner */}
               <button
                 type="button"
-                onClick={(e) => {
-                  e.stopPropagation();
-                  setLikedMap((prev) => ({
-                    ...prev,
-                    [photo.id]: !prev[photo.id],
-                  }));
-                }}
+                onClick={(e) => handleToggleLike(e, photo.id, photo.likes)}
                 className="absolute top-2.5 right-2.5 z-10 w-8 h-8 rounded-full bg-black/40 hover:bg-black/60 backdrop-blur-xs flex items-center justify-center text-white transition-all hover:scale-110 active:scale-95 cursor-pointer shadow-sm"
                 title="Yêu thích tác phẩm"
               >
@@ -126,7 +163,7 @@ export function ExhibitionSection({
               </div>
               <div className="flex items-center gap-1.5 text-rose-500 font-semibold">
                 <Heart className="w-3.5 h-3.5 fill-rose-500" />
-                <span>{photo.likes + (likedMap[photo.id] ? 1 : 0)}</span>
+                <span>{likesCountMap[photo.id] ?? (photo.likes + (likedMap[photo.id] ? 1 : 0))}</span>
               </div>
             </div>
           </div>

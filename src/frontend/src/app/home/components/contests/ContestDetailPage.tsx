@@ -397,7 +397,7 @@ export function ContestDetailPage({
       </main>
 
       {/* Footer */}
-      <Footer />
+      <Footer onSelectPortal={onSelectPortal} onGoHome={onGoHome} />
     </div>
   );
 }
