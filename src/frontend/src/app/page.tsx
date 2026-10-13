@@ -1,6 +1,5 @@
 import { useState } from 'react';
 import type { Portal } from '../types/portal';
-import { BackButton } from '../components/BackButton';
 import HomePage from './home/page';
 import AuthPage from './auth/page';
 import ContestsPage from './home/contests/page';
@@ -14,7 +13,7 @@ import JudgePage from './judge/page';
 import ParticipantPage from './participant/page';
 
 export default function RootPage() {
-  const [activePortal, setActivePortal] = useState<Portal>('HOME');
+  const [activePortal, setActivePortal] = useState<Portal>('PARTICIPANT');
   const [authMode, setAuthMode] = useState<'LOGIN' | 'REGISTER'>('LOGIN');
   const [selectedContestId, setSelectedContestId] = useState<string>('analog-moments-2025');
   const [selectedPhotoId, setSelectedPhotoId] = useState<string>('p1');
@@ -63,7 +62,7 @@ export default function RootPage() {
       <AuthPage
         initialMode={authMode}
         onGoHome={goHome}
-        onLoginSuccess={(dashboardRole) => setActivePortal(dashboardRole)}
+        onLoginSuccess={(dashboardRole: Portal) => setActivePortal(dashboardRole)}
       />
     );
   }
@@ -132,12 +131,17 @@ export default function RootPage() {
   }
 
   return (
-    <div className="relative">
-      <BackButton label="Về Trang Chủ" onClick={goHome} />
+    <div className="relative min-h-screen bg-slate-50 text-slate-800">
+      {(activePortal as string) === 'AUTH' && (
+        <AuthPage
+          initialMode={authMode}
+          onLoginSuccess={(dashboardRole: Portal) => setActivePortal(dashboardRole)}
+        />
+      )}
       {activePortal === 'ADMIN' && <AdminPage />}
       {activePortal === 'ORGANIZER' && <OrganizerPage />}
       {activePortal === 'JUDGE' && <JudgePage />}
-      {activePortal === 'PARTICIPANT' && <ParticipantPage />}
+      {activePortal === 'PARTICIPANT' && <ParticipantPage onGoHome={goHome} />}
     </div>
   );
 }

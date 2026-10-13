@@ -1,12 +1,126 @@
+import React, { useState } from 'react';
+import { Search, Bell } from 'lucide-react';
+import { Sidebar } from './components/Sidebar';
+import { DashboardTab } from './components/DashboardTab';
+import { ContestsTab } from './components/ContestsTab';
+import { ProfileTab } from './components/ProfileTab';
+import { FilmRollTab } from './components/FilmRollTab';
 import { SubmitEntryForm } from './components/SubmitEntryForm';
 import { MyEntriesList } from './components/MyEntriesList';
+import { ResultsTab } from './components/ResultsTab';
 
-export default function ParticipantPage() {
+interface ParticipantPageProps {
+  onGoHome?: () => void;
+}
+
+export default function ParticipantPage({ onGoHome }: ParticipantPageProps) {
+  const [activeTab, setActiveTab] = useState<string>('dashboard');
+  const [searchQuery, setSearchQuery] = useState<string>('');
+  const [isNotificationOpen, setIsNotificationOpen] = useState<boolean>(false);
+  const [registeredContestIds, setRegisteredContestIds] = useState<number[]>([1, 2]);
+
+  const registeredContests = [
+    { id: 1, title: 'Analog Moments 2026' },
+    { id: 2, title: 'Film & City' }
+  ];
+
+  const handleToggleRegister = (contestId: number) => {
+    if (registeredContestIds.includes(contestId)) {
+      setRegisteredContestIds(registeredContestIds.filter((id) => id !== contestId));
+    } else {
+      setRegisteredContestIds([...registeredContestIds, contestId]);
+    }
+  };
+
   return (
-    <main className="min-h-screen p-8 pt-16 space-y-6">
-      <h1 className="text-2xl font-bold">Thí Sinh</h1>
-      <SubmitEntryForm />
-      <MyEntriesList />
-    </main>
+    <div className="flex min-h-screen bg-slate-100 text-slate-800 font-sans text-base">
+      <Sidebar activeTab={activeTab} setActiveTab={setActiveTab} onGoHome={onGoHome} />
+
+      <main className="flex-1 flex flex-col h-screen overflow-hidden">
+        <header className="bg-white border-b border-slate-200 px-8 py-4 flex items-center justify-between gap-6 flex-shrink-0 z-20">
+          <div className="relative flex-1 max-w-xl">
+            <Search className="absolute left-4 top-1/2 -translate-y-1/2 w-5 h-5 text-slate-400" />
+            <input
+              type="text"
+              placeholder="Tìm kiếm cuộc thi, bài dự thi, nhiếp ảnh gia..."
+              value={searchQuery}
+              onChange={(e) => setSearchQuery(e.target.value)}
+              className="w-full pl-11 pr-4 py-2.5 bg-slate-100 text-slate-800 border border-slate-200 rounded-xl text-sm focus:outline-none focus:ring-2 focus:ring-blue-500 focus:bg-white transition-all"
+            />
+          </div>
+
+          <div className="flex items-center space-x-4 relative">
+            <button
+              onClick={() => setIsNotificationOpen(!isNotificationOpen)}
+              className="relative p-2.5 bg-slate-100 hover:bg-slate-200 rounded-xl text-slate-700 transition-all"
+            >
+              <Bell className="w-5 h-5" />
+              <span className="absolute top-1.5 right-1.5 w-2.5 h-2.5 bg-red-500 rounded-full"></span>
+            </button>
+
+            {isNotificationOpen && (
+              <div className="absolute right-0 top-14 w-80 bg-white rounded-2xl shadow-2xl border border-slate-200 p-4 z-50 space-y-3">
+                <div className="flex justify-between items-center border-b pb-2">
+                  <h4 className="font-bold text-slate-900 text-sm">Thông báo hệ thống</h4>
+                  <button onClick={() => setIsNotificationOpen(false)} className="text-xs text-blue-600 font-bold">
+                    Đóng
+                  </button>
+                </div>
+                <p className="p-2.5 bg-blue-50 rounded-xl text-xs text-slate-600">
+                  🔹 Bài dự thi của bạn đã được kiểm duyệt thành công.
+                </p>
+              </div>
+            )}
+
+            <div className="h-6 w-px bg-slate-200"></div>
+            <div className="text-right hidden sm:block">
+              <p className="text-sm font-bold text-slate-900">Nguyễn Văn A</p>
+              <p className="text-xs text-slate-500 font-medium">Participant Portal</p>
+            </div>
+          </div>
+        </header>
+
+        <div className="flex-1 p-8 space-y-8 overflow-y-auto">
+          {activeTab === 'dashboard' && (
+            <DashboardTab
+              contestCount={3}
+              registeredCount={registeredContestIds.length}
+              onNavigate={(tab) => setActiveTab(tab)}
+            />
+          )}
+
+          {activeTab === 'contests' && (
+            <ContestsTab
+              registeredIds={registeredContestIds}
+              onToggleRegister={handleToggleRegister}
+              onNavigateSubmit={() => setActiveTab('submit')}
+            />
+          )}
+
+          {activeTab === 'my-registrations' && (
+            <ContestsTab
+              registeredIds={registeredContestIds}
+              onToggleRegister={handleToggleRegister}
+              onNavigateSubmit={() => setActiveTab('submit')}
+            />
+          )}
+
+          {activeTab === 'profile' && <ProfileTab />}
+
+          {activeTab === 'film-roll' && <FilmRollTab />}
+
+          {activeTab === 'submit' && (
+            <SubmitEntryForm
+              registeredContests={registeredContests}
+              onSubmitSuccess={() => setActiveTab('my-entries')}
+            />
+          )}
+
+          {activeTab === 'my-entries' && <MyEntriesList />}
+
+          {activeTab === 'results' && <ResultsTab />}
+        </div>
+      </main>
+    </div>
   );
 }

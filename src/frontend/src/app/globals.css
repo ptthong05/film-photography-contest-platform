@@ -1,19 +1,20 @@
 @import "tailwindcss";
 
-/* ===== Design tokens — dùng qua class Tailwind: bg-primary, text-muted... ===== */
+/* ===== Design tokens — Cấu hình màu chuẩn theo bản vẽ 2. Participant.png ===== */
 @theme {
-  --color-primary: var(--color-amber-500);
-  --color-primary-hover: var(--color-amber-400);
-  --color-surface: var(--color-zinc-900);
-  --color-border: var(--color-zinc-800);
-  --color-muted: var(--color-zinc-400);
+  --color-primary: #2563eb;        /* Màu xanh dương chủ đạo */
+  --color-primary-hover: #1d4ed8;  /* Màu xanh dương khi hover */
+  --color-surface: #ffffff;        /* Màu nền thẻ/khung trắng */
+  --color-border: #e2e8f0;         /* Màu đường viền xám nhạt */
+  --color-muted: #64748b;          /* Màu chữ phụ xám */
+  --color-sidebar: #0f172a;        /* Màu thanh menu bên trái */
 }
 
-/* ===== Base ===== */
+/* ===== Base Style ===== */
 body {
   min-height: 100vh;
-  background-color: var(--color-zinc-950);
-  color: var(--color-zinc-100);
+  background-color: #f8fafc;       /* Màu nền tổng thể xám sáng */
+  color: #0f172a;                  /* Màu chữ chính tối màu */
   font-family: ui-sans-serif, system-ui, -apple-system, "Segoe UI", Roboto, Arial, sans-serif;
 }
 
@@ -21,17 +22,17 @@ body {
   min-height: 100vh;
 }
 
-/* ===== Scrollbar ===== */
+/* ===== Scrollbar tinh chỉnh gọn đẹp ===== */
 ::-webkit-scrollbar {
   width: 6px;
   height: 6px;
 }
 
 ::-webkit-scrollbar-thumb {
-  background: rgba(255, 255, 255, 0.15);
+  background: #cbd5e1;
   border-radius: 4px;
 }
 
 ::-webkit-scrollbar-thumb:hover {
-  background: rgba(255, 255, 255, 0.3);
+  background: #94a3b8;
 }
