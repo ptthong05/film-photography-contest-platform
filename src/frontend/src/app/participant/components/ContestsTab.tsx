@@ -83,7 +83,7 @@ export function ContestsTab({
             <span className="flex items-center gap-1.5"><Calendar className="w-4 h-4" /> {selectedContest.startDate} - {selectedContest.endDate}</span>
             <span className="flex items-center gap-1.5"><MapPin className="w-4 h-4" /> Địa điểm: {selectedContest.location}</span>
           </div>
-          
+        
           <div className="pt-2">
             <button
               onClick={() => onToggleRegister(selectedContest.id)}
