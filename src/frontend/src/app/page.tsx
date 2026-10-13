@@ -62,7 +62,7 @@ export default function RootPage() {
       <AuthPage
         initialMode={authMode}
         onGoHome={goHome}
-        onLoginSuccess={(dashboardRole: any) => setActivePortal(dashboardRole)}
+        onLoginSuccess={(dashboardRole: Portal) => setActivePortal(dashboardRole)}
       />
     );
   }
@@ -132,12 +132,12 @@ export default function RootPage() {
 
   return (
     <div className="relative min-h-screen bg-slate-50 text-slate-800">
-      {(activePortal as any) === 'AUTH' && (
-  <AuthPage 
-    initialMode={authMode}
-    onLoginSuccess={(dashboardRole: any) => setActivePortal(dashboardRole)} 
-  />
-     )}
+      {(activePortal as string) === 'AUTH' && (
+        <AuthPage 
+          initialMode={authMode}
+          onLoginSuccess={(dashboardRole: Portal) => setActivePortal(dashboardRole)} 
+        />
+      )}
       {activePortal === 'ADMIN' && <AdminPage />}
       {activePortal === 'ORGANIZER' && <OrganizerPage />}
       {activePortal === 'JUDGE' && <JudgePage />}
