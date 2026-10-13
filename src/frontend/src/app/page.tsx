@@ -14,6 +14,10 @@ import ParticipantPage from './participant/page';
 
 export default function RootPage() {
   const [activePortal, setActivePortal] = useState<Portal>('PARTICIPANT');
+  const [authMode, setAuthMode] = useState<'LOGIN' | 'REGISTER'>('LOGIN');
+  const [selectedContestId, setSelectedContestId] = useState<string>('analog-moments-2025');
+  const [selectedPhotoId, setSelectedPhotoId] = useState<string>('p1');
+  const [selectedAuthorName, setSelectedAuthorName] = useState<string>('Hoàng Văn E');
 
   const goHome = () => setActivePortal('HOME');
   const goContests = () => setActivePortal('CONTESTS');
@@ -58,7 +62,7 @@ export default function RootPage() {
       <AuthPage
         initialMode={authMode}
         onGoHome={goHome}
-        onLoginSuccess={(dashboardRole) => setActivePortal(dashboardRole)}
+        onLoginSuccess={(dashboardRole: any) => setActivePortal(dashboardRole)}
       />
     );
   }
@@ -127,13 +131,13 @@ export default function RootPage() {
   }
 
   return (
-<<<<<<< HEAD
     <div className="relative min-h-screen bg-slate-50 text-slate-800">
-      {activePortal === 'AUTH' && <AuthPage onLoginSuccess={setActivePortal} />}
-=======
-    <div className="relative">
-      <BackButton label="Về Trang Chủ" onClick={goHome} />
->>>>>>> develop
+      {(activePortal as any) === 'AUTH' && (
+  <AuthPage 
+    initialMode={authMode}
+    onLoginSuccess={(dashboardRole: any) => setActivePortal(dashboardRole)} 
+  />
+     )}
       {activePortal === 'ADMIN' && <AdminPage />}
       {activePortal === 'ORGANIZER' && <OrganizerPage />}
       {activePortal === 'JUDGE' && <JudgePage />}
