@@ -1,6 +1,5 @@
 import { useState, useEffect } from 'react';
 import type { Portal } from '../types/portal';
-import { BackButton } from '../components/BackButton';
 import HomePage from './home/page';
 import AuthPage from './auth/page';
 import ContestsPage from './home/components/contests/page';
@@ -21,6 +20,7 @@ import AdminPage from './admin/page';
 import OrganizerPage from './organizer/page';
 import JudgePage from './judge/page';
 import ParticipantPage from './participant/page';
+import { BackButton } from '../components/BackButton';
 
 const PORTAL_STORAGE_KEY = 'film_contest_active_portal';
 const CONTEST_ID_STORAGE_KEY = 'film_contest_selected_contest_id';
@@ -541,12 +541,14 @@ export default function RootPage() {
 
 
   return (
-    <div className="relative">
-      <BackButton label="Về Trang Chủ" onClick={goHome} />
+    <div className="relative min-h-screen bg-slate-50 text-slate-800">
+      {activePortal !== 'PARTICIPANT' && (
+        <BackButton label="Về Trang Chủ" onClick={goHome} />
+      )}
       {activePortal === 'ADMIN' && <AdminPage />}
       {activePortal === 'ORGANIZER' && <OrganizerPage />}
       {activePortal === 'JUDGE' && <JudgePage />}
-      {activePortal === 'PARTICIPANT' && <ParticipantPage />}
+      {activePortal === 'PARTICIPANT' && <ParticipantPage onGoHome={goHome} />}
     </div>
   );
 }
