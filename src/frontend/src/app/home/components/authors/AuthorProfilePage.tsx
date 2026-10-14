@@ -1,7 +1,7 @@
-﻿import React, { useState } from 'react';
-import type { Portal } from '../../../types/portal';
-import { Navbar } from '../components/Navbar';
-import { Footer } from '../components/Footer';
+import React, { useState } from 'react';
+import type { Portal } from '../../../../types/portal';
+import { Navbar } from '../Navbar';
+import { Footer } from '../Footer';
 import type { AuthorProfile } from './data';
 import { ALL_AUTHORS_DATA } from './data';
 import {
@@ -29,6 +29,7 @@ interface AuthorProfilePageProps {
   onSelectContest?: (contestId: string) => void;
   onSelectPhoto?: (photoId: string) => void;
   onOpenAuth: (mode: 'LOGIN' | 'REGISTER') => void;
+  onSelectPortal?: (portal: Portal) => void;
 }
 
 export function AuthorProfilePage({
@@ -38,6 +39,7 @@ export function AuthorProfilePage({
   onSelectContest,
   onSelectPhoto,
   onOpenAuth,
+  onSelectPortal,
 }: AuthorProfilePageProps) {
   const [activeTab, setActiveTab] = useState<'awards' | 'contests' | 'works'>('awards');
   const [copied, setCopied] = useState(false);
@@ -61,7 +63,12 @@ export function AuthorProfilePage({
         onNavigateTab={(tab) => {
           if (tab === 'Trang chủ') onGoHome();
           else if (tab === 'Cuộc thi') onGoContests();
+          else if (tab === 'Bảng xếp hạng') onSelectPortal?.('LEADERBOARD');
+          else if (tab === 'Kho ảnh đạt giải') onSelectPortal?.('WINNING_PHOTOS');
+          else if (tab === 'Hướng dẫn') onSelectPortal?.('GUIDE');
+          else if (tab === 'Tin tức') onSelectPortal?.('ARTICLES');
         }}
+        onSelectPortal={onSelectPortal}
         onLoginClick={() => onOpenAuth('LOGIN')}
         onRegisterClick={() => onOpenAuth('REGISTER')}
       />
@@ -486,7 +493,7 @@ export function AuthorProfilePage({
       </main>
 
       {/* Footer */}
-      <Footer />
+      <Footer onSelectPortal={onSelectPortal} onGoHome={onGoHome} />
     </div>
   );
 }

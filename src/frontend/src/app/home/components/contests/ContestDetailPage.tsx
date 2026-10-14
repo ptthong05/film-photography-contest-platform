@@ -1,7 +1,7 @@
-﻿import React, { useState } from 'react';
-import type { Portal } from '../../../types/portal';
-import { Navbar } from '../components/Navbar';
-import { Footer } from '../components/Footer';
+import React, { useState } from 'react';
+import type { Portal } from '../../../../types/portal';
+import { Navbar } from '../Navbar';
+import { Footer } from '../Footer';
 import type { ContestDetailData } from './data';
 import { ALL_CONTESTS, DEFAULT_PRIZES_TEMPLATE } from './data';
 import {
@@ -397,7 +397,7 @@ export function ContestDetailPage({
       </main>
 
       {/* Footer */}
-      <Footer />
+      <Footer onSelectPortal={onSelectPortal} onGoHome={onGoHome} />
     </div>
   );
 }

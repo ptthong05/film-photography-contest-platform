@@ -1,7 +1,7 @@
 import React, { useState, useMemo } from 'react';
-import type { Portal } from '../../../types/portal';
-import { Navbar } from '../components/Navbar';
-import { Footer } from '../components/Footer';
+import type { Portal } from '../../../../types/portal';
+import { Navbar } from '../Navbar';
+import { Footer } from '../Footer';
 import type { PhotoDetailItem } from './data';
 import { ALL_PHOTOS_DATA } from './data';
 import {
@@ -25,6 +25,7 @@ interface WinningPhotosPageProps {
   onGoContests: () => void;
   onSelectPhoto: (photoId: string) => void;
   onOpenAuth: (mode: 'LOGIN' | 'REGISTER') => void;
+  onSelectPortal?: (portal: Portal) => void;
 }
 
 export function WinningPhotosPage({
@@ -32,19 +33,35 @@ export function WinningPhotosPage({
   onGoContests,
   onSelectPhoto,
   onOpenAuth,
+  onSelectPortal,
 }: WinningPhotosPageProps) {
   const [searchQuery, setSearchQuery] = useState('');
   const [selectedRank, setSelectedRank] = useState<string>('all');
   const [selectedYear, setSelectedYear] = useState<string>('all');
   const [selectedCategory, setSelectedCategory] = useState<string>('all');
-  const [likedPhotos, setLikedPhotos] = useState<Record<string, boolean>>({});
+  const [likedPhotos, setLikedPhotos] = useState<Record<string, boolean>>(() => {
+    try {
+      const saved = localStorage.getItem('film_contest_liked_photos');
+      return saved ? JSON.parse(saved) : {};
+    } catch {
+      return {};
+    }
+  });
 
   const handleToggleLike = (e: React.MouseEvent, id: string) => {
     e.stopPropagation();
-    setLikedPhotos((prev) => ({
-      ...prev,
-      [id]: !prev[id],
-    }));
+    setLikedPhotos((prev) => {
+      const updated = {
+        ...prev,
+        [id]: !prev[id],
+      };
+      try {
+        localStorage.setItem('film_contest_liked_photos', JSON.stringify(updated));
+      } catch (err) {
+        console.error(err);
+      }
+      return updated;
+    });
   };
 
   const allPhotos = useMemo(() => Object.values(ALL_PHOTOS_DATA), []);
@@ -117,7 +134,11 @@ export function WinningPhotosPage({
         onNavigateTab={(tab) => {
           if (tab === 'Trang chủ') onGoHome();
           else if (tab === 'Cuộc thi') onGoContests();
+          else if (tab === 'Bảng xếp hạng') onSelectPortal?.('LEADERBOARD');
+          else if (tab === 'Hướng dẫn') onSelectPortal?.('GUIDE');
+          else if (tab === 'Tin tức') onSelectPortal?.('ARTICLES');
         }}
+        onSelectPortal={onSelectPortal}
         onLoginClick={() => onOpenAuth('LOGIN')}
         onRegisterClick={() => onOpenAuth('REGISTER')}
       />
@@ -396,7 +417,7 @@ export function WinningPhotosPage({
       </main>
 
       {/* Footer */}
-      <Footer />
+      <Footer onSelectPortal={onSelectPortal} onGoHome={onGoHome} />
     </div>
   );
 }
