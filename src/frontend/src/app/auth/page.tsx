@@ -1,5 +1,5 @@
 import React, { useState } from 'react';
-import type { DashboardPortal } from '../../types/portal';
+import type { DashboardPortal, Portal } from '../../types/portal';
 import { Navbar } from '../home/components/Navbar';
 import { Footer } from '../home/components/Footer';
 import { LoginForm } from './components/LoginForm';
@@ -8,7 +8,7 @@ import { RegisterForm } from './components/RegisterForm';
 export interface AuthPageProps {
   initialMode?: 'LOGIN' | 'REGISTER';
   onGoHome?: () => void;
-  onSelectPortal?: (portal: any) => void;
+  onSelectPortal?: (portal: Portal) => void;
   onLoginSuccess?: (portal: DashboardPortal) => void;
 }
 
