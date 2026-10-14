@@ -9,9 +9,33 @@ export type Portal =
   | 'CONTEST_DETAIL'
   | 'PHOTO_DETAIL'
   | 'AUTHOR_PROFILE'
-  | 'WINNING_PHOTOS';
+  | 'WINNING_PHOTOS'
+  | 'ARTICLES'
+  | 'ARTICLE_DETAIL'
+  | 'LEADERBOARD'
+  | 'GUIDE'
+  | 'ABOUT'
+  | 'TERMS'
+  | 'PRIVACY'
+  | 'CONTACT'
+  | 'EVENTS';
 
 export type DashboardPortal = Exclude<
   Portal,
-  'HOME' | 'AUTH' | 'CONTESTS' | 'CONTEST_DETAIL' | 'PHOTO_DETAIL' | 'AUTHOR_PROFILE' | 'WINNING_PHOTOS'
+  | 'HOME'
+  | 'AUTH'
+  | 'CONTESTS'
+  | 'CONTEST_DETAIL'
+  | 'PHOTO_DETAIL'
+  | 'AUTHOR_PROFILE'
+  | 'WINNING_PHOTOS'
+  | 'ARTICLES'
+  | 'ARTICLE_DETAIL'
+  | 'LEADERBOARD'
+  | 'GUIDE'
+  | 'ABOUT'
+  | 'TERMS'
+  | 'PRIVACY'
+  | 'CONTACT'
+  | 'EVENTS'
 >;

@@ -1,9 +1,9 @@
-﻿import React, { useState, useMemo } from 'react';
-import type { Portal } from '../../../types/portal';
-import { Navbar } from '../components/Navbar';
-import { Footer } from '../components/Footer';
-import { ContestDetailModal } from '../components/ContestDetailModal';
-import type { ContestItem } from '../components/LiveContestsSection';
+import React, { useState, useMemo } from 'react';
+import type { Portal } from '../../../../types/portal';
+import { Navbar } from '../Navbar';
+import { Footer } from '../Footer';
+import { ContestDetailModal } from '../ContestDetailModal';
+import type { ContestItem } from '../LiveContestsSection';
 import { Trophy, Search, Calendar, Users } from 'lucide-react';
 
 interface ContestsPageProps {
@@ -156,7 +156,12 @@ export default function ContestsPage({
         onGoHome={onGoHome}
         onNavigateTab={(tab) => {
           if (tab === 'Trang chủ') onGoHome();
+          else if (tab === 'Bảng xếp hạng') onSelectPortal?.('LEADERBOARD');
+          else if (tab === 'Kho ảnh đạt giải') onSelectPortal?.('WINNING_PHOTOS');
+          else if (tab === 'Hướng dẫn') onSelectPortal?.('GUIDE');
+          else if (tab === 'Tin tức') onSelectPortal?.('ARTICLES');
         }}
+        onSelectPortal={onSelectPortal}
         onLoginClick={() => onOpenAuth('LOGIN')}
         onRegisterClick={() => onOpenAuth('REGISTER')}
       />
@@ -350,7 +355,7 @@ export default function ContestsPage({
       </main>
 
       {/* 3. Footer */}
-      <Footer />
+      <Footer onSelectPortal={onSelectPortal} onGoHome={onGoHome} />
 
       {/* Contest Detail Modal */}
       {selectedContest && (

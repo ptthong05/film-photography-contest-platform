@@ -1,4 +1,4 @@
-import type { ContestItem } from '../components/LiveContestsSection';
+import type { ContestItem } from '../LiveContestsSection';
 
 export interface TimelineMilestone {
   title: string;

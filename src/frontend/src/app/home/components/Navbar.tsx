@@ -1,6 +1,7 @@
-import React, { useState } from 'react';
+import React, { useState, useEffect } from 'react';
 import { Camera, Search, Menu, X, LogIn, UserPlus } from 'lucide-react';
 import type { Portal } from '../../../types/portal';
+import { HeaderSearchModal } from './search/HeaderSearchModal';
 
 interface NavbarProps {
   activeTab?: string;
@@ -23,7 +24,18 @@ export function Navbar({
 }: NavbarProps) {
   const [mobileMenuOpen, setMobileMenuOpen] = useState(false);
   const [searchOpen, setSearchOpen] = useState(false);
-  const [searchQuery, setSearchQuery] = useState('');
+
+  // Lắng nghe phím tắt Ctrl+K hoặc Cmd+K để mở tìm kiếm Spotlight
+  useEffect(() => {
+    const handleGlobalKeyDown = (e: KeyboardEvent) => {
+      if ((e.ctrlKey || e.metaKey) && e.key.toLowerCase() === 'k') {
+        e.preventDefault();
+        setSearchOpen((prev) => !prev);
+      }
+    };
+    window.addEventListener('keydown', handleGlobalKeyDown);
+    return () => window.removeEventListener('keydown', handleGlobalKeyDown);
+  }, []);
 
   const navLinks = [
     { label: 'Trang chủ', id: 'home' },
@@ -35,14 +47,24 @@ export function Navbar({
   ];
 
   const handleLinkClick = (label: string, id: string) => {
-    if (label === 'Trang chủ' && onGoHome) {
-      onGoHome();
+    if (label === 'Trang chủ' || id === 'home') {
+      if (onGoHome) onGoHome();
+      else if (onSelectPortal) onSelectPortal('HOME');
+    } else if (id === 'contests' || label === 'Cuộc thi') {
+      if (onOpenContests) onOpenContests();
+      else if (onSelectPortal) onSelectPortal('CONTESTS');
+    } else if (id === 'leaderboard' || label === 'Bảng xếp hạng') {
+      if (onSelectPortal) onSelectPortal('LEADERBOARD');
+    } else if (id === 'archive' || label === 'Kho ảnh đạt giải') {
+      if (onSelectPortal) onSelectPortal('WINNING_PHOTOS');
+    } else if (id === 'guide' || label === 'Hướng dẫn') {
+      if (onSelectPortal) onSelectPortal('GUIDE');
+    } else if (id === 'news' || label === 'Tin tức') {
+      if (onSelectPortal) onSelectPortal('ARTICLES');
     }
+
     if (onNavigateTab) {
       onNavigateTab(label);
-    }
-    if (id === 'contests' && onOpenContests) {
-      onOpenContests();
     }
     setMobileMenuOpen(false);
   };
@@ -118,37 +140,19 @@ export function Navbar({
 
           {/* Right Action Buttons */}
           <div className="hidden md:flex items-center gap-3">
-            {/* Search Button */}
-            <div className="relative">
-              {searchOpen ? (
-                <div className="flex items-center bg-slate-100 border border-slate-300 rounded-full px-3 py-1.5 shadow-inner">
-                  <Search className="w-4 h-4 text-slate-400 mr-2 shrink-0" />
-                  <input
-                    type="text"
-                    value={searchQuery}
-                    onChange={(e) => setSearchQuery(e.target.value)}
-                    placeholder="Tìm cuộc thi, tác giả..."
-                    className="w-44 text-sm bg-transparent outline-none text-slate-800 placeholder-slate-400"
-                    autoFocus
-                    onBlur={() => !searchQuery && setSearchOpen(false)}
-                  />
-                  <button
-                    onClick={() => setSearchOpen(false)}
-                    className="text-slate-400 hover:text-slate-600 text-xs ml-1"
-                  >
-                    ✕
-                  </button>
-                </div>
-              ) : (
-                <button
-                  onClick={() => setSearchOpen(true)}
-                  aria-label="Tìm kiếm"
-                  className="w-9 h-9 rounded-full flex items-center justify-center text-slate-500 hover:text-slate-900 hover:bg-slate-100 transition-colors cursor-pointer"
-                >
-                  <Search className="w-4.5 h-4.5" />
-                </button>
-              )}
-            </div>
+            {/* Spotlight Search Trigger Button */}
+            <button
+              onClick={() => setSearchOpen(true)}
+              aria-label="Tìm kiếm trong FilmContest"
+              title="Tìm kiếm (Ctrl+K)"
+              className="flex items-center gap-2 px-3 py-1.5 rounded-full bg-slate-100 hover:bg-slate-200/80 text-slate-500 hover:text-slate-900 border border-slate-200/80 transition-all cursor-pointer group"
+            >
+              <Search className="w-4 h-4 text-slate-500 group-hover:text-blue-600 transition-colors" />
+              <span className="text-xs font-medium text-slate-500 hidden xl:inline">Tìm kiếm...</span>
+              <kbd className="hidden xl:inline-block px-1.5 py-0.5 rounded text-[10px] font-mono bg-white border border-slate-200 text-slate-400 group-hover:border-slate-300">
+                Ctrl K
+              </kbd>
+            </button>
 
             {/* Login Button */}
             <button
@@ -169,11 +173,18 @@ export function Navbar({
             </button>
           </div>
 
-          {/* Mobile Menu Button */}
-          <div className="flex md:hidden items-center gap-2">
+          {/* Mobile Search & Menu Button */}
+          <div className="flex md:hidden items-center gap-1.5">
+            <button
+              onClick={() => setSearchOpen(true)}
+              aria-label="Tìm kiếm"
+              className="p-2 rounded-lg text-slate-600 hover:text-slate-900 hover:bg-slate-100 transition-colors cursor-pointer"
+            >
+              <Search className="w-5 h-5" />
+            </button>
             <button
               onClick={() => setMobileMenuOpen(!mobileMenuOpen)}
-              className="p-2 rounded-lg text-slate-600 hover:text-slate-900 hover:bg-slate-100"
+              className="p-2 rounded-lg text-slate-600 hover:text-slate-900 hover:bg-slate-100 cursor-pointer"
               aria-label="Toggle menu"
             >
               {mobileMenuOpen ? <X className="w-6 h-6" /> : <Menu className="w-6 h-6" />}
@@ -185,13 +196,15 @@ export function Navbar({
       {/* Mobile Drawer */}
       {mobileMenuOpen && (
         <div className="md:hidden border-t border-slate-200 bg-white px-4 pt-3 pb-5 space-y-3 shadow-lg">
-          <div className="flex items-center bg-slate-100 border border-slate-200 rounded-lg px-3 py-2 mb-3">
-            <Search className="w-4 h-4 text-slate-400 mr-2 shrink-0" />
-            <input
-              type="text"
-              placeholder="Tìm kiếm cuộc thi..."
-              className="w-full text-sm bg-transparent outline-none text-slate-800"
-            />
+          <div
+            onClick={() => {
+              setMobileMenuOpen(false);
+              setSearchOpen(true);
+            }}
+            className="flex items-center bg-slate-100 hover:bg-slate-200/80 border border-slate-200 rounded-xl px-3 py-2.5 mb-3 cursor-pointer text-slate-500 text-sm transition-colors"
+          >
+            <Search className="w-4 h-4 text-blue-600 mr-2 shrink-0" />
+            <span>Tìm kiếm cuộc thi, tác phẩm, tác giả...</span>
           </div>
 
           <div className="space-y-1">
@@ -213,19 +226,26 @@ export function Navbar({
           <div className="pt-3 border-t border-slate-100 flex flex-col gap-2">
             <button
               onClick={handleLogin}
-              className="w-full py-2.5 text-center text-sm font-semibold text-slate-700 bg-slate-100 hover:bg-slate-200 rounded-lg"
+              className="w-full py-2.5 text-center text-sm font-semibold text-slate-700 bg-slate-100 hover:bg-slate-200 rounded-lg cursor-pointer"
             >
               Đăng nhập
             </button>
             <button
               onClick={handleRegister}
-              className="w-full py-2.5 text-center text-sm font-semibold text-white bg-blue-600 hover:bg-blue-700 rounded-lg shadow-sm"
+              className="w-full py-2.5 text-center text-sm font-semibold text-white bg-blue-600 hover:bg-blue-700 rounded-lg shadow-sm cursor-pointer"
             >
               Đăng ký tài khoản
             </button>
           </div>
         </div>
       )}
+
+      {/* Spotlight Search Modal */}
+      <HeaderSearchModal
+        isOpen={searchOpen}
+        onClose={() => setSearchOpen(false)}
+        onSelectPortal={onSelectPortal}
+      />
     </header>
   );
 }
