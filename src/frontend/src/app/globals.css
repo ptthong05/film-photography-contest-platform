@@ -36,3 +36,24 @@ body {
 ::-webkit-scrollbar-thumb:hover {
   background: #94a3b8;
 }
+
+@theme {
+  --color-navy-950: #071336;
+  --color-navy-900: #0a1c4e;
+  --color-navy-800: #12296b;
+  --color-brand-500: #1f6bff;
+  --color-brand-600: #1757d6;
+  --color-surface: #f3f6fc;
+}
+
+@layer components {
+  .card {
+    @apply rounded-xl border border-slate-200/80 bg-white shadow-[0_1px_2px_rgba(10,28,78,0.04),0_6px_20px_rgba(10,28,78,0.05)];
+  }
+  .btn-primary {
+    @apply inline-flex items-center gap-2 rounded-lg bg-brand-500 px-4 py-2 text-sm font-semibold text-white hover:bg-brand-600 focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-brand-500;
+  }
+  .btn-outline {
+    @apply rounded-md border border-brand-500 px-3 py-1 text-xs font-medium text-brand-500 hover:bg-brand-500 hover:text-white;
+  }
+}
