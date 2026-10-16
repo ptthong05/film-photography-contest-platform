@@ -1,3 +1,5 @@
+import { useState } from "react";
+import { Modal } from "../../../components/Modal";
 import { Avatar } from "../../../components/Avatar";
 import { assignmentService } from "../../../services/assignmentService";
 import type { Assignment } from "../../../types/assignment";
@@ -36,16 +38,46 @@ const COLUMNS: Column<Assignment>[] = [
 ];
 
 export function AssignmentsView() {
+  const [isConfirmOpen, setIsConfirmOpen] = useState(false);
+  const [isDone, setIsDone] = useState(false);
+
+  const handleClose = () => {
+    setIsConfirmOpen(false);
+    setIsDone(false);
+  };
+
   return (
-    <ListPage
-      title="Phân công giám khảo"
-      searchPlaceholder="Tìm theo giám khảo, cuộc thi..."
-      unit="phân công"
-      fetcher={assignmentService.getAssignments}
-      columns={COLUMNS}
-      getKey={(row) => row.id}
-      getSearchText={(row) => `${row.judgeName} ${row.contestName}`}
-      actionLabel="Tự động phân công"
-    />
+    <>
+      <ListPage
+        title="Phân công giám khảo"
+        searchPlaceholder="Tìm theo giám khảo, cuộc thi..."
+        unit="phân công"
+        fetcher={assignmentService.getAssignments}
+        columns={COLUMNS}
+        getKey={(row) => row.id}
+        getSearchText={(row) => `${row.judgeName} ${row.contestName}`}
+        actionLabel="Tự động phân công"
+        onAction={() => setIsConfirmOpen(true)}
+      />
+      {isConfirmOpen && (
+        <Modal title="Tự động phân công" onClose={handleClose}>
+          <p className="text-sm text-slate-600">
+            {isDone
+              ? "Đã gửi yêu cầu phân công (dữ liệu mẫu, chưa nối API)."
+              : "Hệ thống sẽ chia đều các bài chưa chấm cho giám khảo trong từng cuộc thi."}
+          </p>
+          <div className="mt-6 flex justify-end gap-3">
+            <button type="button" className="rounded-lg px-4 py-2 text-sm font-semibold text-slate-600 hover:bg-slate-100" onClick={handleClose}>
+              {isDone ? "Đóng" : "Hủy"}
+            </button>
+            {!isDone && (
+              <button type="button" className="btn-primary" onClick={() => setIsDone(true)}>
+                Xác nhận
+              </button>
+            )}
+          </div>
+        </Modal>
+      )}
+    </>
   );
 }
