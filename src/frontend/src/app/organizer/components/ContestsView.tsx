@@ -12,7 +12,7 @@ import { CONTEST_STATUS } from "../../../utils/statusBadges";
 import { CreateContestForm } from "./CreateContestForm";
 import { DataTable, type Column } from "./DataTable";
 import { DetailModal, type DetailInfo } from "./DetailModal";
-import { toContestDetail } from "./toContestDetail";
+import { toContestDetail } from "./ContestDetail";
 
 type StatusFilter = ContestStatus | "ALL";
 

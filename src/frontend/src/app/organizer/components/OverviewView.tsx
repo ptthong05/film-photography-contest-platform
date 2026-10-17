@@ -9,7 +9,7 @@ import type { OverviewStats } from "../../../types/contest";
 import { formatDate } from "../../../utils/formatDate";
 import { CONTEST_STATUS } from "../../../utils/statusBadges";
 import { DetailModal, type DetailInfo } from "./DetailModal";
-import { toContestDetail } from "./toContestDetail";
+import { toContestDetail } from "./ContestDetail";
 
 interface StatConfig {
   key: keyof OverviewStats;
