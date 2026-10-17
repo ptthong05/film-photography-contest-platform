@@ -6,6 +6,7 @@ import { formatDate } from "../../../utils/formatDate";
 import { ACCOUNT_STATUS } from "../../../utils/statusBadges";
 import type { Column } from "./DataTable";
 import { ListPage } from "./ListPage";
+import type { DetailInfo } from "./DetailModal";
 
 const COLUMNS: Column<Participant>[] = [
   { header: "#", render: (_row, index) => index + 1 },
@@ -15,8 +16,19 @@ const COLUMNS: Column<Participant>[] = [
   { header: "Số bài dự thi", render: (row) => row.submissionCount },
   { header: "Ngày đăng ký", render: (row) => formatDate(row.registeredAt) },
   { header: "Trạng thái", render: (row) => <StatusBadge {...ACCOUNT_STATUS[row.status]} /> },
-  { header: "Thao tác", render: () => <button type="button" className="btn-outline">Xem</button> },
 ];
+
+function toDetail(row: Participant): DetailInfo {
+  return {
+    title: row.fullName,
+    fields: [
+      { label: "Email", value: row.email },
+      { label: "Số bài dự thi", value: row.submissionCount },
+      { label: "Ngày đăng ký", value: formatDate(row.registeredAt) },
+      { label: "Trạng thái", value: <StatusBadge {...ACCOUNT_STATUS[row.status]} /> },
+    ],
+  };
+}
 
 export function ParticipantsView() {
   return (
@@ -28,6 +40,7 @@ export function ParticipantsView() {
       columns={COLUMNS}
       getKey={(row) => row.id}
       getSearchText={(row) => `${row.fullName} ${row.email}`}
+      getDetail={toDetail}
     />
   );
 }

@@ -16,3 +16,14 @@ export interface OverviewStats {
   submissions: number;
   judges: number;
 }
+
+export interface ContestDraft {
+  name: string;
+  category: string;
+  description: string;
+  criteria: string[];
+  maxPhotosPerPerson: number;
+  startDate: string;
+  endDate: string;
+  slogan: string;
+}
