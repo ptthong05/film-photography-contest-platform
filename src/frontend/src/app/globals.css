@@ -21,6 +21,25 @@ body {
   min-height: 100vh;
 }
 
+/* ===== Judge portal — giao diện sáng theo mockup, phạm vi chỉ trong app/judge ===== */
+@layer components {
+  .judge-card {
+    @apply rounded-2xl border border-slate-200 bg-white shadow-sm;
+  }
+
+  .judge-btn-primary {
+    @apply inline-flex cursor-pointer items-center justify-center gap-1.5 rounded-lg bg-blue-600 px-4 py-2 text-sm font-semibold text-white transition-colors hover:bg-blue-700 disabled:cursor-not-allowed disabled:opacity-50;
+  }
+
+  .judge-btn-outline {
+    @apply inline-flex cursor-pointer items-center justify-center gap-1.5 rounded-lg border border-blue-600 bg-white px-4 py-2 text-sm font-semibold text-blue-600 transition-colors hover:bg-blue-50 disabled:cursor-not-allowed disabled:opacity-50;
+  }
+
+  .judge-input {
+    @apply rounded-lg border border-slate-200 bg-white px-3 py-2 text-sm text-slate-700 outline-none placeholder:text-slate-400 focus:border-blue-500 focus:ring-2 focus:ring-blue-100;
+  }
+}
+
 /* ===== Scrollbar ===== */
 ::-webkit-scrollbar {
   width: 6px;
