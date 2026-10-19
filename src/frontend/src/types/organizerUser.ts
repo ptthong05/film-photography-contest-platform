@@ -16,6 +16,7 @@ export interface Judge {
   specialty: string;
   contestCount: number;
   status: AccountStatus;
+  isDefault: boolean;
 }
 
 export interface OrganizerProfile {

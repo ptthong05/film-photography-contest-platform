@@ -38,6 +38,7 @@ export function JudgeFormModal({ onClose, onSubmit }: JudgeFormModalProps) {
       specialty: specialty.trim(),
       contestCount: 0,
       status: "ACTIVE",
+      isDefault: false,
     });
   };
 

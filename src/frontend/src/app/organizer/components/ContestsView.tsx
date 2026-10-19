@@ -7,12 +7,10 @@ import { StatusBadge } from "../../../components/StatusBadge";
 import { useFetch } from "../../../hooks/useFetch";
 import { contestService } from "../../../services/contestService";
 import type { Contest, ContestStatus } from "../../../types/contest";
+import type { OrganizerViewProps } from "../../../types/organizer";
 import { formatDate } from "../../../utils/formatDate";
 import { CONTEST_STATUS } from "../../../utils/statusBadges";
-import { CreateContestForm } from "./CreateContestForm";
 import { DataTable, type Column } from "./DataTable";
-import { DetailModal, type DetailInfo } from "./DetailModal";
-import { toContestDetail } from "./ContestDetail";
 
 type StatusFilter = ContestStatus | "ALL";
 
@@ -35,31 +33,23 @@ function createColumns(onManage: (contest: Contest) => void): Column<Contest>[] 
   ];
 }
 
-export function ContestsView() {
+export function ContestsView({ onNavigate }: OrganizerViewProps) {
   const { data, isLoading, error } = useFetch(contestService.getContests);
   const [keyword, setKeyword] = useState("");
   const [statusFilter, setStatusFilter] = useState<StatusFilter>("ALL");
-  const [createdContests, setCreatedContests] = useState<Contest[]>([]);
-  const [isFormOpen, setIsFormOpen] = useState(false);
-  const [detail, setDetail] = useState<DetailInfo | null>(null);
 
   const normalizedKeyword = keyword.trim().toLowerCase();
-  const rows = [...createdContests, ...(data ?? [])].filter(
+  const rows = (data ?? []).filter(
     (contest) =>
       contest.name.toLowerCase().includes(normalizedKeyword) &&
       (statusFilter === "ALL" || contest.status === statusFilter),
   );
 
-  const handleCreated = (contest: Contest) => {
-    setCreatedContests((previous) => [contest, ...previous]);
-    setIsFormOpen(false);
-  };
-
   return (
     <section>
       <div className="mb-4 flex items-center justify-between">
         <h1 className="text-2xl font-bold text-navy-900">Quản lý cuộc thi</h1>
-        <button type="button" className="btn-primary" onClick={() => setIsFormOpen(true)}>
+        <button type="button" className="btn-primary" onClick={() => onNavigate({ view: "CREATE_CONTEST" })}>
           <Plus size={16} aria-hidden />
           Tạo cuộc thi
         </button>
@@ -82,14 +72,12 @@ export function ContestsView() {
       {error && <StateMessage message={error} isError />}
       {data && (
         <DataTable
-          columns={createColumns((contest) => setDetail(toContestDetail(contest)))}
+          columns={createColumns((contest) => onNavigate({ view: "CONTEST_DETAIL", id: contest.id }))}
           rows={rows}
           getKey={(row) => row.id}
           footer={`Hiển thị ${rows.length} cuộc thi`}
         />
       )}
-      {isFormOpen && <CreateContestForm onClose={() => setIsFormOpen(false)} onCreated={handleCreated} />}
-      {detail && <DetailModal detail={detail} onClose={() => setDetail(null)} />}
     </section>
   );
 }
