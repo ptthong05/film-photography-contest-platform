@@ -50,7 +50,7 @@ export function Sidebar({ activeView, onNavigate, onGoHome }: SidebarProps) {
           className="flex items-center justify-center gap-2 rounded-xl bg-[#1a6fe0] px-4 py-3 text-sm font-bold hover:bg-[#2b7df0]"
         >
           <Globe size={18} aria-hidden />
-          Về Trang Chủ 
+          Về Trang Chủ
         </button>
       )}
       <div className="flex items-center gap-3 border-b border-white/15 pb-4">
