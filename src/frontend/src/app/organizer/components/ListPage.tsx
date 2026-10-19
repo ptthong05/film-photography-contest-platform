@@ -18,6 +18,7 @@ interface ListPageProps<T> {
   onAction?: () => void;
   extraRows?: T[];
   getDetail?: (row: T) => DetailInfo;
+  onView?: (row: T) => void;
 }
 
 export function ListPage<T>({
@@ -32,18 +33,19 @@ export function ListPage<T>({
   onAction,
   extraRows,
   getDetail,
+  onView,
 }: ListPageProps<T>) {
   const { data, isLoading, error } = useFetch(fetcher);
   const [keyword, setKeyword] = useState("");
   const [detail, setDetail] = useState<DetailInfo | null>(null);
 
-  const tableColumns: Column<T>[] = getDetail
+  const tableColumns: Column<T>[] = getDetail || onView
     ? [
         ...columns,
         {
           header: "Thao tác",
           render: (row) => (
-            <button type="button" className="btn-outline" onClick={() => setDetail(getDetail(row))}>
+            <button type="button" className="btn-outline" onClick={() => (onView ? onView(row) : getDetail && setDetail(getDetail(row)))}>
               Xem
             </button>
           ),

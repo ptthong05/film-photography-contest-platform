@@ -1,12 +1,12 @@
 import { CoverArt } from "../../../components/CoverArt";
 import { StatusBadge } from "../../../components/StatusBadge";
 import { submissionService } from "../../../services/submissionService";
+import type { OrganizerViewProps } from "../../../types/organizer";
 import type { Submission } from "../../../types/submission";
 import { formatDate } from "../../../utils/formatDate";
 import { SUBMISSION_STATUS } from "../../../utils/statusBadges";
 import type { Column } from "./DataTable";
 import { ListPage } from "./ListPage";
-import type { DetailInfo } from "./DetailModal";
 
 const COLUMNS: Column<Submission>[] = [
   { header: "#", render: (_row, index) => index + 1 },
@@ -18,19 +18,7 @@ const COLUMNS: Column<Submission>[] = [
   { header: "Trạng thái", render: (row) => <StatusBadge {...SUBMISSION_STATUS[row.status]} /> },
 ];
 
-function toDetail(row: Submission): DetailInfo {
-  return {
-    title: row.title,
-    fields: [
-      { label: "Thí sinh", value: row.authorName },
-      { label: "Cuộc thi", value: row.contestName },
-      { label: "Ngày nộp", value: formatDate(row.submittedAt) },
-      { label: "Trạng thái", value: <StatusBadge {...SUBMISSION_STATUS[row.status]} /> },
-    ],
-  };
-}
-
-export function SubmissionsView() {
+export function SubmissionsView({ onNavigate }: OrganizerViewProps) {
   return (
     <ListPage
       title="Quản lý bài dự thi"
@@ -40,7 +28,7 @@ export function SubmissionsView() {
       columns={COLUMNS}
       getKey={(row) => row.id}
       getSearchText={(row) => `${row.title} ${row.authorName} ${row.contestName}`}
-      getDetail={toDetail}
+      onView={(row) => onNavigate({ view: "SUBMISSION_DETAIL", id: row.id, backTo: "SUBMISSIONS" })}
     />
   );
 }

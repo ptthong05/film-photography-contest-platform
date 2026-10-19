@@ -1,10 +1,10 @@
 import { CoverArt } from "../../../components/CoverArt";
 import { submissionService } from "../../../services/submissionService";
+import type { OrganizerViewProps } from "../../../types/organizer";
 import type { Submission } from "../../../types/submission";
 import { formatDate } from "../../../utils/formatDate";
 import type { Column } from "./DataTable";
 import { ListPage } from "./ListPage";
-import type { DetailInfo } from "./DetailModal";
 
 const COLUMNS: Column<Submission>[] = [
   { header: "Ảnh gốc", render: (_row, index) => <CoverArt seed={index} className="h-10 w-14 rounded-md" /> },
@@ -14,18 +14,7 @@ const COLUMNS: Column<Submission>[] = [
   { header: "Ngày nộp", render: (row) => formatDate(row.submittedAt) },
 ];
 
-function toDetail(row: Submission): DetailInfo {
-  return {
-    title: row.title,
-    fields: [
-      { label: "Thí sinh", value: row.authorName },
-      { label: "Cuộc thi", value: row.contestName },
-      { label: "Ngày nộp", value: formatDate(row.submittedAt) },
-    ],
-  };
-}
-
-export function ArchiveView() {
+export function ArchiveView({ onNavigate }: OrganizerViewProps) {
   return (
     <ListPage
       title="Kho dữ liệu"
@@ -35,7 +24,7 @@ export function ArchiveView() {
       columns={COLUMNS}
       getKey={(row) => row.id}
       getSearchText={(row) => `${row.title} ${row.authorName} ${row.contestName}`}
-      getDetail={toDetail}
+      onView={(row) => onNavigate({ view: "SUBMISSION_DETAIL", id: row.id, backTo: "ARCHIVE" })}
     />
   );
 }

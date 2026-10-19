@@ -1,5 +1,10 @@
 export type ContestStatus = "ONGOING" | "UPCOMING" | "ENDED";
 
+export interface Prize {
+  name: string;
+  reward: string;
+}
+
 export interface Contest {
   id: string;
   name: string;
@@ -8,6 +13,10 @@ export interface Contest {
   participantCount: number;
   submissionCount: number;
   status: ContestStatus;
+  tags?: string[];
+  description?: string;
+  prizes?: Prize[];
+  judgeNames?: string[];
 }
 
 export interface OverviewStats {
@@ -25,5 +34,6 @@ export interface ContestDraft {
   maxPhotosPerPerson: number;
   startDate: string;
   endDate: string;
-  slogan: string;
+  prizes: Prize[];
+  judgeIds: string[] | null; // null = dùng danh sách giám khảo chấm mặc định
 }
