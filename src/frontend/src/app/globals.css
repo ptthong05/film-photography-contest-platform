@@ -1,19 +1,20 @@
 @import "tailwindcss";
 
-/* ===== Design tokens — dùng qua class Tailwind: bg-primary, text-muted... ===== */
+/* ===== Design tokens — Cấu hình màu chuẩn theo bản vẽ 2. Participant.png ===== */
 @theme {
-  --color-primary: var(--color-amber-500);
-  --color-primary-hover: var(--color-amber-400);
-  --color-surface: var(--color-zinc-900);
-  --color-border: var(--color-zinc-800);
-  --color-muted: var(--color-zinc-400);
+  --color-primary: #2563eb;        /* Màu xanh dương chủ đạo */
+  --color-primary-hover: #1d4ed8;  /* Màu xanh dương khi hover */
+  --color-surface: #ffffff;        /* Màu nền thẻ/khung trắng */
+  --color-border: #e2e8f0;         /* Màu đường viền xám nhạt */
+  --color-muted: #64748b;          /* Màu chữ phụ xám */
+  --color-sidebar: #0f172a;        /* Màu thanh menu bên trái */
 }
 
-/* ===== Base ===== */
+/* ===== Base Style ===== */
 body {
   min-height: 100vh;
-  background-color: var(--color-zinc-950);
-  color: var(--color-zinc-100);
+  background-color: #f8fafc;       /* Màu nền tổng thể xám sáng */
+  color: #0f172a;                  /* Màu chữ chính tối màu */
   font-family: ui-sans-serif, system-ui, -apple-system, "Segoe UI", Roboto, Arial, sans-serif;
 }
 
@@ -21,8 +22,42 @@ body {
   min-height: 100vh;
 }
 
-/* ===== Judge portal — giao diện sáng theo mockup, phạm vi chỉ trong app/judge ===== */
+/* ===== Scrollbar tinh chỉnh gọn đẹp ===== */
+::-webkit-scrollbar {
+  width: 6px;
+  height: 6px;
+}
+
+::-webkit-scrollbar-thumb {
+  background: #cbd5e1;
+  border-radius: 4px;
+}
+
+::-webkit-scrollbar-thumb:hover {
+  background: #94a3b8;
+}
+
+@theme {
+  --color-navy-950: #071336;
+  --color-navy-900: #0a1c4e;
+  --color-navy-800: #12296b;
+  --color-brand-500: #1f6bff;
+  --color-brand-600: #1757d6;
+  --color-surface: #f3f6fc;
+}
+
 @layer components {
+  .card {
+    @apply rounded-xl border border-slate-200/80 bg-white shadow-[0_1px_2px_rgba(10,28,78,0.04),0_6px_20px_rgba(10,28,78,0.05)];
+  }
+  .btn-primary {
+    @apply inline-flex items-center gap-2 rounded-lg bg-brand-500 px-4 py-2 text-sm font-semibold text-white hover:bg-brand-600 focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-brand-500;
+  }
+  .btn-outline {
+    @apply rounded-md border border-brand-500 px-3 py-1 text-xs font-medium text-brand-500 hover:bg-brand-500 hover:text-white;
+  }
+
+  /* ===== Judge portal — giao diện sáng theo mockup ===== */
   .judge-card {
     @apply rounded-2xl border border-slate-200 bg-white shadow-sm;
   }
@@ -38,19 +73,4 @@ body {
   .judge-input {
     @apply rounded-lg border border-slate-200 bg-white px-3 py-2 text-sm text-slate-700 outline-none placeholder:text-slate-400 focus:border-blue-500 focus:ring-2 focus:ring-blue-100;
   }
-}
-
-/* ===== Scrollbar ===== */
-::-webkit-scrollbar {
-  width: 6px;
-  height: 6px;
-}
-
-::-webkit-scrollbar-thumb {
-  background: rgba(255, 255, 255, 0.15);
-  border-radius: 4px;
-}
-
-::-webkit-scrollbar-thumb:hover {
-  background: rgba(255, 255, 255, 0.3);
 }
