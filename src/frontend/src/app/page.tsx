@@ -542,12 +542,12 @@ export default function RootPage() {
 
   return (
     <div className="relative min-h-screen bg-slate-50 text-slate-800">
-      {activePortal !== 'PARTICIPANT' && (
+      {activePortal !== 'PARTICIPANT' && activePortal !== 'JUDGE' && (
         <BackButton label="Về Trang Chủ" onClick={goHome} />
       )}
       {activePortal === 'ADMIN' && <AdminPage />}
       {activePortal === 'ORGANIZER' && <OrganizerPage />}
-      {activePortal === 'JUDGE' && <JudgePage />}
+      {activePortal === 'JUDGE' && <JudgePage onExit={goHome} />}
       {activePortal === 'PARTICIPANT' && <ParticipantPage onGoHome={goHome} />}
     </div>
   );
