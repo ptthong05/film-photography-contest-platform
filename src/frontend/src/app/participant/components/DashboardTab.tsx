@@ -81,7 +81,7 @@ export function DashboardTab({ onNavigate, registeredCount = 0 }: DashboardTabPr
       </div>
 
       <div className="grid grid-cols-1 md:grid-cols-3 gap-6">
-        <div 
+        <div
           onClick={() => onNavigate('contests')}
           className="bg-white p-6 rounded-2xl border border-slate-200 shadow-sm hover:border-blue-300 transition cursor-pointer space-y-3"
         >
@@ -98,7 +98,7 @@ export function DashboardTab({ onNavigate, registeredCount = 0 }: DashboardTabPr
           <p className="text-xs text-slate-500">Bấm để xem danh sách cuộc thi và đăng ký tham gia</p>
         </div>
 
-        <div 
+        <div
           onClick={handleNavigateRolls}
           className="bg-white p-6 rounded-2xl border border-slate-200 shadow-sm hover:border-amber-300 transition cursor-pointer space-y-3"
         >
@@ -115,7 +115,7 @@ export function DashboardTab({ onNavigate, registeredCount = 0 }: DashboardTabPr
           <p className="text-xs text-slate-500">Quản lý thông số ISO, máy ảnh, ống kính và lab tráng</p>
         </div>
 
-        <div 
+        <div
           onClick={() => onNavigate('my-entries')}
           className="bg-white p-6 rounded-2xl border border-slate-200 shadow-sm hover:border-emerald-300 transition cursor-pointer space-y-3"
         >

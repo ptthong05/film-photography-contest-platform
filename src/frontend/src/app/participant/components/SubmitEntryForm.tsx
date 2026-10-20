@@ -38,11 +38,11 @@ export function SubmitEntryForm({ registeredIds, onSubmitSuccess }: SubmitEntryF
 
   const loadRegistered = () => {
     let savedIds: string[] = [];
-    
+
     // Lấy trực tiếp từ tất cả các key localStorage có thể được dùng ở tab Cuộc thi
     const rawContests = localStorage.getItem('participant_registered_contests');
     const rawParticipant = localStorage.getItem('participant_registered');
-    
+
     let parsed: Record<string, unknown>[] = [];
     try {
       if (rawContests) parsed = JSON.parse(rawContests);

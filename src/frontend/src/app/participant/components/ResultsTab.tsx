@@ -46,8 +46,8 @@ export function ResultsTab() {
 
       <div className="grid grid-cols-1 md:grid-cols-2 gap-6">
         {results.map((r) => (
-          <div 
-            key={r.id} 
+          <div
+            key={r.id}
             className="bg-white rounded-2xl border border-slate-200 shadow-sm overflow-hidden flex flex-col justify-between hover:shadow-md transition cursor-pointer"
             onClick={() => setSelectedResult(r)}
           >

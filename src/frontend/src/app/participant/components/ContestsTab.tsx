@@ -41,10 +41,10 @@ export function ContestsTab({ registeredIds, onToggleRegister, onNavigateSubmit 
               <div className="space-y-2">
                 <div className="flex items-center justify-between">
                   <span className={`px-3 py-1 text-xs font-semibold rounded-full border ${
-                    c.status === 'ONGOING' 
-                      ? 'bg-emerald-50 text-emerald-700 border-emerald-100' 
-                      : c.status === 'UPCOMING' 
-                      ? 'bg-blue-50 text-blue-700 border-blue-100' 
+                    c.status === 'ONGOING'
+                      ? 'bg-emerald-50 text-emerald-700 border-emerald-100'
+                      : c.status === 'UPCOMING'
+                      ? 'bg-blue-50 text-blue-700 border-blue-100'
                       : 'bg-slate-100 text-slate-600 border-slate-200'
                   }`}>
                     {c.status === 'ONGOING' ? 'Đang diễn ra' : c.status === 'UPCOMING' ? 'Sắp diễn ra' : 'Đã kết thúc'}
@@ -55,7 +55,7 @@ export function ContestsTab({ registeredIds, onToggleRegister, onNavigateSubmit 
                 </div>
                 <h3 className="text-xl font-bold text-slate-900">{c.title}</h3>
                 <p className="text-sm text-slate-600 line-clamp-2">{c.description}</p>
-                
+
                 <div className="flex items-center gap-4 text-xs text-slate-500 pt-2">
                   <span className="flex items-center gap-1"><MapPin className="w-3.5 h-3.5" /> {c.location}</span>
                   <span className="flex items-center gap-1"><Trophy className="w-3.5 h-3.5" /> Tối đa {c.maxSubmissions} bài</span>

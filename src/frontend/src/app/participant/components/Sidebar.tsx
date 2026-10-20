@@ -73,7 +73,7 @@ export function Sidebar({ activeTab, setActiveTab, onGoHome, userName = 'Nguyễ
         )}
 
         <div className="flex items-center space-x-3.5 pb-4 border-b border-blue-400/30">
-          <div 
+          <div
             onClick={() => fileInputRef.current?.click()}
             className="relative w-12 h-12 rounded-full bg-[#1A6EDB] border-2 border-white/40 flex items-center justify-center font-bold text-white text-base shadow-md flex-shrink-0 cursor-pointer group overflow-hidden"
             title="Nhấn để thay đổi ảnh đại diện"
@@ -83,17 +83,17 @@ export function Sidebar({ activeTab, setActiveTab, onGoHome, userName = 'Nguyễ
             ) : (
               <span>{userName ? userName.split(' ').map(n => n[0]).join('').slice(-2).toUpperCase() : 'NV'}</span>
             )}
-            
+
             <div className="absolute inset-0 bg-black/50 opacity-0 group-hover:opacity-100 transition-opacity flex items-center justify-center">
               <Camera className="w-5 h-5 text-white" />
             </div>
 
-            <input 
-              type="file" 
-              ref={fileInputRef} 
-              onChange={handleFileChange} 
-              accept="image/*" 
-              className="hidden" 
+            <input
+              type="file"
+              ref={fileInputRef}
+              onChange={handleFileChange}
+              accept="image/*"
+              className="hidden"
             />
           </div>
 

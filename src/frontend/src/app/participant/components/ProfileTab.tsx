@@ -25,7 +25,7 @@ export function ProfileTab() {
 
   const handleSave = (e: React.FormEvent) => {
     e.preventDefault();
-    
+
     // Lưu thông tin vào bộ nhớ trình duyệt
     localStorage.setItem('participant_user_name', fullName);
     localStorage.setItem('participant_user_email', email);

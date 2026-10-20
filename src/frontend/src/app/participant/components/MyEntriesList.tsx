@@ -231,7 +231,7 @@ export function MyEntriesList() {
               <p className="font-bold text-blue-600">Thông tin tác phẩm:</p>
               <p><strong>Mô tả:</strong> {selectedItem.description || 'Không có mô tả'}</p>
               <p><strong>Trạng thái:</strong> {selectedItem.status}</p>
-              
+
               <p className="font-bold text-blue-600 pt-2">Kết quả AI Phân tích:</p>
               <div className="p-3 bg-blue-50 rounded-xl space-y-1">
                 <p>• <strong>AI Check:</strong> {selectedItem.aiFlag}</p>
