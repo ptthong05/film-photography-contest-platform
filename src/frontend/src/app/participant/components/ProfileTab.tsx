@@ -1,141 +1,135 @@
-import React, { useState } from 'react';
-import { Mail, Phone, MapPin, Calendar, CheckCircle } from 'lucide-react';
+import React, { useState, useEffect } from 'react';
+import { User, Mail, Phone, Camera, CheckCircle2 } from 'lucide-react';
 
 export function ProfileTab() {
-  const [isEditing, setIsEditing] = useState<boolean>(false);
-  const [isSuccess, setIsSuccess] = useState<boolean>(false);
+  const [fullName, setFullName] = useState<string>('Nguyễn Văn A');
+  const [email, setEmail] = useState<string>('thien@gmail.com');
+  const [phone, setPhone] = useState<string>('0348498595');
+  const [equipment, setEquipment] = useState<string>('Leica M6, Canon AE-1, Nikon FM2');
+  const [bio, setBio] = useState<string>('Nhiếp ảnh gia phim nghiệp dư, đam mê hệ máy Leica và dòng phim màu Kodak Portra.');
+  const [successMessage, setSuccessMessage] = useState<boolean>(false);
 
-  const [profileData, setProfileData] = useState({
-    fullName: 'Nguyễn Văn A',
-    role: 'Nhiếp ảnh gia phim',
-    email: 'nguyenvana@gmail.com',
-    phone: '0901 234 567',
-    address: 'Quận 1, TP. Hồ Chí Minh',
-    joinDate: '15/05/2025'
-  });
+  useEffect(() => {
+    const savedName = localStorage.getItem('participant_user_name');
+    const savedEmail = localStorage.getItem('participant_user_email');
+    const savedPhone = localStorage.getItem('participant_user_phone');
+    const savedEq = localStorage.getItem('participant_user_equipment');
+    const savedBio = localStorage.getItem('participant_user_bio');
 
-  const handleInputChange = (field: string, value: string) => {
-    setProfileData((prev) => ({
-      ...prev,
-      [field]: value
-    }));
-  };
+    if (savedName) setFullName(savedName);
+    if (savedEmail) setEmail(savedEmail);
+    if (savedPhone) setPhone(savedPhone);
+    if (savedEq) setEquipment(savedEq);
+    if (savedBio) setBio(savedBio);
+  }, []);
 
-  const handleUpdate = () => {
-    setIsEditing(false);
-    setIsSuccess(true);
-    setTimeout(() => {
-      setIsSuccess(false);
-    }, 3000);
+  const handleSave = (e: React.FormEvent) => {
+    e.preventDefault();
+    
+    // Lưu thông tin vào bộ nhớ trình duyệt
+    localStorage.setItem('participant_user_name', fullName);
+    localStorage.setItem('participant_user_email', email);
+    localStorage.setItem('participant_user_phone', phone);
+    localStorage.setItem('participant_user_equipment', equipment);
+    localStorage.setItem('participant_user_bio', bio);
+
+    // Kích hoạt tín hiệu để cập nhật ngay lập tức tên ở thanh tiêu đề bên trên
+    window.dispatchEvent(new Event('userNameChanged'));
+
+    setSuccessMessage(true);
+    setTimeout(() => setSuccessMessage(false), 3000);
   };
 
   return (
-    <div className="bg-white p-10 rounded-3xl border border-slate-200 shadow-sm max-w-4xl mx-auto space-y-8">
-      <div className="flex justify-between items-center border-b pb-6">
-        <h1 className="text-3xl font-extrabold text-slate-900">Hồ sơ cá nhân</h1>
-        {!isEditing ? (
-          <button
-            onClick={() => setIsEditing(true)}
-            className="px-5 py-2 bg-blue-50 text-blue-600 hover:bg-blue-100 rounded-xl font-bold text-sm transition-all border border-blue-200 shadow-sm"
-          >
-            Chỉnh sửa
-          </button>
-        ) : (
-          <button
-            onClick={handleUpdate}
-            className="px-5 py-2 bg-emerald-600 text-white hover:bg-emerald-700 rounded-xl font-bold text-sm transition-all shadow-md"
-          >
-            Cập nhật
-          </button>
-        )}
+    <div className="max-w-3xl mx-auto bg-white p-8 rounded-3xl border border-slate-200 shadow-sm space-y-6">
+      <div className="border-b border-slate-200 pb-4">
+        <h2 className="text-2xl font-bold text-slate-900">Quản Lý Hồ Sơ Cá Nhân</h2>
+        <p className="text-slate-600 text-sm">Cập nhật thông tin định danh và thiết bị nhiếp ảnh của bạn</p>
       </div>
 
-      {isSuccess && (
-        <div className="p-4 bg-emerald-50 border border-emerald-200 rounded-2xl flex items-center gap-3 text-emerald-800">
-          <CheckCircle className="w-5 h-5 text-emerald-600" />
-          <p className="font-bold text-sm">Cập nhật hồ sơ thành công!</p>
+      {successMessage && (
+        <div className="p-4 bg-emerald-50 border border-emerald-200 text-emerald-800 rounded-2xl flex items-center gap-2 text-sm font-semibold">
+          <CheckCircle2 className="w-5 h-5 text-emerald-600" /> Đã lưu thay đổi hồ sơ thành công! Tên hiển thị đã được cập nhật.
         </div>
       )}
 
-      <div className="flex items-center gap-8 pb-8 border-b border-slate-200">
-        <div className="w-24 h-24 rounded-full bg-[#1A6EDB] text-white font-extrabold text-3xl flex items-center justify-center border-4 border-blue-100 shadow-md">
-          NV
-        </div>
-        <div className="space-y-1">
-          {isEditing ? (
+      <form onSubmit={handleSave} className="space-y-5">
+        <div className="space-y-1.5">
+          <label className="text-xs font-bold text-slate-700 uppercase tracking-wider">Họ và Tên *</label>
+          <div className="relative">
+            <User className="absolute left-4 top-1/2 -translate-y-1/2 w-5 h-5 text-slate-400" />
             <input
               type="text"
-              value={profileData.fullName}
-              onChange={(e) => handleInputChange('fullName', e.target.value)}
-              className="text-2xl font-extrabold text-slate-900 border border-slate-300 rounded-xl px-3 py-1 bg-white w-full"
+              value={fullName}
+              onChange={(e) => setFullName(e.target.value)}
+              className="w-full pl-12 pr-4 py-3 bg-slate-50 border border-slate-200 rounded-xl text-sm font-medium focus:outline-none focus:ring-2 focus:ring-blue-500 focus:bg-white transition"
+              required
             />
-          ) : (
-            <h2 className="text-2xl font-extrabold text-slate-900">{profileData.fullName}</h2>
-          )}
-          <p className="text-sm font-semibold text-blue-600">{profileData.role}</p>
+          </div>
         </div>
-      </div>
 
-      <div className="grid grid-cols-1 sm:grid-cols-2 gap-6 text-sm">
-        <div className="flex items-center gap-3 p-4 bg-slate-50 rounded-2xl border border-slate-200">
-          <Mail className="w-5 h-5 text-blue-600 flex-shrink-0" />
-          <div className="w-full">
-            <p className="text-xs text-slate-400 font-bold">Email</p>
-            {isEditing ? (
+        <div className="grid grid-cols-1 md:grid-cols-2 gap-5">
+          <div className="space-y-1.5">
+            <label className="text-xs font-bold text-slate-700 uppercase tracking-wider">Email liên hệ *</label>
+            <div className="relative">
+              <Mail className="absolute left-4 top-1/2 -translate-y-1/2 w-5 h-5 text-slate-400" />
               <input
                 type="email"
-                value={profileData.email}
-                onChange={(e) => handleInputChange('email', e.target.value)}
-                className="w-full mt-1 px-2 py-1 border border-slate-300 rounded-lg bg-white font-semibold text-slate-800 text-sm"
+                value={email}
+                onChange={(e) => setEmail(e.target.value)}
+                className="w-full pl-12 pr-4 py-3 bg-slate-50 border border-slate-200 rounded-xl text-sm font-medium focus:outline-none focus:ring-2 focus:ring-blue-500 focus:bg-white transition"
+                required
               />
-            ) : (
-              <p className="font-semibold text-slate-800">{profileData.email}</p>
-            )}
+            </div>
           </div>
-        </div>
 
-        <div className="flex items-center gap-3 p-4 bg-slate-50 rounded-2xl border border-slate-200">
-          <Phone className="w-5 h-5 text-blue-600 flex-shrink-0" />
-          <div className="w-full">
-            <p className="text-xs text-slate-400 font-bold">Số điện thoại</p>
-            {isEditing ? (
+          <div className="space-y-1.5">
+            <label className="text-xs font-bold text-slate-700 uppercase tracking-wider">Số điện thoại *</label>
+            <div className="relative">
+              <Phone className="absolute left-4 top-1/2 -translate-y-1/2 w-5 h-5 text-slate-400" />
               <input
                 type="text"
-                value={profileData.phone}
-                onChange={(e) => handleInputChange('phone', e.target.value)}
-                className="w-full mt-1 px-2 py-1 border border-slate-300 rounded-lg bg-white font-semibold text-slate-800 text-sm"
+                value={phone}
+                onChange={(e) => setPhone(e.target.value)}
+                className="w-full pl-12 pr-4 py-3 bg-slate-50 border border-slate-200 rounded-xl text-sm font-medium focus:outline-none focus:ring-2 focus:ring-blue-500 focus:bg-white transition"
+                required
               />
-            ) : (
-              <p className="font-semibold text-slate-800">{profileData.phone}</p>
-            )}
+            </div>
           </div>
         </div>
 
-        <div className="flex items-center gap-3 p-4 bg-slate-50 rounded-2xl border border-slate-200">
-          <MapPin className="w-5 h-5 text-blue-600 flex-shrink-0" />
-          <div className="w-full">
-            <p className="text-xs text-slate-400 font-bold">Địa chỉ</p>
-            {isEditing ? (
-              <input
-                type="text"
-                value={profileData.address}
-                onChange={(e) => handleInputChange('address', e.target.value)}
-                className="w-full mt-1 px-2 py-1 border border-slate-300 rounded-lg bg-white font-semibold text-slate-800 text-sm"
-              />
-            ) : (
-              <p className="font-semibold text-slate-800">{profileData.address}</p>
-            )}
+        <div className="space-y-1.5">
+          <label className="text-xs font-bold text-slate-700 uppercase tracking-wider">Thiết bị sở hữu (Camera / Lens)</label>
+          <div className="relative">
+            <Camera className="absolute left-4 top-1/2 -translate-y-1/2 w-5 h-5 text-slate-400" />
+            <input
+              type="text"
+              value={equipment}
+              onChange={(e) => setEquipment(e.target.value)}
+              className="w-full pl-12 pr-4 py-3 bg-slate-50 border border-slate-200 rounded-xl text-sm font-medium focus:outline-none focus:ring-2 focus:ring-blue-500 focus:bg-white transition"
+            />
           </div>
         </div>
 
-        <div className="flex items-center gap-3 p-4 bg-slate-50 rounded-2xl border border-slate-200">
-          <Calendar className="w-5 h-5 text-blue-600 flex-shrink-0" />
-          <div>
-            <p className="text-xs text-slate-400 font-bold">Ngày tham gia</p>
-            <p className="font-semibold text-slate-800">{profileData.joinDate}</p>
+        <div className="space-y-1.5">
+          <label className="text-xs font-bold text-slate-700 uppercase tracking-wider">Tiểu sử ngắn / Giới thiệu</label>
+          <div className="relative">
+            <textarea
+              rows={4}
+              value={bio}
+              onChange={(e) => setBio(e.target.value)}
+              className="w-full p-4 bg-slate-50 border border-slate-200 rounded-xl text-sm font-medium focus:outline-none focus:ring-2 focus:ring-blue-500 focus:bg-white transition"
+            />
           </div>
         </div>
-      </div>
+
+        <button
+          type="submit"
+          className="w-full py-3.5 bg-blue-600 hover:bg-blue-700 text-white font-bold rounded-2xl shadow-md transition text-sm cursor-pointer"
+        >
+          Lưu Thay Đổi Hồ Sơ
+        </button>
+      </form>
     </div>
   );
 }
