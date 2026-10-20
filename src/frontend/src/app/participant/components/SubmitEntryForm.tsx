@@ -151,17 +151,15 @@ export function SubmitEntryForm({ registeredIds, onSubmitSuccess }: SubmitEntryF
     }
 
     const newSubmission = {
+      ...form,
       id: `sub-${Date.now()}`,
       contestId: selectedContestId,
-      title: form.title,
-      description: form.description,
       photoUrl: photoUrl || 'https://images.unsplash.com/photo-1516035069371-29a1b244cc32?auto=format&fit=crop&q=80',
       submittedAt: new Date().toLocaleDateString('vi-VN'),
       status: 'Đang chờ duyệt',
       aiFlag: 'Hợp lệ (An toàn - Không phát hiện bất thường)',
       similarityScore: '1.2% (Độc bản cao)',
       aiKeywords: ['Analog', 'Film Stock', 'Saigon', 'Vintage'],
-      ...form,
       feedback: 'Hệ thống đã tiếp nhận bài dự thi và thông số metadata.',
     };
 
@@ -241,7 +239,7 @@ export function SubmitEntryForm({ registeredIds, onSubmitSuccess }: SubmitEntryF
               <option value="">-- Hoặc tự nhập bên dưới --</option>
               {rolls.map((r) => (
                 <option key={r.id} value={r.id}>
-                  {r.rollCode} - {r.filmBrand} - ISO {r.iso} - {r.cameraBody}
+                  {r.rollCode} - {r.filmBrand} (ISO {r.iso}) - {r.cameraBody}
                 </option>
               ))}
             </select>

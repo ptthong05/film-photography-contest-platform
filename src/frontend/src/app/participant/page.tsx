@@ -56,11 +56,6 @@ export default function ParticipantPage({ onGoHome }: ParticipantPageProps) {
     return () => window.removeEventListener('userNameChanged', handleNameChange);
   }, []);
 
-  const registeredContests = [
-    { id: 1, title: 'Analog Moments 2025' },
-    { id: 2, title: 'Film & City' }
-  ];
-
   const handleToggleRegister = (contestId: string) => {
     let updated: string[] = [];
     if (registeredContestIds.includes(contestId)) {
@@ -152,7 +147,6 @@ export default function ParticipantPage({ onGoHome }: ParticipantPageProps) {
 
           {activeTab === 'submit' && (
             <SubmitEntryForm
-              registeredContests={registeredContests}
               onSubmitSuccess={() => setActiveTab('my-entries')}
             />
           )}
