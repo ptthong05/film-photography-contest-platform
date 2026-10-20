@@ -43,7 +43,7 @@ export function SubmitEntryForm({ registeredIds, onSubmitSuccess }: SubmitEntryF
     const rawContests = localStorage.getItem('participant_registered_contests');
     const rawParticipant = localStorage.getItem('participant_registered');
     
-    let parsed: any[] = [];
+    let parsed: unknown[] = [];
     try {
       if (rawContests) parsed = JSON.parse(rawContests);
       else if (rawParticipant) parsed = JSON.parse(rawParticipant);
