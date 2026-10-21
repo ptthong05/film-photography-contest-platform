@@ -7,6 +7,7 @@ export interface Participant {
   submissionCount: number;
   registeredAt: string;
   status: AccountStatus;
+  recentSubmissions?: { id: string; title: string; contestName: string; submittedAt: string; status: "VALID" | "PENDING" }[];
 }
 
 export interface Judge {
@@ -25,4 +26,5 @@ export interface OrganizerProfile {
   phone: string;
   role: string;
   bio: string;
+  avatarDataUrl?: string | null;
 }

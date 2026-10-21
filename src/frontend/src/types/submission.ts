@@ -1,4 +1,4 @@
-export type SubmissionStatus = "VALID" | "SUSPECT_AI" | "PENDING";
+export type SubmissionStatus = "VALID" | "PENDING";
 
 export interface FilmMetadata {
   filmStock: string;

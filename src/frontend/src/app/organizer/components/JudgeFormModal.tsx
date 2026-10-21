@@ -3,7 +3,7 @@ import { Modal } from "../../../components/Modal";
 import type { Judge } from "../../../types/organizerUser";
 
 const EMAIL_PATTERN = /^[^\s@]+@[^\s@]+\.[^\s@]+$/;
-const FIELD_CLASS = "w-full rounded-lg border border-slate-200 px-3 py-2 text-sm outline-none focus:border-brand-500";
+const FIELD_CLASS = "w-full rounded-xl border border-slate-200 bg-white px-3.5 py-2.5 text-sm text-slate-800 outline-none focus:border-blue-500 focus:ring-2 focus:ring-blue-100";
 
 interface JudgeFormModalProps {
   onClose: () => void;
@@ -61,7 +61,7 @@ export function JudgeFormModal({ onClose, onSubmit }: JudgeFormModalProps) {
         <button type="button" className="rounded-lg px-4 py-2 text-sm font-semibold text-slate-600 hover:bg-slate-100" onClick={onClose}>
           Hủy
         </button>
-        <button type="button" className="btn-primary" onClick={handleSubmit}>
+        <button type="button" className="rounded-xl bg-blue-600 px-4 py-2.5 text-sm font-semibold text-white hover:bg-blue-700" onClick={handleSubmit}>
           Lưu
         </button>
       </div>

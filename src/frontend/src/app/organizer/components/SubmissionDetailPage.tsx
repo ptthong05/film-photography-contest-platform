@@ -1,5 +1,4 @@
 import { useCallback } from "react";
-import { CoverArt } from "../../../components/CoverArt";
 import { StateMessage } from "../../../components/StateMessage";
 import { StatusBadge } from "../../../components/StatusBadge";
 import { useFetch } from "../../../hooks/useFetch";
@@ -8,6 +7,7 @@ import type { FilmMetadata } from "../../../types/submission";
 import { formatDate } from "../../../utils/formatDate";
 import { SUBMISSION_STATUS } from "../../../utils/statusBadges";
 import { PageHeader } from "./PageHeader";
+import { ContestCover } from "./ContestCover";
 
 const METADATA_FIELDS: { key: keyof FilmMetadata; label: string }[] = [
   { key: "filmStock", label: "Loại phim (Film stock)" },
@@ -33,7 +33,7 @@ export function SubmissionDetailPage({ submissionId, onBack }: SubmissionDetailP
   const { data: submission, isLoading, error } = useFetch(fetcher);
 
   return (
-    <section className="flex flex-col gap-6">
+    <section className="space-y-5">
       <PageHeader
         title={submission?.title ?? "Chi tiết bài dự thi"}
         subtitle={submission ? `Mã bài dự thi: ${submission.code}` : undefined}
@@ -43,29 +43,28 @@ export function SubmissionDetailPage({ submissionId, onBack }: SubmissionDetailP
       {error && <StateMessage message={error} isError />}
       {!isLoading && !error && !submission && <StateMessage message="Không tìm thấy bài dự thi." isError />}
       {submission && (
-        <div className="card flex flex-col gap-8 rounded-3xl p-8">
-          <div className="flex flex-col gap-6 sm:flex-row">
-            <CoverArt seed={Number(submission.code.slice(-1))} className="size-56 shrink-0 rounded-2xl" />
-            <dl className="grid h-fit grid-cols-[6rem_1fr] items-center gap-x-4 gap-y-3 text-sm">
-              <dt className="text-slate-500">Tác giả</dt>
-              <dd className="font-bold text-navy-900">{submission.authorName}</dd>
-              <dt className="text-slate-500">Cuộc thi</dt>
-              <dd className="font-bold text-navy-900">{submission.contestName}</dd>
-              <dt className="text-slate-500">Ngày nộp</dt>
-              <dd className="font-medium text-navy-900">{formatDate(submission.submittedAt)}</dd>
-              <dt className="text-slate-500">Trạng thái</dt>
-              <dd>
+        <div className="space-y-5">
+          <div className="overflow-hidden rounded-2xl border border-slate-200 bg-white shadow-sm">
+            <ContestCover title={submission.contestName} seed={Number(submission.code.slice(-1))} className="h-64 w-full" />
+            <div className="flex flex-col gap-4 p-4 sm:p-5">
+              <div className="flex flex-wrap items-center gap-2">
                 <StatusBadge {...SUBMISSION_STATUS[submission.status]} />
-              </dd>
-            </dl>
+                <span className="rounded-full bg-slate-100 px-3 py-1 text-sm font-semibold text-slate-600">{submission.contestName}</span>
+              </div>
+              <dl className="grid gap-x-8 gap-y-3 text-sm sm:grid-cols-2">
+                <div className="flex gap-2"><dt className="text-slate-500">Tác giả:</dt><dd className="font-bold text-[#0B356B]">{submission.authorName}</dd></div>
+                <div className="flex gap-2"><dt className="text-slate-500">Ngày nộp:</dt><dd className="font-medium text-[#0B356B]">{formatDate(submission.submittedAt)}</dd></div>
+              </dl>
+            </div>
           </div>
-          <div>
-            <h2 className="mb-4 text-lg font-bold text-navy-900">Thông tin kỹ thuật ảnh phim (Metadata)</h2>
+
+          <div className="rounded-2xl border border-slate-200 bg-white p-4 shadow-sm sm:p-5">
+            <h2 className="mb-4 text-lg font-bold text-[#0B356B]">Thông tin kỹ thuật ảnh phim</h2>
             <div className="grid gap-3 md:grid-cols-2">
               {METADATA_FIELDS.map(({ key, label }) => (
                 <div key={key} className="rounded-xl bg-slate-50 px-4 py-3">
                   <p className="text-xs text-slate-500">{label}</p>
-                  <p className="font-bold text-navy-900">{submission.metadata[key]}</p>
+                  <p className="font-bold text-[#0B356B]">{submission.metadata[key]}</p>
                 </div>
               ))}
             </div>
