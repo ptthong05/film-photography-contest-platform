@@ -13,5 +13,5 @@ interface StatusBadgeProps {
 }
 
 export function StatusBadge({ label, tone }: StatusBadgeProps) {
-  return <span className={`rounded-md px-2 py-1 text-xs font-medium ${TONE_CLASS[tone]}`}>{label}</span>;
+  return <span className={`inline-flex whitespace-nowrap rounded-md px-2 py-1 text-xs font-medium ${TONE_CLASS[tone]}`}>{label}</span>;
 }
