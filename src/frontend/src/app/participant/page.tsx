@@ -18,17 +18,19 @@ export default function ParticipantPage({ onGoHome }: ParticipantPageProps) {
   const [searchQuery, setSearchQuery] = useState<string>('');
   const [isNotificationOpen, setIsNotificationOpen] = useState<boolean>(false);
 
-  // Đọc danh sách ID cuộc thi đã đăng ký từ localStorage
   const [registeredContestIds, setRegisteredContestIds] = useState<string[]>(() => {
     try {
       const saved = localStorage.getItem('participant_registered_contests');
-      return saved ? JSON.parse(saved) : [];
+      if (saved) {
+        const parsed = JSON.parse(saved);
+        if (Array.isArray(parsed)) return parsed;
+      }
+      return [];
     } catch {
       return [];
     }
   });
 
-  // Đồng bộ thời gian thực khi có sự thay đổi đăng ký
   useEffect(() => {
     const handleRegistrationChange = () => {
       try {
@@ -42,15 +44,35 @@ export default function ParticipantPage({ onGoHome }: ParticipantPageProps) {
     return () => window.removeEventListener('contestRegistrationChanged', handleRegistrationChange);
   }, []);
 
-  // Đọc tên người dùng từ localStorage
   const [userName, setUserName] = useState<string>(() => {
-    return localStorage.getItem('participant_user_name') || 'Nguyễn Văn A';
+    try {
+      const savedProfile = localStorage.getItem('participant_profile');
+      if (savedProfile) {
+        const parsed = JSON.parse(savedProfile);
+        if (parsed.name) return parsed.name;
+      }
+    } catch (e) {
+      console.error(e);
+    }
+    return localStorage.getItem('participant_user_name') || 'Hồ Thanh Bình';
   });
 
   useEffect(() => {
     const handleNameChange = () => {
-      const savedName = localStorage.getItem('participant_user_name');
-      if (savedName) setUserName(savedName);
+      try {
+        const savedProfile = localStorage.getItem('participant_profile');
+        if (savedProfile) {
+          const parsed = JSON.parse(savedProfile);
+          if (parsed.name) {
+            setUserName(parsed.name);
+            return;
+          }
+        }
+        const savedName = localStorage.getItem('participant_user_name');
+        if (savedName) setUserName(savedName);
+      } catch (e) {
+        console.error(e);
+      }
     };
     window.addEventListener('userNameChanged', handleNameChange);
     return () => window.removeEventListener('userNameChanged', handleNameChange);
@@ -70,12 +92,12 @@ export default function ParticipantPage({ onGoHome }: ParticipantPageProps) {
   };
 
   return (
-    <div className="flex min-h-screen bg-slate-100 text-slate-800 font-sans text-base">
+    <div className="flex min-h-screen bg-slate-100 text-slate-800 font-sans text-base w-full">
       <Sidebar activeTab={activeTab} setActiveTab={setActiveTab} onGoHome={onGoHome} userName={userName} />
 
-      <main className="flex-1 flex flex-col h-screen overflow-hidden">
-        <header className="bg-white border-b border-slate-200 px-8 py-4 flex items-center justify-between gap-6 flex-shrink-0 z-20">
-          <div className="relative flex-1 max-w-xl">
+      <main className="flex-1 flex flex-col h-screen overflow-hidden w-full">
+        <header className="bg-white border-b border-slate-200 px-8 py-4 flex items-center justify-between gap-6 flex-shrink-0 z-20 w-full">
+          <div className="relative flex-1 max-w-2xl">
             <Search className="absolute left-4 top-1/2 -translate-y-1/2 w-5 h-5 text-slate-400" />
             <input
               type="text"
@@ -117,7 +139,7 @@ export default function ParticipantPage({ onGoHome }: ParticipantPageProps) {
           </div>
         </header>
 
-        <div className="flex-1 p-8 space-y-8 overflow-y-auto">
+        <div className="flex-1 p-8 space-y-8 overflow-y-auto w-full max-w-none">
           {activeTab === 'dashboard' && (
             <DashboardTab
               registeredCount={registeredContestIds.length}
@@ -138,6 +160,7 @@ export default function ParticipantPage({ onGoHome }: ParticipantPageProps) {
               registeredIds={registeredContestIds}
               onToggleRegister={handleToggleRegister}
               onNavigateSubmit={() => setActiveTab('submit')}
+              filterRegisteredOnly={true}
             />
           )}
 
