@@ -1,271 +1,669 @@
 import React, { useState, useEffect } from 'react';
-import { Camera, MapPin, Clock, MessageSquare, FileText, Cpu, Tag, Edit3, Trash2 } from 'lucide-react';
+import {
+  FileText, CheckCircle2, AlertTriangle, Clock, Eye,
+  ArrowLeft, Cpu, Disc, Award, Sparkles, AlertCircle, X, MapPin, Camera, Sliders, ShieldCheck, Layers, EyeOff, Printer, Edit3, Trash2, Plus, RotateCcw
+} from 'lucide-react';
 
-interface SubmissionItem {
+export interface EntryDetail {
   id: string;
+  contestId: string;
+  contestTitle?: string;
   title: string;
   description: string;
   photoUrl: string;
   submittedAt: string;
-  status: string;
-  aiFlag: string;
-  similarityScore: string;
-  aiKeywords: string[];
-  filmBrand: string;
-  iso: number;
-  cameraBody: string;
-  lens: string;
-  filmFormat: string;
-  frameNumber: number;
-  shootingLocation: string;
-  developingLab: string;
-  scanningSpecs: string;
+  status: 'Đang chờ duyệt' | 'Đã duyệt' | 'Từ chối' | 'Đã chấm' | 'Đã xóa' | string;
+  aiFlag?: string;
+  similarityScore?: string;
+  warningMessage?: string;
+  filmBrand?: string;
+  iso?: number | string;
+  cameraBody?: string;
+  lens?: string;
+  shutterSpeed?: string;
+  aperture?: string;
+  focalLength?: string;
+  shootingLocation?: string;
+  developingLab?: string;
+  developerChemical?: string;
+  scanningHardware?: string;
+  colorProfile?: string;
+  grainStructure?: string;
+  exposureCompensation?: string;
+  lightMeterType?: string;
+  filterUsed?: string;
+  temperature?: string;
+  humidity?: string;
   feedback?: string;
+  scores?: {
+    composition: number;
+    lighting: number;
+    concept: number;
+    technique: number;
+    creativity: number;
+  };
 }
 
+const INITIAL_ENTRIES: EntryDetail[] = [
+  {
+    id: 'sub-001',
+    contestId: '1',
+    contestTitle: 'CUỘC THI PHIM 2025 • ANALOG MOMENTS',
+    title: 'anh nắng',
+    description: 'Sương sớm Lâm Đồng ôm trọn lấy những vạt chè xanh ngát trong sự tĩnh lặng tuyệt đối của không gian cao nguyên hoang sơ.',
+    photoUrl: 'https://images.unsplash.com/photo-1540555700478-4be289fbecef?q=85&w=1000&auto=format&fit=crop',
+    submittedAt: '22/10/2026',
+    status: 'Đang chờ duyệt',
+    filmBrand: 'Kodak Portra 400',
+    iso: 400,
+    cameraBody: 'Canon AE-1 Program',
+    lens: 'Canon FD 50mm f/1.8',
+    shutterSpeed: '1/250s',
+    aperture: 'f/4.0',
+    focalLength: '50mm',
+    shootingLocation: 'Đồi chè Cầu Đất, Lâm Đồng',
+    developingLab: 'Lab Xưởng Phim Sài Gòn',
+    developerChemical: 'Kodak C-41',
+    scanningHardware: 'Noritsu HS-1800',
+    colorProfile: 'Adobe RGB'
+  },
+  {
+    id: 'sub-002',
+    contestId: '1',
+    contestTitle: 'CUỘC THI PHIM 2025 • ANALOG MOMENTS',
+    title: 'hơi rừng',
+    description: 'Sương sớm và hơi thở của đại ngàn qua lăng kính máy film.',
+    photoUrl: 'https://images.unsplash.com/photo-1507525428034-b723cf961d3e?q=85&w=1000&auto=format&fit=crop',
+    submittedAt: '22/10/2026',
+    status: 'Đang chờ duyệt',
+    filmBrand: 'Fujifilm C200',
+    iso: 200,
+    cameraBody: 'Nikon FM2',
+    lens: 'Nikkor 35mm f/2.0',
+    shutterSpeed: '1/500s',
+    aperture: 'f/5.6',
+    focalLength: '35mm',
+    shootingLocation: 'Nha Trang, Khánh Hòa',
+    developingLab: 'Zin Lab Phim',
+    developerChemical: 'Fujifilm CN-16',
+    scanningHardware: 'Fuji Frontier SP-3000',
+    colorProfile: 'sRGB'
+  }
+];
+
 export function MyEntriesList() {
-  const [submissions, setSubmissions] = useState<SubmissionItem[]>([]);
-  const [selectedItem, setSelectedItem] = useState<SubmissionItem | null>(null);
-  const [editingItem, setEditingItem] = useState<SubmissionItem | null>(null);
+  const [entries, setEntries] = useState<EntryDetail[]>([]);
+  const [trashEntries, setTrashEntries] = useState<EntryDetail[]>([]);
+
+  const [selectedEntry, setSelectedEntry] = useState<EntryDetail | null>(null);
+  const [editingEntry, setEditingEntry] = useState<EntryDetail | null>(null);
+  const [deleteId, setDeleteId] = useState<string | null>(null);
+
+  const [filterTab, setFilterTab] = useState<'Tất cả' | 'Đang chờ duyệt' | 'Đã duyệt / Đã chấm' | 'Từ chối' | 'Lịch sử xóa'>('Tất cả');
+  const [toastMessage, setToastMessage] = useState<string | null>(null);
+
+  // Hàm đồng bộ số lượng bài dự thi sang DashboardTab qua localStorage
+  const syncCountToDashboard = (currentEntries: EntryDetail[]) => {
+    localStorage.setItem('participant_total_entries_count', currentEntries.length.toString());
+    window.dispatchEvent(new Event('storage'));
+  };
 
   useEffect(() => {
-    const saved = localStorage.getItem('participant_submissions');
-    if (saved) {
-      try {
-        setSubmissions(JSON.parse(saved));
-      } catch (e) {
-        console.error(e);
+    try {
+      const savedTrash = localStorage.getItem('participant_trash_entries');
+      const trashList: EntryDetail[] = savedTrash ? JSON.parse(savedTrash) : [];
+      setTrashEntries(trashList);
+
+      const savedEntries = localStorage.getItem('participant_entries');
+      if (savedEntries) {
+        const parsed: EntryDetail[] = JSON.parse(savedEntries);
+        setEntries(parsed);
+        syncCountToDashboard(parsed);
+      } else {
+        // Lần đầu chưa có, lấy INITIAL_ENTRIES trừ đi các bài đã nằm trong thùng rác
+        const trashIds = trashList.map(t => t.id);
+        const initialFiltered = INITIAL_ENTRIES.filter(item => !trashIds.includes(item.id));
+        setEntries(initialFiltered);
+        localStorage.setItem('participant_entries', JSON.stringify(initialFiltered));
+        syncCountToDashboard(initialFiltered);
       }
-    } else {
-      const defaultSubmissions: SubmissionItem[] = [
-        {
-          id: 'sub-1',
-          title: 'Hoàng Hôn Cầu Ba Son',
-          description: 'Ghi lại ánh sáng chiều buông trên sông Sài Gòn bằng máy cơ.',
-          photoUrl: 'https://images.unsplash.com/photo-1516035069371-29a1b244cc32?auto=format&fit=crop&q=80',
-          submittedAt: '12/10/2026',
-          status: 'Đã duyệt',
-          aiFlag: 'Hợp lệ (An toàn - Không phải AI)',
-          similarityScore: '1.2% (Độc bản cao)',
-          aiKeywords: ['Urban', 'Sunset', 'Saigon', 'Analog 35mm'],
-          filmBrand: 'Kodak Portra 400',
-          iso: 400,
-          cameraBody: 'Leica M6',
-          lens: 'Summicron 35mm',
-          filmFormat: '35mm',
-          frameNumber: 14,
-          shootingLocation: 'Sài Gòn',
-          developingLab: 'Llab Saigon',
-          scanningSpecs: 'Noritsu HS-1800',
-          feedback: 'Bức ảnh có độ tương phản và màu sắc phim rất tuyệt vời!',
-        },
-      ];
-      setSubmissions(defaultSubmissions);
-      localStorage.setItem('participant_submissions', JSON.stringify(defaultSubmissions));
+    } catch (err) {
+      console.error(err);
     }
   }, []);
 
-  const handleDelete = (id: string) => {
-    if (confirm('Bạn có chắc chắn muốn xóa bài dự thi này không?')) {
-      const updated = submissions.filter(s => s.id !== id);
-      setSubmissions(updated);
-      localStorage.setItem('participant_submissions', JSON.stringify(updated));
-    }
+  const showToast = (msg: string) => {
+    setToastMessage(msg);
+    setTimeout(() => setToastMessage(null), 3000);
   };
 
-  const handleUpdateSubmission = (e: React.FormEvent) => {
+  const compressImage = (file: File, callback: (result: string) => void) => {
+    const reader = new FileReader();
+    reader.onload = (event) => {
+      const img = new Image();
+      img.onload = () => {
+        const canvas = document.createElement('canvas');
+        const MAX_WIDTH = 1200;
+        const MAX_HEIGHT = 1200;
+        let width = img.width;
+        let height = img.height;
+
+        if (width > height) {
+          if (width > MAX_WIDTH) {
+            height *= MAX_WIDTH / width;
+            width = MAX_WIDTH;
+          }
+        } else {
+          if (height > MAX_HEIGHT) {
+            width *= MAX_HEIGHT / height;
+            height = MAX_HEIGHT;
+          }
+        }
+
+        canvas.width = width;
+        canvas.height = height;
+        const ctx = canvas.getContext('2d');
+        ctx?.drawImage(img, 0, 0, width, height);
+
+        const dataUrl = canvas.toDataURL('image/jpeg', 0.85);
+        callback(dataUrl);
+      };
+      img.src = event.target?.result as string;
+    };
+    reader.readAsDataURL(file);
+  };
+
+  const handleSaveFullEdit = (e: React.FormEvent) => {
     e.preventDefault();
-    if (!editingItem) return;
+    if (!editingEntry) return;
 
-    const updated = submissions.map(s => s.id === editingItem.id ? editingItem : s);
-    setSubmissions(updated);
-    localStorage.setItem('participant_submissions', JSON.stringify(updated));
-    setEditingItem(null);
-    alert('Cập nhật bài dự thi thành công!');
+    const updated = entries.map(item => item.id === editingEntry.id ? editingEntry : item);
+    setEntries(updated);
+    localStorage.setItem('participant_entries', JSON.stringify(updated));
+    syncCountToDashboard(updated);
+    setEditingEntry(null);
+    showToast('Đã lưu và cập nhật toàn bộ thông tin bài dự thi thành công!');
   };
 
-  return (
-    <div className="space-y-6">
-      <div className="border-b border-slate-200 pb-4">
-        <h2 className="text-2xl font-bold text-slate-900">Bài Dự Thi Của Tôi</h2>
-        <p className="text-slate-600 text-sm">Quản lý bài nộp (Sửa, Xóa) và xem kết quả kiểm duyệt, phân tích AI</p>
-      </div>
+  const handleDeleteEntry = (id: string) => {
+    const itemToDelete = entries.find(item => item.id === id);
+    if (!itemToDelete) return;
 
-      <div className="grid grid-cols-1 md:grid-cols-2 gap-6">
-        {submissions.map((sub) => (
-          <div key={sub.id} className="bg-white rounded-2xl border border-slate-200 shadow-sm overflow-hidden flex flex-col justify-between">
-            <div className="p-5 space-y-3">
-              <div className="relative h-48 rounded-xl overflow-hidden bg-slate-100">
-                <img src={sub.photoUrl} alt={sub.title} className="w-full h-full object-cover" />
-                <span
-                  className={`absolute top-3 right-3 px-3 py-1 rounded-full text-xs font-bold border shadow-sm ${
-                    sub.status === 'Đã duyệt'
-                      ? 'bg-emerald-50 text-emerald-700 border-emerald-200'
-                      : 'bg-amber-50 text-amber-700 border-amber-200'
-                  }`}
-                >
-                  {sub.status}
-                </span>
+    const updatedEntries = entries.filter(item => item.id !== id);
+    const updatedTrash = [itemToDelete, ...trashEntries];
+
+    setEntries(updatedEntries);
+    setTrashEntries(updatedTrash);
+
+    localStorage.setItem('participant_entries', JSON.stringify(updatedEntries));
+    localStorage.setItem('participant_trash_entries', JSON.stringify(updatedTrash));
+    syncCountToDashboard(updatedEntries);
+
+    setDeleteId(null);
+    showToast('Đã chuyển bài dự thi vào Lịch sử xóa (Thùng rác)!');
+  };
+
+  const handleRestoreEntry = (id: string) => {
+    const itemToRestore = trashEntries.find(item => item.id === id);
+    if (!itemToRestore) return;
+
+    const updatedTrash = trashEntries.filter(item => item.id !== id);
+    const updatedEntries = [itemToRestore, ...entries];
+
+    setTrashEntries(updatedTrash);
+    setEntries(updatedEntries);
+
+    localStorage.setItem('participant_trash_entries', JSON.stringify(updatedTrash));
+    localStorage.setItem('participant_entries', JSON.stringify(updatedEntries));
+    syncCountToDashboard(updatedEntries);
+
+    showToast('Đã khôi phục bài dự thi thành công!');
+  };
+
+  const handlePermanentDelete = (id: string) => {
+    const updatedTrash = trashEntries.filter(item => item.id !== id);
+    setTrashEntries(updatedTrash);
+    localStorage.setItem('participant_trash_entries', JSON.stringify(updatedTrash));
+    setDeleteId(null);
+    showToast('Đã xóa vĩnh viễn bài dự thi!');
+  };
+
+  const countAll = entries.length;
+  const countPending = entries.filter(e => e.status === 'Đang chờ duyệt').length;
+  const countApproved = entries.filter(e => e.status === 'Đã duyệt' || e.status === 'Đã chấm').length;
+  const countRejected = entries.filter(e => e.status === 'Từ chối').length;
+  const countTrash = trashEntries.length;
+
+  const filteredEntries = filterTab === 'Lịch sử xóa'
+    ? trashEntries
+    : entries.filter(item => {
+        if (filterTab === 'Tất cả') return true;
+        if (filterTab === 'Đang chờ duyệt') return item.status === 'Đang chờ duyệt';
+        if (filterTab === 'Đã duyệt / Đã chấm') return item.status === 'Đã duyệt' || item.status === 'Đã chấm';
+        if (filterTab === 'Từ chối') return item.status === 'Từ chối';
+        return true;
+      });
+
+  if (editingEntry) {
+    return (
+      <form onSubmit={handleSaveFullEdit} className="space-y-8 max-w-7xl mx-auto pb-24 animate-fade-in font-sans text-slate-900">
+        {toastMessage && (
+          <div className="fixed top-5 right-5 z-50 bg-slate-900 text-white px-6 py-3.5 rounded-2xl shadow-2xl flex items-center gap-3 border border-slate-700 animate-bounce text-sm font-bold">
+            <Sparkles className="w-5 h-5 text-amber-400" />
+            <span>{toastMessage}</span>
+          </div>
+        )}
+
+        <div className="flex items-center justify-between border-b border-slate-200 pb-4">
+          <button
+            type="button"
+            onClick={() => setEditingEntry(null)}
+            className="flex items-center gap-2 px-6 py-3.5 bg-white hover:bg-slate-100 text-slate-800 font-extrabold rounded-2xl border border-slate-200 text-xs transition cursor-pointer shadow-sm active:scale-95"
+          >
+            <ArrowLeft className="w-4 h-4" /> Hủy bỏ & Quay lại
+          </button>
+          <button
+            type="submit"
+            className="px-8 py-3.5 bg-indigo-600 hover:bg-indigo-700 text-white font-black text-xs rounded-2xl shadow-lg transition cursor-pointer active:scale-95"
+          >
+            Lưu Tất Cả Thay Đổi
+          </button>
+        </div>
+
+        <div className="bg-white p-8 md:p-10 rounded-3xl border border-slate-200/90 shadow-sm space-y-4">
+          <span className="text-xs font-black text-indigo-600 uppercase tracking-widest bg-indigo-50 px-3.5 py-1.5 rounded-full inline-block border border-indigo-200">
+            ● CHẾ ĐỘ CHỈNH SỬA TÁC PHẨM: {editingEntry.contestTitle || 'CUỘC THI PHIM'}
+          </span>
+          <div className="space-y-2">
+            <label className="text-xs font-black uppercase text-slate-400">Tiêu đề tác phẩm *</label>
+            <input
+              type="text"
+              value={editingEntry.title || ''}
+              onChange={(e) => setEditingEntry({ ...editingEntry, title: e.target.value })}
+              className="w-full text-3xl md:text-4xl font-black text-slate-900 px-6 py-4 rounded-2xl border-2 border-indigo-200 focus:outline-none focus:border-indigo-600 bg-slate-50"
+              required
+            />
+          </div>
+          <p className="text-xs font-bold text-slate-400">📅 Ngày nộp: {editingEntry.submittedAt} • Mã hồ sơ: {editingEntry.id}</p>
+        </div>
+
+        <div className="grid grid-cols-1 lg:grid-cols-12 gap-8 items-start">
+          <div className="lg:col-span-6 space-y-8">
+            <div className="bg-slate-900 rounded-3xl p-5 shadow-2xl overflow-hidden border border-slate-800 space-y-4">
+              <div className="w-full h-auto max-h-[450px] overflow-hidden rounded-2xl bg-black flex items-center justify-center">
+                <img
+                  src={editingEntry.photoUrl}
+                  alt={editingEntry.title}
+                  className="w-full h-full object-contain max-h-[450px]"
+                />
               </div>
 
-              <div>
-                <h3 className="font-bold text-slate-900 text-lg">{sub.title}</h3>
-                <p className="text-xs text-slate-500 flex items-center gap-1 mt-1">
-                  <Clock className="w-3.5 h-3.5" /> Ngày nộp: {sub.submittedAt}
-                </p>
-              </div>
-
-              <div className="p-3 bg-blue-50/70 border border-blue-100 rounded-xl space-y-1.5 text-xs text-slate-700">
-                <p className="flex items-center gap-1.5 font-bold text-blue-800">
-                  <Cpu className="w-4 h-4 text-blue-600" /> Kết quả phân tích AI:
-                </p>
-                <p>• Trạng thái AI: <span className="font-semibold text-emerald-700">{sub.aiFlag || 'Hợp lệ'}</span></p>
-                <p>• Độ tương đồng: <span className="font-semibold">{sub.similarityScore || 'Thấp (1.5%)'}</span></p>
-                <div className="flex flex-wrap gap-1 pt-1">
-                  <Tag className="w-3.5 h-3.5 text-slate-400 mt-0.5" />
-                  {sub.aiKeywords?.map((kw, idx) => (
-                    <span key={idx} className="px-2 py-0.5 bg-white border border-blue-200 text-blue-700 rounded-md text-[10px] font-medium">
-                      #{kw}
-                    </span>
-                  ))}
-                </div>
-              </div>
+              <label className="w-full py-3.5 bg-blue-600 hover:bg-blue-700 text-white font-black text-xs rounded-2xl shadow-lg transition flex items-center justify-center gap-2 cursor-pointer active:scale-95">
+                <Camera className="w-4 h-4" /> Tải lên / Thay ảnh dự thi mới
+                <input
+                  type="file"
+                  accept="image/*"
+                  onChange={(e) => {
+                    if (e.target.files && e.target.files[0]) {
+                      compressImage(e.target.files[0], (base64) => {
+                        setEditingEntry({ ...editingEntry, photoUrl: base64 });
+                        showToast('Đã thay đổi ảnh mới thành công!');
+                      });
+                    }
+                  }}
+                  className="hidden"
+                />
+              </label>
             </div>
 
-            <div className="p-4 bg-slate-50 border-t border-slate-100 flex items-center justify-between">
-              <button
-                onClick={() => setSelectedItem(sub)}
-                className="text-xs font-semibold text-blue-600 hover:text-blue-700 flex items-center gap-1 cursor-pointer"
-              >
-                <FileText className="w-3.5 h-3.5" /> Xem Chi Tiết Metadata
-              </button>
-              <div className="flex items-center gap-2">
-                <button
-                  onClick={() => setEditingItem(sub)}
-                  className="px-3 py-1.5 bg-white hover:bg-slate-200 text-slate-700 border rounded-lg text-xs font-semibold flex items-center gap-1 transition shadow-sm cursor-pointer"
-                >
-                  <Edit3 className="w-3.5 h-3.5 text-blue-600" /> Sửa
-                </button>
-                <button
-                  onClick={() => handleDelete(sub.id)}
-                  className="px-3 py-1.5 bg-red-50 hover:bg-red-100 text-red-600 rounded-lg text-xs font-semibold flex items-center gap-1 transition cursor-pointer"
-                >
-                  <Trash2 className="w-3.5 h-3.5" /> Xóa
-                </button>
-              </div>
+            <div className="bg-white p-8 md:p-10 rounded-3xl border border-slate-200/90 shadow-sm space-y-4">
+              <h3 className="font-black text-slate-900 text-lg flex items-center gap-3 border-b border-slate-100 pb-4">
+                <FileText className="w-6 h-6 text-indigo-600" /> Chỉnh sửa mô tả & Thông điệp nghệ thuật
+              </h3>
+              <textarea
+                rows={6}
+                value={editingEntry.description || ''}
+                onChange={(e) => setEditingEntry({ ...editingEntry, description: e.target.value })}
+                className="w-full text-sm md:text-base text-slate-700 leading-relaxed bg-slate-50 p-6 rounded-2xl border border-slate-200 focus:outline-none focus:border-indigo-600 font-serif"
+                placeholder="Nhập thông điệp nghệ thuật..."
+              />
             </div>
           </div>
-        ))}
-      </div>
 
-      {editingItem && (
-        <div className="fixed inset-0 bg-slate-900/50 backdrop-blur-sm flex items-center justify-center p-4 z-50">
-          <div className="bg-white rounded-2xl max-w-lg w-full p-6 space-y-4 shadow-xl">
-            <h3 className="text-xl font-bold text-slate-900">Chỉnh Sửa Bài Dự Thi</h3>
-            <form onSubmit={handleUpdateSubmission} className="space-y-3">
-              <div>
-                <label className="block text-xs font-semibold text-slate-700 mb-1">Tên Tác Phẩm *</label>
-                <input
-                  type="text"
-                  required
-                  value={editingItem.title}
-                  onChange={(e) => setEditingItem({ ...editingItem, title: e.target.value })}
-                  className="w-full px-3.5 py-2 border rounded-xl text-sm"
-                />
+          <div className="lg:col-span-6 space-y-8">
+            <div className="bg-white p-8 md:p-10 rounded-3xl border border-slate-200/90 shadow-sm space-y-6">
+              <div className="flex items-center justify-between border-b border-slate-100 pb-4">
+                <h3 className="font-black text-slate-900 text-lg flex items-center gap-3">
+                  <Disc className="w-6 h-6 text-indigo-600" /> Chỉnh Sửa Hồ Sơ Kỹ Thuật Máy & Phim Chi Tiết
+                </h3>
               </div>
-              <div>
-                <label className="block text-xs font-semibold text-slate-700 mb-1">Mô Tả</label>
-                <textarea
-                  rows={3}
-                  value={editingItem.description}
-                  onChange={(e) => setEditingItem({ ...editingItem, description: e.target.value })}
-                  className="w-full px-3.5 py-2 border rounded-xl text-sm"
-                />
-              </div>
-              <div className="grid grid-cols-2 gap-3">
-                <div>
-                  <label className="block text-xs font-semibold text-slate-700 mb-1">Địa Điểm Chụp</label>
+
+              <div className="max-h-[620px] overflow-y-auto pr-2 space-y-4 custom-scrollbar">
+                <div className="bg-slate-50 p-5 rounded-2xl border border-slate-200 space-y-1.5 shadow-sm">
+                  <label className="text-slate-400 text-xs uppercase font-black tracking-wider">1. Loại Phim (Film Stock) & ISO</label>
                   <input
                     type="text"
-                    value={editingItem.shootingLocation}
-                    onChange={(e) => setEditingItem({ ...editingItem, shootingLocation: e.target.value })}
-                    className="w-full px-3.5 py-2 border rounded-xl text-sm"
+                    value={editingEntry.filmBrand || ''}
+                    onChange={(e) => setEditingEntry({ ...editingEntry, filmBrand: e.target.value })}
+                    className="w-full font-black text-slate-900 text-base bg-white px-4 py-3 rounded-xl border border-slate-200 focus:outline-none focus:border-indigo-600"
                   />
                 </div>
-                <div>
-                  <label className="block text-xs font-semibold text-slate-700 mb-1">Số Frame</label>
+
+                <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
+                  <div className="bg-slate-50 p-4.5 rounded-2xl border border-slate-200 space-y-1.5">
+                    <label className="text-slate-400 text-xs uppercase font-black tracking-wider">2. Thân Máy (Body)</label>
+                    <input
+                      type="text"
+                      value={editingEntry.cameraBody || ''}
+                      onChange={(e) => setEditingEntry({ ...editingEntry, cameraBody: e.target.value })}
+                      className="w-full font-extrabold text-slate-800 text-sm bg-white px-4 py-2.5 rounded-xl border border-slate-200 focus:outline-none focus:border-indigo-600"
+                    />
+                  </div>
+                  <div className="bg-slate-50 p-4.5 rounded-2xl border border-slate-200 space-y-1.5">
+                    <label className="text-slate-400 text-xs uppercase font-black tracking-wider">3. Ống Kính (Lens)</label>
+                    <input
+                      type="text"
+                      value={editingEntry.lens || ''}
+                      onChange={(e) => setEditingEntry({ ...editingEntry, lens: e.target.value })}
+                      className="w-full font-extrabold text-slate-800 text-sm bg-white px-4 py-2.5 rounded-xl border border-slate-200 focus:outline-none focus:border-indigo-600"
+                    />
+                  </div>
+                </div>
+
+                <div className="grid grid-cols-3 gap-3">
+                  <div className="bg-slate-50 p-3.5 rounded-2xl border border-slate-200 space-y-1">
+                    <label className="text-slate-400 text-[10px] uppercase font-black">4. Tốc độ</label>
+                    <input
+                      type="text"
+                      value={editingEntry.shutterSpeed || ''}
+                      onChange={(e) => setEditingEntry({ ...editingEntry, shutterSpeed: e.target.value })}
+                      className="w-full font-extrabold text-slate-800 text-xs bg-white px-2.5 py-2 rounded-lg border border-slate-200 focus:outline-none focus:border-indigo-600"
+                    />
+                  </div>
+                  <div className="bg-slate-50 p-3.5 rounded-2xl border border-slate-200 space-y-1">
+                    <label className="text-slate-400 text-[10px] uppercase font-black">5. Khẩu độ</label>
+                    <input
+                      type="text"
+                      value={editingEntry.aperture || ''}
+                      onChange={(e) => setEditingEntry({ ...editingEntry, aperture: e.target.value })}
+                      className="w-full font-extrabold text-slate-800 text-xs bg-white px-2.5 py-2 rounded-lg border border-slate-200 focus:outline-none focus:border-indigo-600"
+                    />
+                  </div>
+                  <div className="bg-slate-50 p-3.5 rounded-2xl border border-slate-200 space-y-1">
+                    <label className="text-slate-400 text-[10px] uppercase font-black">6. Tiêu cự</label>
+                    <input
+                      type="text"
+                      value={editingEntry.focalLength || ''}
+                      onChange={(e) => setEditingEntry({ ...editingEntry, focalLength: e.target.value })}
+                      className="w-full font-extrabold text-slate-800 text-xs bg-white px-2.5 py-2 rounded-lg border border-slate-200 focus:outline-none focus:border-indigo-600"
+                    />
+                  </div>
+                </div>
+
+                <div className="bg-slate-50 p-5 rounded-2xl border border-slate-200 space-y-1.5">
+                  <label className="text-slate-400 text-xs uppercase font-black tracking-wider">7. Địa điểm bấm máy</label>
                   <input
-                    type="number"
-                    value={editingItem.frameNumber}
-                    onChange={(e) => setEditingItem({ ...editingItem, frameNumber: Number(e.target.value) })}
-                    className="w-full px-3.5 py-2 border rounded-xl text-sm"
+                    type="text"
+                    value={editingEntry.shootingLocation || ''}
+                    onChange={(e) => setEditingEntry({ ...editingEntry, shootingLocation: e.target.value })}
+                    className="w-full font-black text-slate-900 text-sm bg-white px-4 py-2.5 rounded-xl border border-slate-200 focus:outline-none focus:border-indigo-600"
                   />
                 </div>
-              </div>
-              <div className="flex gap-3 pt-3">
-                <button
-                  type="button"
-                  onClick={() => setEditingItem(null)}
-                  className="flex-1 py-2 rounded-xl text-slate-600 bg-slate-100 font-semibold text-sm hover:bg-slate-200 cursor-pointer"
-                >
-                  Hủy
-                </button>
-                <button
-                  type="submit"
-                  className="flex-1 py-2 rounded-xl text-white bg-blue-600 font-semibold text-sm hover:bg-blue-700 shadow-sm cursor-pointer"
-                >
-                  Lưu Thay Đổi
-                </button>
-              </div>
-            </form>
-          </div>
-        </div>
-      )}
-
-      {selectedItem && (
-        <div className="fixed inset-0 bg-slate-900/50 backdrop-blur-sm flex items-center justify-center p-4 z-50">
-          <div className="bg-white rounded-2xl max-w-lg w-full p-6 space-y-4 shadow-xl overflow-y-auto max-h-[90vh]">
-            <h3 className="text-xl font-bold text-slate-900">{selectedItem.title}</h3>
-            <img src={selectedItem.photoUrl} alt="Detail" className="w-full h-40 object-cover rounded-xl" />
-            <div className="text-xs space-y-2 text-slate-700 border-t pt-3">
-              <p className="font-bold text-blue-600">Thông tin tác phẩm:</p>
-              <p><strong>Mô tả:</strong> {selectedItem.description || 'Không có mô tả'}</p>
-              <p><strong>Trạng thái:</strong> {selectedItem.status}</p>
-
-              <p className="font-bold text-blue-600 pt-2">Kết quả AI Phân tích:</p>
-              <div className="p-3 bg-blue-50 rounded-xl space-y-1">
-                <p>• <strong>AI Check:</strong> {selectedItem.aiFlag}</p>
-                <p>• <strong>Similarity Check:</strong> {selectedItem.similarityScore}</p>
-                <p>• <strong>Keywords:</strong> {selectedItem.aiKeywords?.join(', ')}</p>
-              </div>
-
-              <p className="font-bold text-blue-600 pt-2">Metadata ảnh phim:</p>
-              <div className="grid grid-cols-2 gap-2 bg-slate-50 p-3 rounded-xl">
-                <p>• Film brand: {selectedItem.filmBrand}</p>
-                <p>• ISO: {selectedItem.iso}</p>
-                <p>• Camera body: {selectedItem.cameraBody}</p>
-                <p>• Lens: {selectedItem.lens}</p>
-                <p>• Film format: {selectedItem.filmFormat}</p>
-                <p>• Frame number: #{selectedItem.frameNumber}</p>
-                <p>• Location: {selectedItem.shootingLocation}</p>
-                <p>• Lab: {selectedItem.developingLab}</p>
-                <p>• Scanning: {selectedItem.scanningSpecs}</p>
-              </div>
-
-              <div className="p-3 bg-emerald-50 text-emerald-900 rounded-xl mt-3">
-                <p className="font-bold flex items-center gap-1"><MessageSquare className="w-3.5 h-3.5" /> Nhận xét / Feedback:</p>
-                <p className="mt-1">{selectedItem.feedback || 'Đang chờ đánh giá từ Ban Giám Khảo.'}</p>
               </div>
             </div>
-            <button
-              onClick={() => setSelectedItem(null)}
-              className="w-full py-2.5 bg-slate-900 text-white font-semibold rounded-xl text-xs hover:bg-slate-800 cursor-pointer"
-            >
-              Đóng
-            </button>
+          </div>
+        </div>
+      </form>
+    );
+  }
+
+  if (selectedEntry) {
+    return (
+      <div className="space-y-8 max-w-7xl mx-auto pb-24 animate-fade-in font-sans text-slate-900">
+        <div className="flex items-center justify-between border-b border-slate-200 pb-4">
+          <button
+            onClick={() => setSelectedEntry(null)}
+            className="flex items-center gap-2 px-6 py-3.5 bg-white hover:bg-slate-100 text-slate-800 font-extrabold rounded-2xl border border-slate-200 text-xs transition cursor-pointer shadow-sm active:scale-95"
+          >
+            <ArrowLeft className="w-4 h-4" /> Quay lại danh sách bài nộp
+          </button>
+          <span className="px-5 py-2.5 rounded-full text-xs font-black bg-amber-100 text-amber-800">
+            ● {selectedEntry.status}
+          </span>
+        </div>
+
+        <div className="bg-white p-8 md:p-10 rounded-3xl border border-slate-200/90 shadow-sm space-y-3">
+          <span className="text-xs font-black text-blue-600 uppercase tracking-widest bg-blue-50 px-3.5 py-1.5 rounded-full inline-block border border-blue-200">
+            {selectedEntry.contestTitle || 'CUỘC THI PHIM'}
+          </span>
+          <h1 className="text-3xl md:text-5xl font-black text-slate-900 tracking-tight">{selectedEntry.title}</h1>
+          <p className="text-xs md:text-sm font-bold text-slate-400">📅 Ngày nộp chính thức: {selectedEntry.submittedAt} • Mã hồ sơ tác phẩm: <strong className="text-slate-700">{selectedEntry.id}</strong></p>
+        </div>
+
+        <div className="grid grid-cols-1 lg:grid-cols-12 gap-8 items-start">
+          <div className="lg:col-span-6 space-y-8">
+            <div className="bg-slate-900 rounded-3xl p-5 shadow-2xl overflow-hidden border border-slate-800">
+              <img
+                src={selectedEntry.photoUrl}
+                alt={selectedEntry.title}
+                className="w-full h-auto max-h-[650px] object-contain rounded-2xl mx-auto shadow-2xl"
+              />
+            </div>
+            <div className="bg-white p-8 md:p-10 rounded-3xl border border-slate-200/90 shadow-sm space-y-5">
+              <h3 className="font-black text-slate-900 text-lg flex items-center gap-3 border-b border-slate-100 pb-4">
+                <FileText className="w-6 h-6 text-blue-600" /> Mô tả tác phẩm & Thông điệp nghệ thuật
+              </h3>
+              <div className="text-sm md:text-base text-slate-700 leading-relaxed italic bg-slate-50 p-6 rounded-2xl border border-slate-200/80 shadow-inner font-serif">
+                "{selectedEntry.description}"
+              </div>
+            </div>
+          </div>
+
+          <div className="lg:col-span-6 space-y-8">
+            <div className="bg-white p-8 md:p-10 rounded-3xl border border-slate-200/90 shadow-sm space-y-6">
+              <h3 className="font-black text-slate-900 text-lg flex items-center gap-3 border-b border-slate-100 pb-4">
+                <Disc className="w-6 h-6 text-blue-600" /> Hồ Sơ Kỹ Thuật Máy & Phim Chi Tiết
+              </h3>
+              <div className="space-y-4">
+                <div className="bg-slate-50 p-5 rounded-2xl border border-slate-200 space-y-1">
+                  <p className="text-slate-400 text-xs uppercase font-black">Loại Phim (Film Stock)</p>
+                  <p className="font-black text-slate-900 text-base">{selectedEntry.filmBrand || 'Fujifilm C200'}</p>
+                </div>
+                <div className="grid grid-cols-2 gap-4">
+                  <div className="bg-slate-50 p-4.5 rounded-2xl border border-slate-200">
+                    <p className="text-slate-400 text-xs uppercase font-black">Thân Máy (Body)</p>
+                    <p className="font-extrabold text-slate-800 text-sm mt-1">{selectedEntry.cameraBody || 'Nikon FM2'}</p>
+                  </div>
+                  <div className="bg-slate-50 p-4.5 rounded-2xl border border-slate-200">
+                    <p className="text-slate-400 text-xs uppercase font-black">Ống Kính (Lens)</p>
+                    <p className="font-extrabold text-slate-800 text-sm mt-1">{selectedEntry.lens || '35mm'}</p>
+                  </div>
+                </div>
+              </div>
+            </div>
+          </div>
+        </div>
+      </div>
+    );
+  }
+
+  return (
+    <div className="space-y-8 max-w-[1800px] mx-auto pb-20 relative font-sans text-slate-900">
+      {toastMessage && (
+        <div className="fixed top-5 right-5 z-50 bg-slate-900 text-white px-6 py-4 rounded-2xl shadow-2xl flex items-center gap-3 border border-slate-700 animate-bounce text-sm font-bold">
+          <Sparkles className="w-5 h-5 text-amber-400" />
+          <span>{toastMessage}</span>
+        </div>
+      )}
+
+      {deleteId && (
+        <div className="fixed inset-0 z-50 bg-black/70 backdrop-blur-md flex items-center justify-center p-6">
+          <div className="bg-white w-full max-w-md rounded-[28px] shadow-2xl border border-slate-200 p-8 space-y-6 animate-fade-in text-center">
+            <div className="w-16 h-16 bg-red-100 text-red-600 rounded-full flex items-center justify-center mx-auto">
+              <Trash2 className="w-8 h-8" />
+            </div>
+            <div className="space-y-2">
+              <h3 className="text-xl font-black text-slate-900">Xác Nhận Xóa Bài Dự Thi</h3>
+              <p className="text-sm font-medium text-slate-500">Bài dự thi sẽ được chuyển vào mục Lịch sử xóa (Thùng rác). Bạn có thể khôi phục lại bất cứ lúc nào.</p>
+            </div>
+            <div className="flex gap-3">
+              <button onClick={() => setDeleteId(null)} className="flex-1 py-3 bg-slate-100 text-slate-700 font-black text-xs rounded-xl cursor-pointer">
+                Hủy bỏ
+              </button>
+              <button onClick={() => handleDeleteEntry(deleteId)} className="flex-1 py-3 bg-red-600 hover:bg-red-700 text-white font-black text-xs rounded-xl shadow cursor-pointer">
+                Chuyển vào thùng rác
+              </button>
+            </div>
           </div>
         </div>
       )}
+
+      <div className="bg-white p-8 md:p-10 rounded-3xl border border-slate-200/90 shadow-sm space-y-2">
+        <span className="text-xs font-black text-blue-600 uppercase tracking-widest bg-blue-50 px-3.5 py-1.5 rounded-full border border-blue-200">
+          ● PARTICIPANT PORTAL
+        </span>
+        <h1 className="text-3xl md:text-4xl font-black text-slate-900 tracking-tight">Bài Dự Thi Của Tôi</h1>
+        <p className="text-sm text-slate-500">Quản lý, theo dõi, xem chi tiết, chỉnh sửa hoặc khôi phục các tác phẩm dự thi từ lịch sử xóa</p>
+      </div>
+
+      <div className="bg-white p-5 rounded-3xl border border-slate-200/90 shadow-sm flex items-center gap-3 overflow-x-auto">
+        <button
+          onClick={() => setFilterTab('Tất cả')}
+          className={`px-6 py-3 rounded-2xl text-xs font-black transition whitespace-nowrap cursor-pointer ${
+            filterTab === 'Tất cả' ? 'bg-blue-600 text-white shadow-md' : 'bg-slate-100 hover:bg-slate-200 text-slate-700'
+          }`}
+        >
+          Tất cả ({countAll})
+        </button>
+        <button
+          onClick={() => setFilterTab('Đang chờ duyệt')}
+          className={`px-6 py-3 rounded-2xl text-xs font-black transition whitespace-nowrap cursor-pointer ${
+            filterTab === 'Đang chờ duyệt' ? 'bg-blue-600 text-white shadow-md' : 'bg-slate-100 hover:bg-slate-200 text-slate-700'
+          }`}
+        >
+          Đang chờ duyệt ({countPending})
+        </button>
+        <button
+          onClick={() => setFilterTab('Đã duyệt / Đã chấm')}
+          className={`px-6 py-3 rounded-2xl text-xs font-black transition whitespace-nowrap cursor-pointer ${
+            filterTab === 'Đã duyệt / Đã chấm' ? 'bg-blue-600 text-white shadow-md' : 'bg-slate-100 hover:bg-slate-200 text-slate-700'
+          }`}
+        >
+          Đã duyệt / Đã chấm ({countApproved})
+        </button>
+        <button
+          onClick={() => setFilterTab('Từ chối')}
+          className={`px-6 py-3 rounded-2xl text-xs font-black transition whitespace-nowrap cursor-pointer ${
+            filterTab === 'Từ chối' ? 'bg-blue-600 text-white shadow-md' : 'bg-slate-100 hover:bg-slate-200 text-slate-700'
+          }`}
+        >
+          Từ chối ({countRejected})
+        </button>
+        <button
+          onClick={() => setFilterTab('Lịch sử xóa')}
+          className={`px-6 py-3 rounded-2xl text-xs font-black transition whitespace-nowrap cursor-pointer flex items-center gap-2 ${
+            filterTab === 'Lịch sử xóa' ? 'bg-rose-600 text-white shadow-md' : 'bg-rose-50 hover:bg-rose-100 text-rose-700 border border-rose-200'
+          }`}
+        >
+          <Trash2 className="w-3.5 h-3.5" /> Lịch sử xóa ({countTrash})
+        </button>
+      </div>
+
+      <div className="space-y-6">
+        {filteredEntries.length === 0 ? (
+          <div className="bg-white p-16 rounded-3xl border border-slate-200 text-center space-y-3">
+            <AlertCircle className="w-12 h-12 text-slate-300 mx-auto" />
+            <p className="text-base font-black text-slate-700">
+              {filterTab === 'Lịch sử xóa' ? 'Thùng rác trống, chưa có bài dự thi nào bị xóa' : 'Không có bài dự thi nào trong mục này'}
+            </p>
+          </div>
+        ) : (
+          filteredEntries.map((entry) => (
+            <div
+              key={entry.id}
+              className="bg-white p-8 md:p-9 rounded-3xl border border-slate-200/90 shadow-sm hover:border-blue-400 hover:shadow-md transition space-y-6"
+            >
+              <div className="flex flex-col md:flex-row items-start md:items-center justify-between gap-6">
+
+                <div className="flex items-center gap-6">
+                  <img
+                    src={entry.photoUrl}
+                    alt={entry.title}
+                    className="w-36 h-36 md:w-40 md:h-40 object-cover rounded-2xl shadow-md border border-slate-200 flex-shrink-0 bg-slate-100"
+                  />
+                  <div className="space-y-2">
+                    <span className="text-xs font-black text-blue-600 uppercase tracking-widest">{entry.contestTitle || 'CUỘC THI PHIM'}</span>
+                    <h3 className="font-black text-slate-900 text-xl md:text-2xl">{entry.title}</h3>
+                    <p className="text-xs md:text-sm text-slate-600 line-clamp-2 max-w-4xl leading-relaxed font-medium">{entry.description}</p>
+                    <p className="text-xs font-bold text-slate-400 pt-1">📅 Nộp ngày: {entry.submittedAt} • Mã: {entry.id}</p>
+                  </div>
+                </div>
+
+                <div className="flex items-center gap-3 w-full md:w-auto justify-between md:justify-end pt-3 md:pt-0 border-t md:border-t-0 border-slate-100 flex-wrap">
+                  {filterTab === 'Lịch sử xóa' ? (
+                    <>
+                      <span className="px-5 py-2.5 rounded-full text-xs font-black bg-rose-100 text-rose-800 shadow-sm">
+                        ● Đã xóa vào thùng rác
+                      </span>
+
+                      <button
+                        onClick={() => handleRestoreEntry(entry.id)}
+                        className="flex items-center gap-1.5 px-5 py-3 bg-emerald-50 hover:bg-emerald-100 text-emerald-700 font-extrabold text-xs rounded-2xl transition cursor-pointer active:scale-95 shadow-sm"
+                      >
+                        <RotateCcw className="w-4 h-4" /> Khôi phục
+                      </button>
+
+                      <button
+                        onClick={() => handlePermanentDelete(entry.id)}
+                        className="p-3 bg-rose-50 hover:bg-rose-100 text-rose-600 rounded-2xl transition cursor-pointer active:scale-95 shadow-sm"
+                        title="Xóa vĩnh viễn"
+                      >
+                        <Trash2 className="w-4 h-4" />
+                      </button>
+                    </>
+                  ) : (
+                    <>
+                      <span className={`px-5 py-2.5 rounded-full text-xs font-black shadow-sm ${
+                        entry.status === 'Đã duyệt'
+                          ? 'bg-emerald-100 text-emerald-800'
+                          : entry.status === 'Đã chấm'
+                          ? 'bg-indigo-100 text-indigo-800'
+                          : entry.status === 'Từ chối'
+                          ? 'bg-rose-100 text-rose-800'
+                          : 'bg-amber-100 text-amber-800'
+                      }`}>
+                        ● {entry.status}
+                      </span>
+
+                      <button
+                        onClick={() => setSelectedEntry(entry)}
+                        className="flex items-center gap-1.5 px-5 py-3 bg-blue-50 hover:bg-blue-100 text-blue-700 font-extrabold text-xs rounded-2xl transition cursor-pointer active:scale-95 shadow-sm"
+                      >
+                        <Eye className="w-4 h-4" /> Xem chi tiết
+                      </button>
+
+                      <button
+                        onClick={() => setEditingEntry(entry)}
+                        className="flex items-center gap-1.5 px-5 py-3 bg-indigo-50 hover:bg-indigo-100 text-indigo-700 font-extrabold text-xs rounded-2xl transition cursor-pointer active:scale-95 shadow-sm"
+                      >
+                        <Edit3 className="w-4 h-4" /> Sửa
+                      </button>
+
+                      <button
+                        onClick={() => setDeleteId(entry.id)}
+                        className="p-3 bg-rose-50 hover:bg-rose-100 text-rose-600 rounded-2xl transition cursor-pointer active:scale-95 shadow-sm"
+                        title="Xóa bài dự thi"
+                      >
+                        <Trash2 className="w-4 h-4" />
+                      </button>
+                    </>
+                  )}
+                </div>
+              </div>
+            </div>
+          ))
+        )}
+      </div>
     </div>
   );
 }

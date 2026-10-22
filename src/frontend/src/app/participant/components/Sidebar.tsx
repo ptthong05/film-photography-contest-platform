@@ -19,10 +19,24 @@ interface SidebarProps {
   userName?: string;
 }
 
-export function Sidebar({ activeTab, setActiveTab, onGoHome, userName = 'Nguyễn Văn A' }: SidebarProps) {
+export function Sidebar({ activeTab, setActiveTab, onGoHome }: SidebarProps) {
   const [avatar, setAvatar] = useState<string>(() => {
     return localStorage.getItem('participant_avatar') || '';
   });
+
+  const [currentName, setCurrentName] = useState<string>(() => {
+    try {
+      const savedProfile = localStorage.getItem('participant_profile');
+      if (savedProfile) {
+        const parsed = JSON.parse(savedProfile);
+        if (parsed.name) return parsed.name;
+      }
+    } catch (e) {
+      console.error(e);
+    }
+    return localStorage.getItem('participant_user_name') || 'Hồ Thanh Bình';
+  });
+
   const fileInputRef = useRef<HTMLInputElement>(null);
 
   useEffect(() => {
@@ -30,8 +44,31 @@ export function Sidebar({ activeTab, setActiveTab, onGoHome, userName = 'Nguyễ
       const savedAvatar = localStorage.getItem('participant_avatar');
       if (savedAvatar) setAvatar(savedAvatar);
     };
+
+    const handleNameChange = () => {
+      try {
+        const savedProfile = localStorage.getItem('participant_profile');
+        if (savedProfile) {
+          const parsed = JSON.parse(savedProfile);
+          if (parsed.name) {
+            setCurrentName(parsed.name);
+            return;
+          }
+        }
+        const savedName = localStorage.getItem('participant_user_name');
+        if (savedName) setCurrentName(savedName);
+      } catch (e) {
+        console.error(e);
+      }
+    };
+
     window.addEventListener('avatarChanged', handleAvatarChange);
-    return () => window.removeEventListener('avatarChanged', handleAvatarChange);
+    window.addEventListener('userNameChanged', handleNameChange);
+
+    return () => {
+      window.removeEventListener('avatarChanged', handleAvatarChange);
+      window.removeEventListener('userNameChanged', handleNameChange);
+    };
   }, []);
 
   const handleFileChange = (e: React.ChangeEvent<HTMLInputElement>) => {
@@ -41,6 +78,16 @@ export function Sidebar({ activeTab, setActiveTab, onGoHome, userName = 'Nguyễ
       reader.onloadend = () => {
         const base64String = reader.result as string;
         localStorage.setItem('participant_avatar', base64String);
+        try {
+          const savedProfile = localStorage.getItem('participant_profile');
+          if (savedProfile) {
+            const parsed = JSON.parse(savedProfile);
+            parsed.avatarUrl = base64String;
+            localStorage.setItem('participant_profile', JSON.stringify(parsed));
+          }
+        } catch (err) {
+          console.error(err);
+        }
         setAvatar(base64String);
         window.dispatchEvent(new Event('avatarChanged'));
       };
@@ -81,7 +128,7 @@ export function Sidebar({ activeTab, setActiveTab, onGoHome, userName = 'Nguyễ
             {avatar ? (
               <img src={avatar} alt="Avatar" className="w-full h-full object-cover" />
             ) : (
-              <span>{userName ? userName.split(' ').map(n => n[0]).join('').slice(-2).toUpperCase() : 'NV'}</span>
+              <span>{currentName ? currentName.split(' ').map(n => n[0]).join('').slice(-2).toUpperCase() : 'NV'}</span>
             )}
 
             <div className="absolute inset-0 bg-black/50 opacity-0 group-hover:opacity-100 transition-opacity flex items-center justify-center">
@@ -98,7 +145,7 @@ export function Sidebar({ activeTab, setActiveTab, onGoHome, userName = 'Nguyễ
           </div>
 
           <div className="overflow-hidden">
-            <p className="font-bold text-base text-white truncate">{userName}</p>
+            <p className="font-bold text-base text-white truncate">{currentName}</p>
             <p className="text-xs text-blue-200">Nhiếp ảnh gia phim</p>
           </div>
         </div>
