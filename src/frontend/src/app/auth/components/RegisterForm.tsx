@@ -1,10 +1,13 @@
 import React, { useState } from 'react';
 import { Eye, EyeOff, Check, AlertCircle } from 'lucide-react';
+import { authService } from '../../../services/authService';
+import type { User } from '../../../types/user';
+import { saveSession } from '../../../utils/authSession';
 import { validateVietnamesePhone } from '../../../utils/phoneValidator';
 
 interface RegisterFormProps {
   onSwitchToLogin: () => void;
-  onSubmitSuccess?: () => void;
+  onSubmitSuccess?: (user: User) => void;
 }
 
 export function RegisterForm({ onSwitchToLogin, onSubmitSuccess }: RegisterFormProps) {
@@ -17,8 +20,10 @@ export function RegisterForm({ onSwitchToLogin, onSubmitSuccess }: RegisterFormP
   const [showPassword, setShowPassword] = useState(false);
   const [showConfirmPassword, setShowConfirmPassword] = useState(false);
   const [agreeTerms, setAgreeTerms] = useState(true);
+  const [isSubmitting, setIsSubmitting] = useState(false);
+  const [formError, setFormError] = useState('');
 
-  const handleSubmit = (e: React.FormEvent) => {
+  const handleSubmit = async (e: React.FormEvent) => {
     e.preventDefault();
     if (!agreeTerms) {
       alert('Vui lòng đồng ý với Điều khoản sử dụng và Chính sách bảo mật');
@@ -38,11 +43,22 @@ export function RegisterForm({ onSwitchToLogin, onSubmitSuccess }: RegisterFormP
       return;
     }
 
-    if (onSubmitSuccess) {
-      onSubmitSuccess();
-    } else {
-      alert(`Đăng ký thành công tài khoản: ${fullName} (${email} - SĐT: ${phoneCheck.normalizedPhone})!`);
-      onSwitchToLogin();
+    setFormError('');
+    setIsSubmitting(true);
+    try {
+      const response = await authService.register({
+        name: fullName.trim(),
+        email: email.trim(),
+        phone: phoneCheck.normalizedPhone,
+        password,
+      });
+      // Đăng ký xong đăng nhập luôn, không bắt người dùng nhập lại
+      saveSession(response, true);
+      onSubmitSuccess?.(response.user);
+    } catch (err) {
+      setFormError(err instanceof Error ? err.message : 'Đăng ký thất bại, vui lòng thử lại');
+    } finally {
+      setIsSubmitting(false);
     }
   };
 
@@ -250,13 +266,24 @@ export function RegisterForm({ onSwitchToLogin, onSubmitSuccess }: RegisterFormP
               </label>
             </div>
 
+            {formError && (
+              <p
+                role="alert"
+                className="flex items-start gap-2 rounded-xl border border-rose-200 bg-rose-50 px-3 py-2.5 text-xs font-medium text-rose-700"
+              >
+                <AlertCircle className="w-4 h-4 shrink-0" />
+                <span>{formError}</span>
+              </p>
+            )}
+
             {/* Submit Button */}
             <div className="pt-2">
               <button
                 type="submit"
-                className="w-full py-3.5 px-4 rounded-xl bg-blue-600 hover:bg-blue-700 active:scale-[0.99] text-white font-semibold text-sm shadow-md shadow-blue-500/20 transition-all cursor-pointer"
+                disabled={isSubmitting}
+                className="w-full py-3.5 px-4 rounded-xl bg-blue-600 hover:bg-blue-700 active:scale-[0.99] text-white font-semibold text-sm shadow-md shadow-blue-500/20 transition-all cursor-pointer disabled:cursor-wait disabled:opacity-70"
               >
-                Đăng ký
+                {isSubmitting ? 'Đang tạo tài khoản...' : 'Đăng ký'}
               </button>
             </div>
           </form>

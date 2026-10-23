@@ -21,6 +21,11 @@ import OrganizerPage from './organizer/page';
 import JudgePage from './judge/page';
 import ParticipantPage from './participant/page';
 import { BackButton } from '../components/BackButton';
+import { AccessDenied } from '../components/AccessDenied';
+import { useAuth } from '../hooks/useAuth';
+import { authService } from '../services/authService';
+import { clearSession, getSession, updateSessionUser } from '../utils/authSession';
+import { ROLE_PORTAL, isDashboardPortal } from '../utils/rolePortal';
 
 const PORTAL_STORAGE_KEY = 'film_contest_active_portal';
 const CONTEST_ID_STORAGE_KEY = 'film_contest_selected_contest_id';
@@ -174,6 +179,13 @@ export default function RootPage() {
   });
 
   const [authMode, setAuthMode] = useState<'LOGIN' | 'REGISTER'>('LOGIN');
+  const { user } = useAuth();
+
+  // Token lưu từ lần trước có thể đã hết hạn / tài khoản bị khóa: hỏi lại backend (401 → apiClient tự đăng xuất)
+  useEffect(() => {
+    if (!getSession()) return;
+    authService.getCurrentUser().then(updateSessionUser).catch(() => {});
+  }, []);
 
   const [selectedContestId, setSelectedContestId] = useState<string>(() => {
     if (initialRoute.contestId) return initialRoute.contestId;
@@ -539,6 +551,32 @@ export default function RootPage() {
     );
   }
 
+  // Các trang quản lý: chưa đăng nhập → form đăng nhập; sai role → báo không có quyền
+  if (isDashboardPortal(activePortal) && !user) {
+    return (
+      <AuthPage
+        initialMode="LOGIN"
+        notice="Vui lòng đăng nhập để vào trang quản lý."
+        onGoHome={goHome}
+        onSelectPortal={setActivePortal}
+        onLoginSuccess={(dashboardRole) => setActivePortal(dashboardRole)}
+      />
+    );
+  }
+
+  if (isDashboardPortal(activePortal) && user && ROLE_PORTAL[user.role] !== activePortal) {
+    return (
+      <AccessDenied
+        role={user.role}
+        onGoToMyPortal={() => setActivePortal(ROLE_PORTAL[user.role])}
+        onGoHome={goHome}
+        onLogout={() => {
+          clearSession();
+          handleOpenAuth('LOGIN');
+        }}
+      />
+    );
+  }
 
   return (
     <div className="relative min-h-screen bg-slate-50 text-slate-800">

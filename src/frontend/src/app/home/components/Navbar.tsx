@@ -1,6 +1,9 @@
-import React, { useState, useEffect } from 'react';
-import { Camera, Search, Menu, X, LogIn, UserPlus } from 'lucide-react';
+import React, { useState, useEffect, useRef } from 'react';
+import { Camera, Search, Menu, X, LogIn, UserPlus, LayoutDashboard, LogOut } from 'lucide-react';
+import { useAuth } from '../../../hooks/useAuth';
 import type { Portal } from '../../../types/portal';
+import { clearSession } from '../../../utils/authSession';
+import { ROLE_LABEL, ROLE_PORTAL } from '../../../utils/rolePortal';
 import { HeaderSearchModal } from './search/HeaderSearchModal';
 
 interface NavbarProps {
@@ -24,6 +27,46 @@ export function Navbar({
 }: NavbarProps) {
   const [mobileMenuOpen, setMobileMenuOpen] = useState(false);
   const [searchOpen, setSearchOpen] = useState(false);
+  const { user } = useAuth();
+  const [isDesktop, setIsDesktop] = useState(() => window.matchMedia('(min-width: 768px)').matches);
+  const searchAreaRef = useRef<HTMLDivElement>(null);
+  const closeTimerRef = useRef<number | undefined>(undefined);
+
+  // Dropdown tìm kiếm neo vào nhóm nút bên phải, mỗi kích thước màn hình có một nhóm riêng
+  useEffect(() => {
+    const mq = window.matchMedia('(min-width: 768px)');
+    const handleChange = (e: MediaQueryListEvent) => setIsDesktop(e.matches);
+    mq.addEventListener('change', handleChange);
+    return () => mq.removeEventListener('change', handleChange);
+  }, []);
+
+  // Chạm/click ra ngoài vùng tìm kiếm thì đóng (cần cho màn hình cảm ứng, nơi không có rê chuột)
+  useEffect(() => {
+    if (!searchOpen) return;
+    const handlePointerDown = (e: PointerEvent) => {
+      if (!searchAreaRef.current?.contains(e.target as Node)) setSearchOpen(false);
+    };
+    document.addEventListener('pointerdown', handlePointerDown);
+    return () => document.removeEventListener('pointerdown', handlePointerDown);
+  }, [searchOpen]);
+
+  useEffect(() => () => window.clearTimeout(closeTimerRef.current), []);
+
+  // Rê chuột ra khỏi vùng tìm kiếm thì đóng; trễ một chút để lỡ tay trượt ra rồi quay lại không bị tắt
+  const cancelSearchClose = () => window.clearTimeout(closeTimerRef.current);
+  const scheduleSearchClose = () => {
+    if (!searchOpen) return;
+    cancelSearchClose();
+    closeTimerRef.current = window.setTimeout(() => setSearchOpen(false), 200);
+  };
+
+  const searchDropdown = (
+    <HeaderSearchModal
+      isOpen={searchOpen}
+      onClose={() => setSearchOpen(false)}
+      onSelectPortal={onSelectPortal}
+    />
+  );
 
   // Lắng nghe phím tắt Ctrl+K hoặc Cmd+K để mở tìm kiếm Spotlight
   useEffect(() => {
@@ -87,6 +130,16 @@ export function Navbar({
     setMobileMenuOpen(false);
   };
 
+  const handleOpenDashboard = () => {
+    if (user) onSelectPortal?.(ROLE_PORTAL[user.role]);
+    setMobileMenuOpen(false);
+  };
+
+  const handleLogout = () => {
+    clearSession();
+    setMobileMenuOpen(false);
+  };
+
   const handleLogoClick = () => {
     if (onGoHome) {
       onGoHome();
@@ -139,7 +192,12 @@ export function Navbar({
           </nav>
 
           {/* Right Action Buttons */}
-          <div className="hidden md:flex items-center gap-3">
+          <div
+            ref={isDesktop ? searchAreaRef : undefined}
+            onMouseEnter={cancelSearchClose}
+            onMouseLeave={scheduleSearchClose}
+            className="relative hidden md:flex items-center gap-3"
+          >
             {/* Spotlight Search Trigger Button */}
             <button
               onClick={() => setSearchOpen(true)}
@@ -149,32 +207,59 @@ export function Navbar({
             >
               <Search className="w-4 h-4 text-slate-500 group-hover:text-blue-600 transition-colors" />
               <span className="text-xs font-medium text-slate-500 hidden xl:inline">Tìm kiếm...</span>
-              <kbd className="hidden xl:inline-block px-1.5 py-0.5 rounded text-[10px] font-mono bg-white border border-slate-200 text-slate-400 group-hover:border-slate-300">
-                Ctrl K
-              </kbd>
             </button>
 
-            {/* Login Button */}
-            <button
-              onClick={handleLogin}
-              className="px-4 py-2 text-sm font-medium text-slate-700 hover:text-blue-600 hover:bg-blue-50 rounded-lg transition-colors cursor-pointer flex items-center gap-1.5"
-            >
-              <LogIn className="w-4 h-4" />
-              <span>Đăng nhập</span>
-            </button>
+            {user ? (
+              <>
+                {/* Dashboard Button — đi tới trang quản lý đúng role */}
+                <button
+                  onClick={handleOpenDashboard}
+                  title={`Vào trang ${ROLE_LABEL[user.role]}`}
+                  className="px-3 py-1.5 text-sm font-semibold text-white bg-blue-600 hover:bg-blue-700 active:scale-[0.98] rounded-lg shadow-sm shadow-blue-500/20 transition-all cursor-pointer flex items-center gap-2"
+                >
+                  <LayoutDashboard className="w-4 h-4" />
+                  <span className="flex flex-col items-start leading-tight">
+                    <span className="max-w-36 truncate">{user.name}</span>
+                    <span className="text-[10px] font-medium text-blue-100">{ROLE_LABEL[user.role]}</span>
+                  </span>
+                </button>
 
-            {/* Register Button */}
-            <button
-              onClick={handleRegister}
-              className="px-4 py-2 text-sm font-semibold text-white bg-blue-600 hover:bg-blue-700 active:scale-[0.98] rounded-lg shadow-sm shadow-blue-500/20 transition-all cursor-pointer flex items-center gap-1.5"
-            >
-              <UserPlus className="w-4 h-4" />
-              <span>Đăng ký</span>
-            </button>
+                {/* Logout Button */}
+                <button
+                  onClick={handleLogout}
+                  className="px-3 py-2 text-sm font-medium text-slate-700 hover:text-rose-600 hover:bg-rose-50 rounded-lg transition-colors cursor-pointer flex items-center gap-1.5"
+                >
+                  <LogOut className="w-4 h-4" />
+                  <span>Đăng xuất</span>
+                </button>
+              </>
+            ) : (
+              <>
+                {/* Login Button */}
+                <button
+                  onClick={handleLogin}
+                  className="px-4 py-2 text-sm font-medium text-slate-700 hover:text-blue-600 hover:bg-blue-50 rounded-lg transition-colors cursor-pointer flex items-center gap-1.5"
+                >
+                  <LogIn className="w-4 h-4" />
+                  <span>Đăng nhập</span>
+                </button>
+
+                {/* Register Button */}
+                <button
+                  onClick={handleRegister}
+                  className="px-4 py-2 text-sm font-semibold text-white bg-blue-600 hover:bg-blue-700 active:scale-[0.98] rounded-lg shadow-sm shadow-blue-500/20 transition-all cursor-pointer flex items-center gap-1.5"
+                >
+                  <UserPlus className="w-4 h-4" />
+                  <span>Đăng ký</span>
+                </button>
+              </>
+            )}
+
+            {isDesktop && searchDropdown}
           </div>
 
           {/* Mobile Search & Menu Button */}
-          <div className="flex md:hidden items-center gap-1.5">
+          <div ref={isDesktop ? undefined : searchAreaRef} className="relative flex md:hidden items-center gap-1.5">
             <button
               onClick={() => setSearchOpen(true)}
               aria-label="Tìm kiếm"
@@ -189,6 +274,8 @@ export function Navbar({
             >
               {mobileMenuOpen ? <X className="w-6 h-6" /> : <Menu className="w-6 h-6" />}
             </button>
+
+            {!isDesktop && searchDropdown}
           </div>
         </div>
       </div>
@@ -224,28 +311,40 @@ export function Navbar({
           </div>
 
           <div className="pt-3 border-t border-slate-100 flex flex-col gap-2">
-            <button
-              onClick={handleLogin}
-              className="w-full py-2.5 text-center text-sm font-semibold text-slate-700 bg-slate-100 hover:bg-slate-200 rounded-lg cursor-pointer"
-            >
-              Đăng nhập
-            </button>
-            <button
-              onClick={handleRegister}
-              className="w-full py-2.5 text-center text-sm font-semibold text-white bg-blue-600 hover:bg-blue-700 rounded-lg shadow-sm cursor-pointer"
-            >
-              Đăng ký tài khoản
-            </button>
+            {user ? (
+              <>
+                <button
+                  onClick={handleOpenDashboard}
+                  className="w-full py-2.5 text-center text-sm font-semibold text-white bg-blue-600 hover:bg-blue-700 rounded-lg shadow-sm cursor-pointer"
+                >
+                  {user.name} · Vào trang {ROLE_LABEL[user.role]}
+                </button>
+                <button
+                  onClick={handleLogout}
+                  className="w-full py-2.5 text-center text-sm font-semibold text-slate-700 bg-slate-100 hover:bg-slate-200 rounded-lg cursor-pointer"
+                >
+                  Đăng xuất
+                </button>
+              </>
+            ) : (
+              <>
+                <button
+                  onClick={handleLogin}
+                  className="w-full py-2.5 text-center text-sm font-semibold text-slate-700 bg-slate-100 hover:bg-slate-200 rounded-lg cursor-pointer"
+                >
+                  Đăng nhập
+                </button>
+                <button
+                  onClick={handleRegister}
+                  className="w-full py-2.5 text-center text-sm font-semibold text-white bg-blue-600 hover:bg-blue-700 rounded-lg shadow-sm cursor-pointer"
+                >
+                  Đăng ký tài khoản
+                </button>
+              </>
+            )}
           </div>
         </div>
       )}
-
-      {/* Spotlight Search Modal */}
-      <HeaderSearchModal
-        isOpen={searchOpen}
-        onClose={() => setSearchOpen(false)}
-        onSelectPortal={onSelectPortal}
-      />
     </header>
   );
 }
