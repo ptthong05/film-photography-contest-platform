@@ -4,8 +4,25 @@
 Tài liệu này phác thảo các RESTful API cốt lõi cho Nền tảng quản lý cuộc thi nhiếp ảnh phim tích hợp AI. Các API tuân theo chuẩn REST và sử dụng JWT để xác thực (Kiểm soát truy cập dựa trên vai trò - RBAC).
 
 ## 2. Xác thực (Authentication)
-- `POST /api/auth/login`: Đăng nhập và trả về token JWT.
-- `POST /api/auth/register`: Đăng ký tài khoản Participant mới (Thí sinh).
+- `POST /api/auth/login`: Đăng nhập bằng email **hoặc** số điện thoại, trả về token JWT.
+  - Body: `{ "identifier": "admin@filmcontest.vn", "password": "..." }`
+  - Response: `{ "token": "...", "expiresAt": "...", "user": { "id", "name", "email", "phone", "role", "status", ... } }`
+  - `401` sai thông tin đăng nhập · `403` tài khoản bị khóa.
+- `POST /api/auth/register`: Đăng ký tài khoản Participant mới (Thí sinh). Luôn tạo role `PARTICIPANT`,
+  bỏ qua mọi `role` client gửi lên. Trả về giống `login` (đăng ký xong là đăng nhập luôn).
+  - Body: `{ "name", "email", "phone", "password" }`
+- `GET /api/auth/me`: Thông tin tài khoản đang đăng nhập.
+
+Mọi API khác cần header `Authorization: Bearer <token>`. Thiếu / sai token → `401`, sai role → `403`,
+cùng định dạng `{ "message": "..." }`.
+
+### Quản lý người dùng (chỉ Admin)
+- `GET /api/users`, `GET /api/users/{id}`
+- `POST /api/users`: Tạo tài khoản bất kỳ role (dùng để tạo Organizer / Judge). Bắt buộc `password`.
+- `PUT /api/users/{id}`: Sửa thông tin; để trống `password` = giữ mật khẩu cũ.
+- `PATCH /api/users/{id}/status`: Khóa / mở khóa — body `{ "status": "ACTIVE" | "SUSPENDED" | "LOCKED" }`.
+- `DELETE /api/users/{id}`
+- Admin không thể tự khóa, tự xóa hoặc tự hạ quyền của chính mình.
 
 ## 3. Quản lý cuộc thi (Organizer & Admin)
 - `GET /api/contests`: Lấy danh sách tất cả các cuộc thi đang diễn ra.
