@@ -109,6 +109,27 @@ public class UserService {
         return Optional.of(UserResponse.fromEntity(userRepository.save(admin)));
     }
 
+    /**
+     * Tạo tài khoản mẫu nếu email chưa tồn tại; trả Optional.empty() khi đã có để chạy lại mỗi lần khởi động không tạo trùng.
+     * SĐT đã bị người khác dùng thì bỏ trống thay vì làm hỏng cả lần khởi động.
+     */
+    public Optional<UserResponse> createAccountIfMissing(String name, String rawEmail, String rawPhone, String rawPassword, Role role) {
+        String email = IdentifierNormalizer.normalizeEmail(rawEmail);
+        if (userRepository.existsByEmail(email)) {
+            return Optional.empty();
+        }
+        String phone = IdentifierNormalizer.normalizePhone(rawPhone);
+
+        User user = new User();
+        user.setName(name);
+        user.setEmail(email);
+        user.setPhone(phone != null && userRepository.existsByPhone(phone) ? null : phone);
+        user.setRole(role);
+        user.setStatus(UserStatus.ACTIVE);
+        user.setPasswordHash(passwordEncoder.encode(rawPassword));
+        return Optional.of(UserResponse.fromEntity(userRepository.save(user)));
+    }
+
     private User findUserOrThrow(String id) {
         return userRepository.findById(id)
                 .orElseThrow(() -> new ResourceNotFoundException("Không tìm thấy người dùng với ID: " + id));
