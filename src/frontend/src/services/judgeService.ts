@@ -7,6 +7,7 @@ import type {
   JudgeContest,
   JudgeNotification,
   JudgeProfile,
+  JudgeProfileChanges,
   JudgeStats,
 } from '../types/judge';
 import { calculateWeightedScore } from '../utils/calculateScore';
@@ -64,8 +65,8 @@ export const judgeService = {
   /** GET /judges/me */
   getProfile: (): Promise<JudgeProfile> => respond(mockProfile),
 
-  /** PATCH /judges/me — email do Admin quản lý nên không cho sửa */
-  updateProfile: (changes: Pick<JudgeProfile, 'phone' | 'specialty' | 'bio'>): Promise<JudgeProfile> => {
+  /** PATCH /judges/me */
+  updateProfile: (changes: JudgeProfileChanges): Promise<JudgeProfile> => {
     Object.assign(mockProfile, changes);
     return respond(mockProfile);
   },

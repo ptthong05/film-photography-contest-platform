@@ -133,6 +133,9 @@ export interface JudgeProfile {
   avatarUrl: string;
 }
 
+/** Các trường giám khảo được tự sửa trong hồ sơ */
+export type JudgeProfileChanges = Omit<JudgeProfile, 'id' | 'avatarUrl'>;
+
 export interface ContestResultEntry {
   rank: number;
   submissionTitle: string;
