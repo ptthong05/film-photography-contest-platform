@@ -4,21 +4,30 @@ import com.example.backend.dto.UserRequest;
 import com.example.backend.dto.UserResponse;
 import com.example.backend.entity.User;
 import com.example.backend.enums.Role;
+import com.example.backend.enums.UserStatus;
+import com.example.backend.exception.BadRequestException;
 import com.example.backend.exception.DuplicateResourceException;
+import com.example.backend.exception.ForbiddenOperationException;
 import com.example.backend.exception.ResourceNotFoundException;
 import com.example.backend.repository.UserRepository;
+import com.example.backend.util.IdentifierNormalizer;
+import org.springframework.security.crypto.password.PasswordEncoder;
 import org.springframework.stereotype.Service;
 
 import java.util.List;
+import java.util.Objects;
+import java.util.Optional;
 
-/** Service mẫu: chứa toàn bộ business logic, nhận/trả DTO. */
+/** Service mẫu: chứa toàn bộ business logic, nhận/trả DTO. Các API ở đây chỉ Admin gọi được (xem SecurityConfig). */
 @Service
 public class UserService {
 
     private final UserRepository userRepository;
+    private final PasswordEncoder passwordEncoder;
 
-    public UserService(UserRepository userRepository) {
+    public UserService(UserRepository userRepository, PasswordEncoder passwordEncoder) {
         this.userRepository = userRepository;
+        this.passwordEncoder = passwordEncoder;
     }
 
     public List<UserResponse> getAllUsers() {
@@ -32,25 +41,72 @@ public class UserService {
     }
 
     public UserResponse createUser(UserRequest request) {
-        ensureEmailNotTaken(request.email());
+        if (request.password() == null || request.password().isBlank()) {
+            throw new BadRequestException("Mật khẩu không được để trống khi tạo tài khoản");
+        }
+        String email = IdentifierNormalizer.normalizeEmail(request.email());
+        String phone = IdentifierNormalizer.normalizePhone(request.phone());
+        ensureEmailNotTaken(email);
+        ensurePhoneNotTaken(phone);
 
         User user = new User();
-        applyRequest(user, request);
+        applyRequest(user, request, email, phone);
         return UserResponse.fromEntity(userRepository.save(user));
     }
 
-    public UserResponse updateUser(String id, UserRequest request) {
+    public UserResponse updateUser(String id, UserRequest request, String actorId) {
         User user = findUserOrThrow(id);
-        if (!user.getEmail().equalsIgnoreCase(request.email())) {
-            ensureEmailNotTaken(request.email());
+        String email = IdentifierNormalizer.normalizeEmail(request.email());
+        String phone = IdentifierNormalizer.normalizePhone(request.phone());
+        if (!email.equals(user.getEmail())) {
+            ensureEmailNotTaken(email);
+        }
+        if (phone != null && !phone.equals(user.getPhone())) {
+            ensurePhoneNotTaken(phone);
+        }
+        // Tránh Admin tự hạ quyền rồi không còn ai quản trị được hệ thống
+        if (id.equals(actorId) && request.role() != null && request.role() != Role.ADMIN) {
+            throw new ForbiddenOperationException("Không thể tự thay đổi quyền Admin của chính mình");
         }
 
-        applyRequest(user, request);
+        applyRequest(user, request, email, phone);
         return UserResponse.fromEntity(userRepository.save(user));
     }
 
-    public void deleteUser(String id) {
+    public UserResponse updateStatus(String id, UserStatus status, String actorId) {
+        if (id.equals(actorId) && status != UserStatus.ACTIVE) {
+            throw new ForbiddenOperationException("Không thể tự khóa tài khoản của chính mình");
+        }
+        User user = findUserOrThrow(id);
+        user.setStatus(status);
+        return UserResponse.fromEntity(userRepository.save(user));
+    }
+
+    public void deleteUser(String id, String actorId) {
+        if (id.equals(actorId)) {
+            throw new ForbiddenOperationException("Không thể tự xóa tài khoản của chính mình");
+        }
         userRepository.delete(findUserOrThrow(id));
+    }
+
+    /**
+     * Tạo tài khoản Admin đầu tiên nếu hệ thống chưa có Admin nào.
+     * Trả về Optional.empty() khi đã có Admin, để chạy lại mỗi lần khởi động không tạo trùng.
+     */
+    public Optional<UserResponse> createDefaultAdminIfMissing(String rawEmail, String rawPassword) {
+        if (userRepository.existsByRole(Role.ADMIN)) {
+            return Optional.empty();
+        }
+        String email = IdentifierNormalizer.normalizeEmail(rawEmail);
+        ensureEmailNotTaken(email);
+
+        User admin = new User();
+        admin.setName("Quản trị viên");
+        admin.setEmail(email);
+        admin.setRole(Role.ADMIN);
+        admin.setStatus(UserStatus.ACTIVE);
+        admin.setPasswordHash(passwordEncoder.encode(rawPassword));
+        return Optional.of(UserResponse.fromEntity(userRepository.save(admin)));
     }
 
     private User findUserOrThrow(String id) {
@@ -64,9 +120,19 @@ public class UserService {
         }
     }
 
-    private void applyRequest(User user, UserRequest request) {
-        user.setName(request.name());
-        user.setEmail(request.email());
-        user.setRole(request.role() != null ? request.role() : Role.PARTICIPANT);
+    private void ensurePhoneNotTaken(String phone) {
+        if (phone != null && userRepository.existsByPhone(phone)) {
+            throw new DuplicateResourceException("Số điện thoại đã được sử dụng: " + phone);
+        }
+    }
+
+    private void applyRequest(User user, UserRequest request, String email, String phone) {
+        user.setName(request.name().trim());
+        user.setEmail(email);
+        user.setPhone(phone);
+        user.setRole(Objects.requireNonNullElse(request.role(), Role.PARTICIPANT));
+        if (request.password() != null && !request.password().isBlank()) {
+            user.setPasswordHash(passwordEncoder.encode(request.password()));
+        }
     }
 }

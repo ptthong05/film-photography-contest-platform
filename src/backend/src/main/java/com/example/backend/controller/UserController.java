@@ -2,12 +2,16 @@ package com.example.backend.controller;
 
 import com.example.backend.dto.UserRequest;
 import com.example.backend.dto.UserResponse;
+import com.example.backend.dto.UserStatusRequest;
+import com.example.backend.security.AuthenticatedUser;
 import com.example.backend.service.UserService;
 import jakarta.validation.Valid;
 import org.springframework.http.HttpStatus;
 import org.springframework.http.ResponseEntity;
+import org.springframework.security.core.annotation.AuthenticationPrincipal;
 import org.springframework.web.bind.annotation.DeleteMapping;
 import org.springframework.web.bind.annotation.GetMapping;
+import org.springframework.web.bind.annotation.PatchMapping;
 import org.springframework.web.bind.annotation.PathVariable;
 import org.springframework.web.bind.annotation.PostMapping;
 import org.springframework.web.bind.annotation.PutMapping;
@@ -17,7 +21,7 @@ import org.springframework.web.bind.annotation.RestController;
 
 import java.util.List;
 
-/** Controller mẫu: chỉ nhận request → gọi service → trả response. Không chứa logic. */
+/** Controller mẫu: chỉ nhận request → gọi service → trả response. Không chứa logic. Chỉ Admin (SecurityConfig). */
 @RestController
 @RequestMapping("/api/users")
 public class UserController {
@@ -44,13 +48,26 @@ public class UserController {
     }
 
     @PutMapping("/{id}")
-    public ResponseEntity<UserResponse> updateUser(@PathVariable String id, @Valid @RequestBody UserRequest request) {
-        return ResponseEntity.ok(userService.updateUser(id, request));
+    public ResponseEntity<UserResponse> updateUser(
+            @PathVariable String id,
+            @Valid @RequestBody UserRequest request,
+            @AuthenticationPrincipal AuthenticatedUser currentUser) {
+        return ResponseEntity.ok(userService.updateUser(id, request, currentUser.id()));
+    }
+
+    @PatchMapping("/{id}/status")
+    public ResponseEntity<UserResponse> updateUserStatus(
+            @PathVariable String id,
+            @Valid @RequestBody UserStatusRequest request,
+            @AuthenticationPrincipal AuthenticatedUser currentUser) {
+        return ResponseEntity.ok(userService.updateStatus(id, request.status(), currentUser.id()));
     }
 
     @DeleteMapping("/{id}")
-    public ResponseEntity<Void> deleteUser(@PathVariable String id) {
-        userService.deleteUser(id);
+    public ResponseEntity<Void> deleteUser(
+            @PathVariable String id,
+            @AuthenticationPrincipal AuthenticatedUser currentUser) {
+        userService.deleteUser(id, currentUser.id());
         return ResponseEntity.noContent().build();
     }
 }
