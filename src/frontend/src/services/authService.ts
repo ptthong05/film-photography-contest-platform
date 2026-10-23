@@ -1,5 +1,5 @@
 import type { AuthResponse, LoginRequest, RegisterRequest } from '../types/auth';
-import type { User } from '../types/user';
+import type { UpdateAccountRequest, User } from '../types/user';
 import { request } from './apiClient';
 
 export const authService = {
@@ -10,4 +10,7 @@ export const authService = {
     request<AuthResponse>('/auth/register', { method: 'POST', body: JSON.stringify(body) }),
 
   getCurrentUser: () => request<User>('/auth/me'),
+
+  updateCurrentUser: (body: UpdateAccountRequest) =>
+    request<User>('/auth/me', { method: 'PUT', body: JSON.stringify(body) }),
 };

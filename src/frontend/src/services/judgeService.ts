@@ -10,7 +10,9 @@ import type {
   JudgeProfileChanges,
   JudgeStats,
 } from '../types/judge';
+import { getSession, updateSessionUser } from '../utils/authSession';
 import { calculateWeightedScore } from '../utils/calculateScore';
+import { authService } from './authService';
 import {
   mockContests,
   mockEvaluations,
@@ -41,6 +43,15 @@ function fail(message: string): Promise<never> {
   });
 }
 
+/** Họ tên, email, SĐT là thông tin tài khoản đăng nhập nên lấy từ phiên hiện tại; chưa đăng nhập thì dùng dữ liệu mẫu. */
+function withAccountInfo(profile: JudgeProfile): JudgeProfile {
+  const user = getSession()?.user;
+  if (!user) {
+    return profile;
+  }
+  return { ...profile, fullName: user.name, email: user.email, phone: user.phone ?? '' };
+}
+
 function findEvaluation(submissionId: string) {
   return mockEvaluations.find((item) => item.submissionId === submissionId);
 }
@@ -63,12 +74,19 @@ function buildContest(base: (typeof mockContests)[number]): JudgeContest {
 
 export const judgeService = {
   /** GET /judges/me */
-  getProfile: (): Promise<JudgeProfile> => respond(mockProfile),
+  getProfile: (): Promise<JudgeProfile> => respond(withAccountInfo(mockProfile)),
 
-  /** PATCH /judges/me */
-  updateProfile: (changes: JudgeProfileChanges): Promise<JudgeProfile> => {
+  /**
+   * Họ tên/email/SĐT lưu vào tài khoản qua PUT /auth/me để đăng nhập được bằng thông tin mới.
+   * Các trường còn lại: PATCH /judges/me (backend chưa có nên tạm lưu vào dữ liệu mẫu).
+   */
+  updateProfile: async (changes: JudgeProfileChanges): Promise<JudgeProfile> => {
+    if (getSession()) {
+      const user = await authService.updateCurrentUser({ name: changes.fullName, email: changes.email, phone: changes.phone });
+      updateSessionUser(user);
+    }
     Object.assign(mockProfile, changes);
-    return respond(mockProfile);
+    return respond(withAccountInfo(mockProfile));
   },
 
   /** GET /judges/me/evaluations */

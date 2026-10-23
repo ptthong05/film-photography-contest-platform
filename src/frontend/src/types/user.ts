@@ -25,3 +25,10 @@ export interface UserRequest {
   password?: string;
   role: Role;
 }
+
+/** Khớp với UpdateAccountRequest của backend: người dùng tự sửa, email/SĐT mới dùng để đăng nhập. */
+export interface UpdateAccountRequest {
+  name: string;
+  email: string;
+  phone: string;
+}

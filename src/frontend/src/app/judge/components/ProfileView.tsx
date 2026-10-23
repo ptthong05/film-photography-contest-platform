@@ -3,6 +3,7 @@ import { Briefcase, Mail, Pencil, Phone, Star, UserRound } from 'lucide-react';
 import type { LucideIcon } from 'lucide-react';
 import { judgeService } from '../../../services/judgeService';
 import type { JudgeProfile, JudgeProfileChanges } from '../../../types/judge';
+import { validateVietnamesePhone } from '../../../utils/phoneValidator';
 import { AsyncState } from './AsyncState';
 import { Avatar } from './Avatar';
 
@@ -28,6 +29,12 @@ function validate(draft: ProfileDraft): string | null {
   }
   if (!EMAIL_PATTERN.test(draft.email.trim())) {
     return 'Email không hợp lệ';
+  }
+  if (draft.phone.trim() !== '') {
+    const phone = validateVietnamesePhone(draft.phone);
+    if (!phone.isValid) {
+      return phone.error;
+    }
   }
   const years = Number(draft.yearsOfExperience);
   if (draft.yearsOfExperience.trim() === '' || !Number.isInteger(years) || years < 0) {
@@ -66,6 +73,7 @@ export function ProfileView({ profile, onUpdated }: ProfileViewProps) {
         ...draft,
         fullName: draft.fullName.trim(),
         email: draft.email.trim(),
+        phone: draft.phone.trim() === '' ? '' : validateVietnamesePhone(draft.phone).normalizedPhone,
         yearsOfExperience: Number(draft.yearsOfExperience),
       });
       await onUpdated();

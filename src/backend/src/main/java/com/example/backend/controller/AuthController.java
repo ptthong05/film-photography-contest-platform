@@ -3,6 +3,7 @@ package com.example.backend.controller;
 import com.example.backend.dto.AuthResponse;
 import com.example.backend.dto.LoginRequest;
 import com.example.backend.dto.RegisterRequest;
+import com.example.backend.dto.UpdateAccountRequest;
 import com.example.backend.dto.UserResponse;
 import com.example.backend.security.AuthenticatedUser;
 import com.example.backend.service.AuthService;
@@ -12,6 +13,7 @@ import org.springframework.http.ResponseEntity;
 import org.springframework.security.core.annotation.AuthenticationPrincipal;
 import org.springframework.web.bind.annotation.GetMapping;
 import org.springframework.web.bind.annotation.PostMapping;
+import org.springframework.web.bind.annotation.PutMapping;
 import org.springframework.web.bind.annotation.RequestBody;
 import org.springframework.web.bind.annotation.RequestMapping;
 import org.springframework.web.bind.annotation.RestController;
@@ -39,5 +41,12 @@ public class AuthController {
     @GetMapping("/me")
     public ResponseEntity<UserResponse> getCurrentUser(@AuthenticationPrincipal AuthenticatedUser currentUser) {
         return ResponseEntity.ok(authService.getCurrentUser(currentUser.id()));
+    }
+
+    @PutMapping("/me")
+    public ResponseEntity<UserResponse> updateCurrentUser(
+            @AuthenticationPrincipal AuthenticatedUser currentUser,
+            @Valid @RequestBody UpdateAccountRequest request) {
+        return ResponseEntity.ok(authService.updateCurrentUser(currentUser.id(), request));
     }
 }

@@ -3,6 +3,7 @@ package com.example.backend.service;
 import com.example.backend.dto.AuthResponse;
 import com.example.backend.dto.LoginRequest;
 import com.example.backend.dto.RegisterRequest;
+import com.example.backend.dto.UpdateAccountRequest;
 import com.example.backend.dto.UserResponse;
 import com.example.backend.entity.User;
 import com.example.backend.enums.Role;
@@ -76,6 +77,25 @@ public class AuthService {
         return userRepository.findById(userId)
                 .map(UserResponse::fromEntity)
                 .orElseThrow(() -> new ResourceNotFoundException("Không tìm thấy tài khoản"));
+    }
+
+    /** Email/SĐT là thông tin đăng nhập nên phải kiểm tra trùng với tài khoản khác trước khi lưu. */
+    public UserResponse updateCurrentUser(String userId, UpdateAccountRequest request) {
+        User user = userRepository.findById(userId)
+                .orElseThrow(() -> new ResourceNotFoundException("Không tìm thấy tài khoản"));
+        String email = IdentifierNormalizer.normalizeEmail(request.email());
+        String phone = IdentifierNormalizer.normalizePhone(request.phone());
+        if (!email.equals(user.getEmail()) && userRepository.existsByEmail(email)) {
+            throw new DuplicateResourceException("Email đã được sử dụng: " + email);
+        }
+        if (phone != null && !phone.equals(user.getPhone()) && userRepository.existsByPhone(phone)) {
+            throw new DuplicateResourceException("Số điện thoại đã được sử dụng: " + phone);
+        }
+
+        user.setName(request.name().trim());
+        user.setEmail(email);
+        user.setPhone(phone);
+        return UserResponse.fromEntity(userRepository.save(user));
     }
 
     private Optional<User> findByIdentifier(String identifier) {
