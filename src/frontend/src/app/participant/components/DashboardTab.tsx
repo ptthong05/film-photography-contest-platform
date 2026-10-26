@@ -35,6 +35,10 @@ export interface ContestItem {
   judgingCriteria: string[];
 }
 
+interface StoredDashboardEntryItem {
+  status?: string;
+}
+
 const INITIAL_CONTESTS: ContestItem[] = [
   {
     id: 'contest-01',
@@ -165,10 +169,10 @@ export function DashboardTab({ registeredCount = 0, registeredIds = [], onNaviga
 
         const savedEntries = localStorage.getItem('participant_entries');
         if (savedEntries) {
-          const parsedEntries = JSON.parse(savedEntries);
+          const parsedEntries: StoredDashboardEntryItem[] = JSON.parse(savedEntries);
           if (Array.isArray(parsedEntries)) {
             setTotalEntriesCount(parsedEntries.length);
-            const pendingCount = parsedEntries.filter((item: any) => item.status === 'Đang chờ duyệt').length;
+            const pendingCount = parsedEntries.filter((item: StoredDashboardEntryItem) => item.status === 'Đang chờ duyệt').length;
             setPendingEntriesCount(pendingCount);
           }
         }

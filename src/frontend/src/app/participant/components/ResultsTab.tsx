@@ -23,6 +23,16 @@ export interface ResultItem {
   };
 }
 
+interface StoredEntryItem {
+  id?: string;
+  contestTitle?: string;
+  title?: string;
+  status?: string;
+  photoUrl?: string;
+  submittedAt?: string;
+  description?: string;
+}
+
 const INITIAL_RESULTS: ResultItem[] = [
   {
     id: 'res-01',
@@ -58,19 +68,19 @@ export function ResultsTab() {
     try {
       const savedEntries = localStorage.getItem('participant_entries');
       if (savedEntries) {
-        const parsedEntries = JSON.parse(savedEntries);
+        const parsedEntries: StoredEntryItem[] = JSON.parse(savedEntries);
         if (Array.isArray(parsedEntries)) {
-          const gradedEntries = parsedEntries.filter((item: any) => item.status === 'Đã chấm');
+          const gradedEntries = parsedEntries.filter((item: StoredEntryItem) => item.status === 'Đã chấm');
 
-          const convertedGraded: ResultItem[] = gradedEntries.map((item: any, idx: number) => ({
+          const convertedGraded: ResultItem[] = gradedEntries.map((item: StoredEntryItem, idx: number) => ({
             id: item.id || `res-graded-${idx}`,
             contestName: item.contestTitle || 'Cuộc thi Phim Analog',
-            artworkTitle: item.title,
+            artworkTitle: item.title || 'Tác phẩm',
             prize: 'Đã hoàn thành chấm điểm',
             rankInfo: 'Top Đánh Giá Khảo Sát',
             status: 'Đã chấm điểm chính thức',
             score: '88.0',
-            imageUrl: item.photoUrl,
+            imageUrl: item.photoUrl || '',
             date: item.submittedAt || 'Mới cập nhật',
             judgeName: 'Hội đồng Giám khảo',
             judgeComment: item.description || 'Tác phẩm được đánh giá cao về mặt cảm xúc và kỹ thuật phim.',
