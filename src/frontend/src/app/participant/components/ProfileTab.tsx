@@ -1,14 +1,61 @@
 import React, { useState, useEffect } from 'react';
 import { User, Mail, Phone, MapPin, Calendar, Camera, Edit3, Plus, Sparkles, Trophy, CheckCircle2, ArrowRight, ExternalLink, Users, MessageSquare, X, Send, Award, Film, Image as ImageIcon, Trash2 } from 'lucide-react';
 
+interface ParticipantEntryItem {
+  id?: string;
+  contestTitle?: string;
+  title?: string;
+  status?: string;
+  submittedAt?: string;
+  description?: string;
+}
+
+interface ContestDetail {
+  id: string;
+  title: string;
+  artworkTitle?: string;
+  role: string;
+  status: string;
+  date: string;
+  badge: string;
+  description: string;
+  artisticConcept: string;
+  rules: string;
+  prizePool: string;
+}
+
+interface AchievementDetail {
+  id: string;
+  title: string;
+  contest: string;
+  prize: string;
+  date: string;
+  description: string;
+  issuedBy: string;
+}
+
+interface FriendItem {
+  id: string;
+  name: string;
+  role: string;
+  avatar: string;
+  status: string;
+  mutualContests: number;
+  email: string;
+  phone: string;
+  equipment: string;
+  bio: string;
+  recentPhotos: string[];
+}
+
 export function ProfileTab() {
   const [isEditing, setIsEditing] = useState(false);
   const [toastMessage, setToastMessage] = useState<string | null>(null);
 
-  const [selectedContest, setSelectedContest] = useState<any | null>(null);
-  const [selectedAward, setSelectedAward] = useState<any | null>(null);
-  const [chatFriend, setChatFriend] = useState<any | null>(null);
-  const [viewProfileFriend, setViewProfileFriend] = useState<any | null>(null);
+  const [selectedContest, setSelectedContest] = useState<ContestDetail | null>(null);
+  const [selectedAward, setSelectedAward] = useState<AchievementDetail | null>(null);
+  const [chatFriend, setChatFriend] = useState<FriendItem | null>(null);
+  const [viewProfileFriend, setViewProfileFriend] = useState<FriendItem | null>(null);
 
   const [chatMessage, setChatMessage] = useState('');
   const [chatHistory, setChatHistory] = useState<string[]>([]);
@@ -31,10 +78,9 @@ export function ProfileTab() {
     'https://images.unsplash.com/photo-1514565131-fce0801e5785?auto=format&fit=crop&q=80'
   ]);
 
-  const [joinedContests, setJoinedContests] = useState<any[]>([]);
-  const [achievements, setAchievements] = useState<any[]>([]);
+  const [joinedContests, setJoinedContests] = useState<ContestDetail[]>([]);
+  const [achievements, setAchievements] = useState<AchievementDetail[]>([]);
 
-  // ĐỒNG BỘ CHUẨN XÁC 100% TỪ KẾT QUẢ VÀ BÀI NỘP TRONG LOCALSTORAGE
   useEffect(() => {
     const loadProfileData = () => {
       try {
@@ -51,15 +97,13 @@ export function ProfileTab() {
           }
         }
 
-        // Lấy danh sách kết quả từ localStorage (khớp hoàn toàn với trang ResultsTab)
         const savedEntries = localStorage.getItem('participant_entries');
         if (savedEntries) {
-          const parsed = JSON.parse(savedEntries);
+          const parsed: ParticipantEntryItem[] = JSON.parse(savedEntries);
           if (Array.isArray(parsed)) {
-            const graded = parsed.filter((item: any) => item.status === 'Đã chấm');
+            const graded = parsed.filter((item: ParticipantEntryItem) => item.status === 'Đã chấm');
 
-            // Nếu có bài đã chấm, đồng bộ sang danh sách cuộc thi đã tham gia
-            const mappedContests = graded.map((item: any, idx: number) => ({
+            const mappedContests: ContestDetail[] = graded.map((item: ParticipantEntryItem, idx: number) => ({
               id: item.id || `graded-${idx}`,
               title: item.contestTitle || 'CUỘC THI PHIM ANALOG',
               artworkTitle: item.title,
@@ -73,10 +117,9 @@ export function ProfileTab() {
               prizePool: 'Đã hoàn thành chấm điểm chính thức'
             }));
 
-            // Đồng bộ sang Giải thưởng & Thành tích
-            const mappedAchievements = graded.map((item: any, idx: number) => ({
+            const mappedAchievements: AchievementDetail[] = graded.map((item: ParticipantEntryItem, idx: number) => ({
               id: `ach-${idx}`,
-              title: `Tác phẩm: ${item.title}`,
+              title: `Tác phẩm: ${item.title || 'Không tên'}`,
               contest: item.contestTitle || 'CUỘC THI PHIM ANALOG',
               prize: 'Đã hoàn thành chấm điểm • Top Đánh Giá',
               date: '2026',
@@ -84,8 +127,7 @@ export function ProfileTab() {
               issuedBy: 'Hội đồng Giám khảo'
             }));
 
-            // Thêm bài mẫu Hoàng Hôn Cầu Ba Son giống hệt trang ResultsTab nếu chưa có
-            const defaultBaSonContest = {
+            const defaultBaSonContest: ContestDetail = {
               id: 'res-01',
               title: 'ANALOG MOMENTS 2025',
               artworkTitle: 'Hoàng Hôn Cầu Ba Son',
@@ -99,7 +141,7 @@ export function ProfileTab() {
               prizePool: 'Giải Nhì • 15,000,000 VNĐ'
             };
 
-            const defaultBaSonAchievement = {
+            const defaultBaSonAchievement: AchievementDetail = {
               id: 'a1',
               title: 'Giải Nhì - Hoàng Hôn Cầu Ba Son',
               contest: 'ANALOG MOMENTS 2025',
@@ -116,7 +158,6 @@ export function ProfileTab() {
             setAchievements(finalAchievements);
           }
         } else {
-          // Fallback mặc định nếu localStorage trống
           setJoinedContests([
             {
               id: 'res-01',
@@ -159,7 +200,7 @@ export function ProfileTab() {
     };
   }, []);
 
-  const [friendsList] = useState([
+  const [friendsList] = useState<FriendItem[]>([
     {
       id: 'f1',
       name: 'Nguyễn Minh Khôi',
@@ -189,36 +230,6 @@ export function ProfileTab() {
       bio: 'Săn tìm những khoảnh khắc đời thường qua ống kính rangefinder.',
       recentPhotos: [
         'https://images.unsplash.com/photo-1500648767791-00dcc994a43e?auto=format&fit=crop&q=80'
-      ]
-    },
-    {
-      id: 'f3',
-      name: 'Lê Hoàng Phương',
-      role: 'Sưu tầm máy ảnh cổ',
-      avatar: 'https://images.unsplash.com/photo-1494790108377-be9c29b29330?auto=format&fit=crop&q=80',
-      status: 'Đang hoạt động',
-      mutualContests: 2,
-      email: 'phuong.vintage@gmail.com',
-      phone: '0933334444',
-      equipment: 'Nikon F2, Canon F-1',
-      bio: 'Sưu tầm và phục chế các dòng máy cơ huyền thoại thập niên 70-80.',
-      recentPhotos: [
-        'https://images.unsplash.com/photo-1526170375885-4d8ecf77b99f?auto=format&fit=crop&q=80'
-      ]
-    },
-    {
-      id: 'f4',
-      name: 'Phạm Quỳnh Anh',
-      role: 'Đam mê dòng phim Slide',
-      avatar: 'https://images.unsplash.com/photo-1438761681033-6461ffad8d80?auto=format&fit=crop&q=80',
-      status: 'Hoạt động hôm qua',
-      mutualContests: 1,
-      email: 'quynhanh.slide@gmail.com',
-      phone: '0977778888',
-      equipment: 'Olympus OM-1, Zuiko 50mm f/1.4',
-      bio: 'Yêu thích độ rực rỡ và sắc nét tuyệt đối của phim màu đảo dương (Slide film).',
-      recentPhotos: [
-        'https://images.unsplash.com/photo-1469474968028-56623f02e42e?auto=format&fit=crop&q=80'
       ]
     }
   ]);
@@ -564,7 +575,6 @@ export function ProfileTab() {
             </div>
           </div>
 
-          {/* CUỘC THI ĐÃ THAM GIA ĐÃ ĐỒNG BỘ 100% VỚI KẾT QUẢ VÀ TRẠNG THÁI "ĐÃ HOÀN THÀNH" */}
           <div className="bg-white p-8 rounded-3xl border border-slate-200/90 shadow-sm space-y-6 w-full">
             <div className="flex justify-between items-center">
               <div>
@@ -602,7 +612,6 @@ export function ProfileTab() {
             </div>
           </div>
 
-          {/* GIẢI THƯỞNG & THÀNH TÍCH ĐÃ ĐỒNG BỘ 100% VỚI KẾT QUẢ */}
           <div className="bg-white p-8 rounded-3xl border border-slate-200/90 shadow-sm space-y-6 w-full">
             <div className="flex justify-between items-center">
               <div>

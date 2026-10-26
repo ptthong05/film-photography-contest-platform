@@ -11,7 +11,7 @@ import { PageHeader } from "./PageHeader";
 const STEPS = ["Thông tin cơ bản", "Thể loại & tiêu chí", "Thời gian & giải thưởng", "Giám khảo", "Xác nhận"];
 const CATEGORIES = ["Nhiếp ảnh phong cảnh", "Nhiếp ảnh đường phố", "Nhiếp ảnh chân dung", "Nhiếp ảnh tài liệu"];
 const CRITERIA = ["Bố cục", "Ánh sáng", "Cảm xúc", "Kỹ thuật", "Sáng tạo"];
-const FIELD_CLASS = "w-full rounded-lg border border-slate-200 px-3 py-2 text-sm outline-none focus:border-brand-500";
+const FIELD_CLASS = "w-full rounded-xl border border-slate-200 bg-white px-3.5 py-2.5 text-sm text-slate-800 outline-none transition placeholder:text-slate-400 focus:border-blue-500 focus:ring-2 focus:ring-blue-100";
 
 const INITIAL_DRAFT: ContestDraft = {
   name: "",
@@ -110,10 +110,10 @@ export function CreateContestForm({ onBack, onCreated }: CreateContestFormProps)
   };
 
   return (
-    <section className="flex flex-col gap-6">
+    <section className="space-y-5">
       <PageHeader title="Tạo cuộc thi mới" subtitle="Hoàn thành 5 bước để tạo cuộc thi" onBack={onBack} />
-      <div className="card rounded-3xl p-8">
-        <ol className="mb-8 flex items-start justify-between gap-2 text-center text-xs">
+      <div className="overflow-hidden rounded-2xl border border-slate-200 bg-white p-4 shadow-sm sm:p-6">
+        <ol className="mx-auto mb-7 flex max-w-4xl items-start justify-between gap-2 text-center text-xs">
           {STEPS.map((label, index) => (
             <li key={label} className="flex flex-1 flex-col items-center gap-1.5">
               <span
@@ -121,13 +121,13 @@ export function CreateContestForm({ onBack, onCreated }: CreateContestFormProps)
                   index < step
                     ? "bg-emerald-500 text-white"
                     : index === step
-                      ? "bg-brand-500 text-white"
+                      ? "bg-blue-600 text-white"
                       : "bg-slate-100 text-slate-400"
                 }`}
               >
                 {index < step ? <Check size={16} aria-hidden /> : index + 1}
               </span>
-              <span className={index === step ? "font-semibold text-navy-900" : "text-slate-400"}>{label}</span>
+              <span className={index === step ? "font-semibold text-[#0B356B]" : "text-slate-400"}>{label}</span>
             </li>
           ))}
         </ol>
@@ -194,7 +194,7 @@ export function CreateContestForm({ onBack, onCreated }: CreateContestFormProps)
                 ))}
                 <button
                   type="button"
-                  className="flex w-fit items-center gap-1.5 text-sm font-semibold text-brand-500"
+                  className="inline-flex w-fit items-center gap-1.5 text-sm font-semibold text-blue-700 hover:text-blue-800"
                   onClick={() => updateDraft("prizes", [...draft.prizes, { name: "", reward: "" }])}
                 >
                   <Plus size={16} aria-hidden />
@@ -211,9 +211,9 @@ export function CreateContestForm({ onBack, onCreated }: CreateContestFormProps)
               {activeJudges.map((judge) => (
                 <label key={judge.id} className="flex items-center gap-3 rounded-xl border border-slate-200 px-4 py-3 text-sm">
                   <input type="checkbox" checked={selectedJudgeIds.includes(judge.id)} onChange={() => toggleJudge(judge.id)} />
-                  <span className="font-semibold text-navy-900">{judge.fullName}</span>
+                  <span className="font-semibold text-[#0B356B]">{judge.fullName}</span>
                   <span className="text-slate-500">{judge.specialty}</span>
-                  {judge.isDefault && <span className="ml-auto rounded-full bg-brand-500/10 px-2.5 py-0.5 text-xs font-semibold text-brand-600">Chấm mặc định</span>}
+                  {judge.isDefault && <span className="ml-auto rounded-full bg-blue-50 px-2.5 py-0.5 text-xs font-semibold text-blue-700">Chấm mặc định</span>}
                 </label>
               ))}
             </>
@@ -221,7 +221,7 @@ export function CreateContestForm({ onBack, onCreated }: CreateContestFormProps)
           {isLastStep && (
             <dl className="grid grid-cols-[10rem_1fr] gap-y-3 text-sm">
               <dt className="text-slate-500">Tên cuộc thi</dt>
-              <dd className="font-medium text-navy-900">{draft.name}</dd>
+              <dd className="font-medium text-[#0B356B]">{draft.name}</dd>
               <dt className="text-slate-500">Thể loại</dt>
               <dd>{draft.category}</dd>
               <dt className="text-slate-500">Tiêu chí</dt>
@@ -251,7 +251,7 @@ export function CreateContestForm({ onBack, onCreated }: CreateContestFormProps)
           >
             {step === 0 ? "Hủy" : "Quay lại"}
           </button>
-          <button type="button" className="btn-primary disabled:opacity-60" disabled={isSubmitting} onClick={isLastStep ? handleSubmit : handleNext}>
+          <button type="button" className="rounded-xl bg-blue-600 px-4 py-2.5 text-sm font-semibold text-white transition hover:bg-blue-700 disabled:cursor-not-allowed disabled:opacity-60" disabled={isSubmitting} onClick={isLastStep ? handleSubmit : handleNext}>
             {isLastStep ? (isSubmitting ? "Đang tạo..." : "Tạo cuộc thi") : "Tiếp theo"}
           </button>
         </div>
