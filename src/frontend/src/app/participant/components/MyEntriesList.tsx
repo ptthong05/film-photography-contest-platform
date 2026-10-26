@@ -13,9 +13,14 @@ export interface EntryDetail {
   photoUrl: string;
   submittedAt: string;
   status: 'Đang chờ duyệt' | 'Đã duyệt' | 'Từ chối' | 'Đã chấm' | 'Đã xóa' | string;
-  aiFlag?: string;
-  similarityScore?: string;
-  warningMessage?: string;
+  rejectReason?: string;
+  aiAnalysis?: {
+    summary: string;
+    grainQuality: string;
+    lightingIssue: string;
+    compositionReview: string;
+    recommendation: string;
+  };
   filmBrand?: string;
   iso?: number | string;
   cameraBody?: string;
@@ -25,69 +30,46 @@ export interface EntryDetail {
   focalLength?: string;
   shootingLocation?: string;
   developingLab?: string;
-  developerChemical?: string;
-  scanningHardware?: string;
-  colorProfile?: string;
-  grainStructure?: string;
-  exposureCompensation?: string;
-  lightMeterType?: string;
-  filterUsed?: string;
-  temperature?: string;
-  humidity?: string;
-  feedback?: string;
-  scores?: {
-    composition: number;
-    lighting: number;
-    concept: number;
-    technique: number;
-    creativity: number;
-  };
 }
 
 const INITIAL_ENTRIES: EntryDetail[] = [
   {
+    id: 'sub-004',
+    contestId: '2',
+    contestTitle: 'CUỘC THI PHIM 2026 • FILM & CITY',
+    title: 'Thành phố lúc hoàng hôn',
+    description: 'Sài Gòn chuyển mình trong khoảnh khắc giao thòa giữa ngày và đêm.',
+    photoUrl: 'https://images.unsplash.com/photo-1514565131-fce0801e5785?q=85&w=1000&auto=format&fit=crop',
+    submittedAt: '15/10/2026',
+    status: 'Từ chối',
+    rejectReason: 'Ảnh scan bị lóa sáng phần rìa trái, thông số Metadata không khớp với định dạng chuẩn của dòng máy cơ.',
+    aiAnalysis: {
+      summary: 'Hệ thống AI computer vision đã quét và phát hiện bất thường quang học trên bản scan.',
+      grainQuality: 'Hạt grain bị bết ở vùng tối (shadows) do quá trình tráng thuốc thiếu nhiệt độ.',
+      lightingIssue: 'Xuất hiện hiện tượng lóa sáng (light leak) do nắp lưng máy cơ đóng không khít khi chụp.',
+      compositionReview: 'Bố cục đường phố góc rộng tốt, cân bằng đối xứng nhưng vi phạm quy chuẩn kỹ thuật scan âm bản.',
+      recommendation: 'Cần mang cuộn film ra lab uy tín để scan lại khung hình hoặc chụp bù sáng ở cuộn tiếp theo.'
+    },
+    filmBrand: 'Ilford HP5 Plus 400',
+    iso: 400,
+    cameraBody: 'Leica M6',
+    lens: 'Summicron 35mm f/2.0',
+    shootingLocation: 'Quận 1, TP. Hồ Chí Minh'
+  },
+  {
     id: 'sub-001',
     contestId: '1',
     contestTitle: 'CUỘC THI PHIM 2025 • ANALOG MOMENTS',
-    title: 'anh nắng',
-    description: 'Sương sớm Lâm Đồng ôm trọn lấy những vạt chè xanh ngát trong sự tĩnh lặng tuyệt đối của không gian cao nguyên hoang sơ.',
-    photoUrl: 'https://images.unsplash.com/photo-1540555700478-4be289fbecef?q=85&w=1000&auto=format&fit=crop',
+    title: 'NIỀM VUI KHÔNG LỜI',
+    description: 'Giữa thảm cỏ xanh trải dài dưới ánh sáng dịu dàng, một chú chó nhỏ đứng lặng.',
+    photoUrl: 'https://images.unsplash.com/photo-1507525428034-b723cf961d3e?q=85&w=1000&auto=format&fit=crop',
     submittedAt: '22/10/2026',
     status: 'Đang chờ duyệt',
     filmBrand: 'Kodak Portra 400',
     iso: 400,
     cameraBody: 'Canon AE-1 Program',
     lens: 'Canon FD 50mm f/1.8',
-    shutterSpeed: '1/250s',
-    aperture: 'f/4.0',
-    focalLength: '50mm',
-    shootingLocation: 'Đồi chè Cầu Đất, Lâm Đồng',
-    developingLab: 'Lab Xưởng Phim Sài Gòn',
-    developerChemical: 'Kodak C-41',
-    scanningHardware: 'Noritsu HS-1800',
-    colorProfile: 'Adobe RGB'
-  },
-  {
-    id: 'sub-002',
-    contestId: '1',
-    contestTitle: 'CUỘC THI PHIM 2025 • ANALOG MOMENTS',
-    title: 'hơi rừng',
-    description: 'Sương sớm và hơi thở của đại ngàn qua lăng kính máy film.',
-    photoUrl: 'https://images.unsplash.com/photo-1507525428034-b723cf961d3e?q=85&w=1000&auto=format&fit=crop',
-    submittedAt: '22/10/2026',
-    status: 'Đang chờ duyệt',
-    filmBrand: 'Fujifilm C200',
-    iso: 200,
-    cameraBody: 'Nikon FM2',
-    lens: 'Nikkor 35mm f/2.0',
-    shutterSpeed: '1/500s',
-    aperture: 'f/5.6',
-    focalLength: '35mm',
-    shootingLocation: 'Nha Trang, Khánh Hòa',
-    developingLab: 'Zin Lab Phim',
-    developerChemical: 'Fujifilm CN-16',
-    scanningHardware: 'Fuji Frontier SP-3000',
-    colorProfile: 'sRGB'
+    shootingLocation: 'Đồi chè Cầu Đất, Lâm Đồng'
   }
 ];
 
@@ -102,7 +84,6 @@ export function MyEntriesList() {
   const [filterTab, setFilterTab] = useState<'Tất cả' | 'Đang chờ duyệt' | 'Đã duyệt / Đã chấm' | 'Từ chối' | 'Lịch sử xóa'>('Tất cả');
   const [toastMessage, setToastMessage] = useState<string | null>(null);
 
-  // Hàm đồng bộ số lượng bài dự thi sang DashboardTab qua localStorage
   const syncCountToDashboard = (currentEntries: EntryDetail[]) => {
     localStorage.setItem('participant_total_entries_count', currentEntries.length.toString());
     window.dispatchEvent(new Event('storage'));
@@ -120,7 +101,6 @@ export function MyEntriesList() {
         setEntries(parsed);
         syncCountToDashboard(parsed);
       } else {
-        // Lần đầu chưa có, lấy INITIAL_ENTRIES trừ đi các bài đã nằm trong thùng rác
         const trashIds = trashList.map(t => t.id);
         const initialFiltered = INITIAL_ENTRIES.filter(item => !trashIds.includes(item.id));
         setEntries(initialFiltered);
@@ -137,45 +117,15 @@ export function MyEntriesList() {
     setTimeout(() => setToastMessage(null), 3000);
   };
 
-  const compressImage = (file: File, callback: (result: string) => void) => {
-    const reader = new FileReader();
-    reader.onload = (event) => {
-      const img = new Image();
-      img.onload = () => {
-        const canvas = document.createElement('canvas');
-        const MAX_WIDTH = 1200;
-        const MAX_HEIGHT = 1200;
-        let width = img.width;
-        let height = img.height;
-
-        if (width > height) {
-          if (width > MAX_WIDTH) {
-            height *= MAX_WIDTH / width;
-            width = MAX_WIDTH;
-          }
-        } else {
-          if (height > MAX_HEIGHT) {
-            width *= MAX_HEIGHT / height;
-            height = MAX_HEIGHT;
-          }
-        }
-
-        canvas.width = width;
-        canvas.height = height;
-        const ctx = canvas.getContext('2d');
-        ctx?.drawImage(img, 0, 0, width, height);
-
-        const dataUrl = canvas.toDataURL('image/jpeg', 0.85);
-        callback(dataUrl);
-      };
-      img.src = event.target?.result as string;
-    };
-    reader.readAsDataURL(file);
-  };
-
   const handleSaveFullEdit = (e: React.FormEvent) => {
     e.preventDefault();
     if (!editingEntry) return;
+
+    if (editingEntry.status === 'Đã chấm') {
+      alert('Bài dự thi đã được chấm điểm chính thức, không thể thay đổi thông tin!');
+      setEditingEntry(null);
+      return;
+    }
 
     const updated = entries.map(item => item.id === editingEntry.id ? editingEntry : item);
     setEntries(updated);
@@ -305,10 +255,15 @@ export function MyEntriesList() {
                   accept="image/*"
                   onChange={(e) => {
                     if (e.target.files && e.target.files[0]) {
-                      compressImage(e.target.files[0], (base64) => {
-                        setEditingEntry({ ...editingEntry, photoUrl: base64 });
-                        showToast('Đã thay đổi ảnh mới thành công!');
-                      });
+                      const file = e.target.files[0];
+                      const reader = new FileReader();
+                      reader.onload = (uploadEvent) => {
+                        if (uploadEvent.target?.result) {
+                          setEditingEntry({ ...editingEntry, photoUrl: uploadEvent.target.result as string });
+                          showToast('Đã thay đổi ảnh mới thành công!');
+                        }
+                      };
+                      reader.readAsDataURL(file);
                     }
                   }}
                   className="hidden"
@@ -370,38 +325,8 @@ export function MyEntriesList() {
                   </div>
                 </div>
 
-                <div className="grid grid-cols-3 gap-3">
-                  <div className="bg-slate-50 p-3.5 rounded-2xl border border-slate-200 space-y-1">
-                    <label className="text-slate-400 text-[10px] uppercase font-black">4. Tốc độ</label>
-                    <input
-                      type="text"
-                      value={editingEntry.shutterSpeed || ''}
-                      onChange={(e) => setEditingEntry({ ...editingEntry, shutterSpeed: e.target.value })}
-                      className="w-full font-extrabold text-slate-800 text-xs bg-white px-2.5 py-2 rounded-lg border border-slate-200 focus:outline-none focus:border-indigo-600"
-                    />
-                  </div>
-                  <div className="bg-slate-50 p-3.5 rounded-2xl border border-slate-200 space-y-1">
-                    <label className="text-slate-400 text-[10px] uppercase font-black">5. Khẩu độ</label>
-                    <input
-                      type="text"
-                      value={editingEntry.aperture || ''}
-                      onChange={(e) => setEditingEntry({ ...editingEntry, aperture: e.target.value })}
-                      className="w-full font-extrabold text-slate-800 text-xs bg-white px-2.5 py-2 rounded-lg border border-slate-200 focus:outline-none focus:border-indigo-600"
-                    />
-                  </div>
-                  <div className="bg-slate-50 p-3.5 rounded-2xl border border-slate-200 space-y-1">
-                    <label className="text-slate-400 text-[10px] uppercase font-black">6. Tiêu cự</label>
-                    <input
-                      type="text"
-                      value={editingEntry.focalLength || ''}
-                      onChange={(e) => setEditingEntry({ ...editingEntry, focalLength: e.target.value })}
-                      className="w-full font-extrabold text-slate-800 text-xs bg-white px-2.5 py-2 rounded-lg border border-slate-200 focus:outline-none focus:border-indigo-600"
-                    />
-                  </div>
-                </div>
-
                 <div className="bg-slate-50 p-5 rounded-2xl border border-slate-200 space-y-1.5">
-                  <label className="text-slate-400 text-xs uppercase font-black tracking-wider">7. Địa điểm bấm máy</label>
+                  <label className="text-slate-400 text-xs uppercase font-black tracking-wider">4. Địa điểm bấm máy</label>
                   <input
                     type="text"
                     value={editingEntry.shootingLocation || ''}
@@ -427,7 +352,9 @@ export function MyEntriesList() {
           >
             <ArrowLeft className="w-4 h-4" /> Quay lại danh sách bài nộp
           </button>
-          <span className="px-5 py-2.5 rounded-full text-xs font-black bg-amber-100 text-amber-800">
+          <span className={`px-5 py-2.5 rounded-full text-xs font-black ${
+            selectedEntry.status === 'Từ chối' ? 'bg-rose-100 text-rose-800' : 'bg-amber-100 text-amber-800'
+          }`}>
             ● {selectedEntry.status}
           </span>
         </div>
@@ -439,6 +366,50 @@ export function MyEntriesList() {
           <h1 className="text-3xl md:text-5xl font-black text-slate-900 tracking-tight">{selectedEntry.title}</h1>
           <p className="text-xs md:text-sm font-bold text-slate-400">📅 Ngày nộp chính thức: {selectedEntry.submittedAt} • Mã hồ sơ tác phẩm: <strong className="text-slate-700">{selectedEntry.id}</strong></p>
         </div>
+
+        {/* NẾU LÀ BÀI BỊ TỪ CHỐI -> HIỂN THỊ KHUNG NGUYÊN NHÂN VÀ AI PHÂN TÍCH ẢNH NGAY TRONG TRANG CHI TIẾT */}
+        {selectedEntry.status === 'Từ chối' && (
+          <div className="space-y-6">
+            <div className="bg-rose-50 border-2 border-rose-200 p-8 rounded-3xl shadow-sm space-y-3">
+              <div className="flex items-center gap-3 text-rose-700">
+                <AlertTriangle className="w-7 h-7 flex-shrink-0" />
+                <h3 className="text-xl font-black uppercase tracking-tight">Nguyên nhân từ chối chính thức</h3>
+              </div>
+              <p className="text-sm md:text-base font-bold text-rose-950 leading-relaxed bg-white p-5 rounded-2xl border border-rose-200 shadow-inner">
+                {selectedEntry.rejectReason || 'Không đạt tiêu chuẩn kỹ thuật quét ảnh phim của Ban tổ chức.'}
+              </p>
+            </div>
+
+            <div className="bg-purple-900 text-white p-8 md:p-10 rounded-3xl shadow-xl space-y-6 border border-purple-700">
+              <div className="flex items-center gap-3 border-b border-purple-800 pb-4">
+                <Cpu className="w-8 h-8 text-purple-400 animate-pulse" />
+                <div>
+                  <h3 className="text-2xl font-black">AI Phân Tích Ảnh Bài Thi (Computer Vision Report)</h3>
+                  <p className="text-xs text-purple-300">Báo cáo đánh giá chi tiết lỗi hình ảnh và thông số quang học</p>
+                </div>
+              </div>
+
+              <div className="grid grid-cols-1 md:grid-cols-2 gap-6 text-sm">
+                <div className="bg-purple-950/70 p-6 rounded-2xl border border-purple-800/80 space-y-2">
+                  <p className="text-xs font-black text-purple-300 uppercase tracking-wider">🔬 Đánh giá hạt Film (Grain)</p>
+                  <p className="font-semibold text-purple-100 leading-relaxed">{selectedEntry.aiAnalysis?.grainQuality || 'Cấu trúc hạt film ổn định nhưng độ bão hòa màu chưa tối ưu.'}</p>
+                </div>
+                <div className="bg-purple-950/70 p-6 rounded-2xl border border-purple-800/80 space-y-2">
+                  <p className="text-xs font-black text-purple-300 uppercase tracking-wider">💡 Phân tích ánh sáng (Lighting)</p>
+                  <p className="font-semibold text-purple-100 leading-relaxed">{selectedEntry.aiAnalysis?.lightingIssue || 'Phát hiện vùng chói sáng gắt và hiện tượng lóa quang học cục bộ.'}</p>
+                </div>
+                <div className="bg-purple-950/70 p-6 rounded-2xl border border-purple-800/80 space-y-2">
+                  <p className="text-xs font-black text-purple-300 uppercase tracking-wider">🖼 Đánh giá bố cục (Composition)</p>
+                  <p className="font-semibold text-purple-100 leading-relaxed">{selectedEntry.aiAnalysis?.compositionReview || 'Đường dẫn hướng khung hình tốt nhưng điểm rơi chủ thể bị lệch góc.'}</p>
+                </div>
+                <div className="bg-purple-950/70 p-6 rounded-2xl border border-purple-800/80 space-y-2">
+                  <p className="text-xs font-black text-purple-300 uppercase tracking-wider">🛠 Khuyến nghị khắc phục</p>
+                  <p className="font-semibold text-purple-100 leading-relaxed">{selectedEntry.aiAnalysis?.recommendation || 'Kiểm tra lại cơ chế buồng tối máy ảnh và thực hiện scan lại frame.'}</p>
+                </div>
+              </div>
+            </div>
+          </div>
+        )}
 
         <div className="grid grid-cols-1 lg:grid-cols-12 gap-8 items-start">
           <div className="lg:col-span-6 space-y-8">
@@ -504,7 +475,7 @@ export function MyEntriesList() {
             </div>
             <div className="space-y-2">
               <h3 className="text-xl font-black text-slate-900">Xác Nhận Xóa Bài Dự Thi</h3>
-              <p className="text-sm font-medium text-slate-500">Bài dự thi sẽ được chuyển vào mục Lịch sử xóa (Thùng rác). Bạn có thể khôi phục lại bất cứ lúc nào.</p>
+              <p className="text-sm font-medium text-slate-500">Bài dự thi sẽ được chuyển vào mục Lịch sử xóa (Thùng rác).</p>
             </div>
             <div className="flex gap-3">
               <button onClick={() => setDeleteId(null)} className="flex-1 py-3 bg-slate-100 text-slate-700 font-black text-xs rounded-xl cursor-pointer">
@@ -523,7 +494,7 @@ export function MyEntriesList() {
           ● PARTICIPANT PORTAL
         </span>
         <h1 className="text-3xl md:text-4xl font-black text-slate-900 tracking-tight">Bài Dự Thi Của Tôi</h1>
-        <p className="text-sm text-slate-500">Quản lý, theo dõi, xem chi tiết, chỉnh sửa hoặc khôi phục các tác phẩm dự thi từ lịch sử xóa</p>
+        <p className="text-sm text-slate-500">Quản lý, theo dõi, xem chi tiết nguyên nhân từ chối và báo cáo AI phân tích ảnh</p>
       </div>
 
       <div className="bg-white p-5 rounded-3xl border border-slate-200/90 shadow-sm flex items-center gap-3 overflow-x-auto">
@@ -573,9 +544,7 @@ export function MyEntriesList() {
         {filteredEntries.length === 0 ? (
           <div className="bg-white p-16 rounded-3xl border border-slate-200 text-center space-y-3">
             <AlertCircle className="w-12 h-12 text-slate-300 mx-auto" />
-            <p className="text-base font-black text-slate-700">
-              {filterTab === 'Lịch sử xóa' ? 'Thùng rác trống, chưa có bài dự thi nào bị xóa' : 'Không có bài dự thi nào trong mục này'}
-            </p>
+            <p className="text-base font-black text-slate-700">Không có bài dự thi nào trong mục này</p>
           </div>
         ) : (
           filteredEntries.map((entry) => (
@@ -595,69 +564,56 @@ export function MyEntriesList() {
                     <span className="text-xs font-black text-blue-600 uppercase tracking-widest">{entry.contestTitle || 'CUỘC THI PHIM'}</span>
                     <h3 className="font-black text-slate-900 text-xl md:text-2xl">{entry.title}</h3>
                     <p className="text-xs md:text-sm text-slate-600 line-clamp-2 max-w-4xl leading-relaxed font-medium">{entry.description}</p>
+
+                    {entry.status === 'Từ chối' && (
+                      <div className="p-3 bg-rose-50 rounded-2xl border border-rose-200 flex items-start gap-2.5 max-w-3xl">
+                        <AlertTriangle className="w-4 h-4 text-rose-600 flex-shrink-0 mt-0.5" />
+                        <p className="text-xs font-bold text-rose-900 leading-relaxed">
+                          <strong className="uppercase">Nguyên nhân từ chối:</strong> {entry.rejectReason || 'Không đạt tiêu chuẩn kỹ thuật quét ảnh phim.'}
+                        </p>
+                      </div>
+                    )}
+
                     <p className="text-xs font-bold text-slate-400 pt-1">📅 Nộp ngày: {entry.submittedAt} • Mã: {entry.id}</p>
                   </div>
                 </div>
 
                 <div className="flex items-center gap-3 w-full md:w-auto justify-between md:justify-end pt-3 md:pt-0 border-t md:border-t-0 border-slate-100 flex-wrap">
-                  {filterTab === 'Lịch sử xóa' ? (
-                    <>
-                      <span className="px-5 py-2.5 rounded-full text-xs font-black bg-rose-100 text-rose-800 shadow-sm">
-                        ● Đã xóa vào thùng rác
-                      </span>
+                  <span className={`px-5 py-2.5 rounded-full text-xs font-black shadow-sm ${
+                    entry.status === 'Đã duyệt'
+                      ? 'bg-emerald-100 text-emerald-800'
+                      : entry.status === 'Đã chấm'
+                      ? 'bg-indigo-100 text-indigo-800'
+                      : entry.status === 'Từ chối'
+                      ? 'bg-rose-100 text-rose-800'
+                      : 'bg-amber-100 text-amber-800'
+                  }`}>
+                    ● {entry.status}
+                  </span>
 
-                      <button
-                        onClick={() => handleRestoreEntry(entry.id)}
-                        className="flex items-center gap-1.5 px-5 py-3 bg-emerald-50 hover:bg-emerald-100 text-emerald-700 font-extrabold text-xs rounded-2xl transition cursor-pointer active:scale-95 shadow-sm"
-                      >
-                        <RotateCcw className="w-4 h-4" /> Khôi phục
-                      </button>
+                  <button
+                    onClick={() => setSelectedEntry(entry)}
+                    className="flex items-center gap-1.5 px-5 py-3 bg-blue-50 hover:bg-blue-100 text-blue-700 font-extrabold text-xs rounded-2xl transition cursor-pointer active:scale-95 shadow-sm"
+                  >
+                    <Eye className="w-4 h-4" /> Xem chi tiết
+                  </button>
 
-                      <button
-                        onClick={() => handlePermanentDelete(entry.id)}
-                        className="p-3 bg-rose-50 hover:bg-rose-100 text-rose-600 rounded-2xl transition cursor-pointer active:scale-95 shadow-sm"
-                        title="Xóa vĩnh viễn"
-                      >
-                        <Trash2 className="w-4 h-4" />
-                      </button>
-                    </>
-                  ) : (
-                    <>
-                      <span className={`px-5 py-2.5 rounded-full text-xs font-black shadow-sm ${
-                        entry.status === 'Đã duyệt'
-                          ? 'bg-emerald-100 text-emerald-800'
-                          : entry.status === 'Đã chấm'
-                          ? 'bg-indigo-100 text-indigo-800'
-                          : entry.status === 'Từ chối'
-                          ? 'bg-rose-100 text-rose-800'
-                          : 'bg-amber-100 text-amber-800'
-                      }`}>
-                        ● {entry.status}
-                      </span>
-
-                      <button
-                        onClick={() => setSelectedEntry(entry)}
-                        className="flex items-center gap-1.5 px-5 py-3 bg-blue-50 hover:bg-blue-100 text-blue-700 font-extrabold text-xs rounded-2xl transition cursor-pointer active:scale-95 shadow-sm"
-                      >
-                        <Eye className="w-4 h-4" /> Xem chi tiết
-                      </button>
-
-                      <button
-                        onClick={() => setEditingEntry(entry)}
-                        className="flex items-center gap-1.5 px-5 py-3 bg-indigo-50 hover:bg-indigo-100 text-indigo-700 font-extrabold text-xs rounded-2xl transition cursor-pointer active:scale-95 shadow-sm"
-                      >
-                        <Edit3 className="w-4 h-4" /> Sửa
-                      </button>
-
-                      <button
-                        onClick={() => setDeleteId(entry.id)}
-                        className="p-3 bg-rose-50 hover:bg-rose-100 text-rose-600 rounded-2xl transition cursor-pointer active:scale-95 shadow-sm"
-                        title="Xóa bài dự thi"
-                      >
-                        <Trash2 className="w-4 h-4" />
-                      </button>
-                    </>
+                  {entry.status !== 'Đã chấm' && entry.status !== 'Từ chối' && (
+                    <button
+                      onClick={() => setEditingEntry(entry)}
+                      className="flex items-center gap-1.5 px-5 py-3 bg-indigo-50 hover:bg-indigo-100 text-indigo-700 font-extrabold text-xs rounded-2xl transition cursor-pointer active:scale-95 shadow-sm"
+                    >
+                      <Edit3 className="w-4 h-4" /> Sửa
+                    </button>
                   )}
+
+                  <button
+                    onClick={() => setDeleteId(entry.id)}
+                    className="p-3 bg-rose-50 hover:bg-rose-100 text-rose-600 rounded-2xl transition cursor-pointer active:scale-95 shadow-sm"
+                    title="Xóa bài dự thi"
+                  >
+                    <Trash2 className="w-4 h-4" />
+                  </button>
                 </div>
               </div>
             </div>

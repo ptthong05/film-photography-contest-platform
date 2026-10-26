@@ -23,7 +23,7 @@ export interface ResultItem {
   };
 }
 
-const ALL_RESULTS: ResultItem[] = [
+const INITIAL_RESULTS: ResultItem[] = [
   {
     id: 'res-01',
     contestName: 'Analog Moments 2025',
@@ -35,7 +35,7 @@ const ALL_RESULTS: ResultItem[] = [
     imageUrl: 'https://images.unsplash.com/photo-1506744038136-46273834b3fb?auto=format&fit=crop&q=80',
     date: '30/06/2025',
     judgeName: 'Lê Minh Tuấn',
-    judgeComment: 'Bức ảnh có bố cục tốt, ánh sáng hài hòa và thể hiện được cảm xúc rất chân thực. Tuy nhiên, có thể cải thiện thêm về độ nét ở phần nền.',
+    judgeComment: 'Bức ảnh có bố cục tốt, ánh sáng hài hòa và thể hiện được cảm xúc rất chân thực.',
     category: 'Phong cảnh • Chân dung • Đời sống',
     criteriaScores: {
       composition: '18.5 / 20',
@@ -44,95 +44,68 @@ const ALL_RESULTS: ResultItem[] = [
       technique: '16.5 / 20',
       creativity: '17.0 / 20'
     }
-  },
-  {
-    id: 'res-02',
-    contestName: 'Sony World Photography Awards 2026',
-    artworkTitle: 'Sương Sớm Cao Nguyên',
-    prize: 'Top 50 Shortlist',
-    rankInfo: 'Hạng 5 / 150',
-    status: 'Đã công bố chính thức',
-    score: '91.0',
-    imageUrl: 'https://images.unsplash.com/photo-1540555700478-4be289fbecef?auto=format&fit=crop&q=80',
-    date: '10/04/2026',
-    judgeName: 'Elena Rostova',
-    judgeComment: 'Tông màu film ấm áp, miêu tả chiều sâu không gian sương mờ tuyệt mỹ tại vùng cao nguyên. Kỹ thuật scan sạch sẽ và tinh tế.',
-    category: 'Landscape • Nature',
-    criteriaScores: {
-      composition: '19.0 / 20',
-      lighting: '18.0 / 20',
-      content: '18.5 / 20',
-      technique: '18.0 / 20',
-      creativity: '17.5 / 20'
-    }
-  },
-  {
-    id: 'res-03',
-    contestName: 'PX3 - Prix de la Photographie Paris',
-    artworkTitle: 'Nhịp Sống Phố Cổ',
-    prize: 'Honorable Mention',
-    rankInfo: 'Hạng 8 / 80',
-    status: 'Đã công bố chính thức',
-    score: '89.5',
-    imageUrl: 'https://images.unsplash.com/photo-1514565131-fce0801e5785?auto=format&fit=crop&q=80',
-    date: '28/07/2026',
-    judgeName: 'Jean-Luc Dupont',
-    judgeComment: 'Sự tương phản ánh sáng mạnh mẽ đặc trưng của dòng phim đen trắng thủ công. Bắt trọn khoảnh khắc phố xá rất tự nhiên.',
-    category: 'Fine Art / Street',
-    criteriaScores: {
-      composition: '18.0 / 20',
-      lighting: '18.5 / 20',
-      content: '17.5 / 20',
-      technique: '18.0 / 20',
-      creativity: '17.5 / 20'
-    }
-  },
-  {
-    id: 'res-04',
-    contestName: 'National Geographic Photo Contest',
-    artworkTitle: 'Góc Nhìn Di Sản',
-    prize: 'Finalist Award',
-    rankInfo: 'Hạng 3 / 60',
-    status: 'Đã công bố chính thức',
-    score: '92.0',
-    imageUrl: 'https://images.unsplash.com/photo-1516035069371-29a1b244cc32?auto=format&fit=crop&q=80',
-    date: '12/01/2026',
-    judgeName: 'Marcus Vance',
-    judgeComment: 'Bắt trọn khoảnh khắc chân thực của đời sống văn hóa bản địa qua chất liệu film nguyên bản. Kỹ thuật bấm máy đỉnh cao.',
-    category: 'Cultural Storytelling',
-    criteriaScores: {
-      composition: '19.0 / 20',
-      lighting: '18.5 / 20',
-      content: '18.5 / 20',
-      technique: '18.0 / 20',
-      creativity: '18.0 / 20'
-    }
   }
 ];
 
 export function ResultsTab() {
+  const [resultsList, setResultsList] = useState<ResultItem[]>(INITIAL_RESULTS);
   const [selectedResult, setSelectedResult] = useState<ResultItem | null>(null);
   const [showCelebration, setShowCelebration] = useState(false);
   const [toastMessage, setToastMessage] = useState<string | null>(null);
   const canvasRef = useRef<HTMLCanvasElement | null>(null);
+
+  useEffect(() => {
+    try {
+      const savedEntries = localStorage.getItem('participant_entries');
+      if (savedEntries) {
+        const parsedEntries = JSON.parse(savedEntries);
+        if (Array.isArray(parsedEntries)) {
+          const gradedEntries = parsedEntries.filter((item: any) => item.status === 'Đã chấm');
+
+          const convertedGraded: ResultItem[] = gradedEntries.map((item: any, idx: number) => ({
+            id: item.id || `res-graded-${idx}`,
+            contestName: item.contestTitle || 'Cuộc thi Phim Analog',
+            artworkTitle: item.title,
+            prize: 'Đã hoàn thành chấm điểm',
+            rankInfo: 'Top Đánh Giá Khảo Sát',
+            status: 'Đã chấm điểm chính thức',
+            score: '88.0',
+            imageUrl: item.photoUrl,
+            date: item.submittedAt || 'Mới cập nhật',
+            judgeName: 'Hội đồng Giám khảo',
+            judgeComment: item.description || 'Tác phẩm được đánh giá cao về mặt cảm xúc và kỹ thuật phim.',
+            category: 'Nhiếp ảnh Phim Truyền Thống',
+            criteriaScores: {
+              composition: '18.0 / 20',
+              lighting: '17.5 / 20',
+              content: '18.0 / 20',
+              technique: '17.0 / 20',
+              creativity: '17.5 / 20'
+            }
+          }));
+
+          const combined = [...convertedGraded, ...INITIAL_RESULTS.filter(res => !convertedGraded.some(g => g.artworkTitle === res.artworkTitle))];
+          setResultsList(combined);
+        }
+      }
+    } catch (e) {
+      console.error(e);
+    }
+  }, []);
 
   const showToast = (msg: string) => {
     setToastMessage(msg);
     setTimeout(() => setToastMessage(null), 3000);
   };
 
-  // Kích hoạt hiệu ứng pháo hoa khi bấm xem chi tiết
   const handleSelectResult = (res: ResultItem) => {
     setSelectedResult(res);
     setShowCelebration(true);
-
-    // Tự động mờ dần và tắt pháo hoa sau 3.5 giây
     setTimeout(() => {
       setShowCelebration(false);
     }, 3500);
   };
 
-  // Hiệu ứng pháo hoa vẽ trên Canvas
   useEffect(() => {
     if (!showCelebration || !canvasRef.current) return;
 
@@ -174,12 +147,9 @@ export function ResultsTab() {
       }
     };
 
-    // Bắn 5 đợt pháo hoa ở các vị trí khác nhau
     createFirework(canvas.width * 0.3, canvas.height * 0.3);
     createFirework(canvas.width * 0.7, canvas.height * 0.3);
     setTimeout(() => createFirework(canvas.width * 0.5, canvas.height * 0.25), 300);
-    setTimeout(() => createFirework(canvas.width * 0.2, canvas.height * 0.4), 600);
-    setTimeout(() => createFirework(canvas.width * 0.8, canvas.height * 0.4), 800);
 
     let animationFrameId: number;
 
@@ -189,7 +159,7 @@ export function ResultsTab() {
       particles.forEach((p, index) => {
         p.x += p.vx;
         p.y += p.vy;
-        p.vy += 0.05; // Trọng lực nhẹ
+        p.vy += 0.05;
         p.alpha -= p.decay;
 
         if (p.alpha <= 0) {
@@ -217,12 +187,9 @@ export function ResultsTab() {
     };
   }, [showCelebration]);
 
-  // TRANG CHI TIẾT KẾT QUẢ CÓ HIỆU ỨNG CHÚC MỪNG
   if (selectedResult) {
     return (
       <div className="space-y-8 max-w-5xl mx-auto pb-20 relative">
-
-        {/* Lớp Pháo Hoa & Khung Chúc Mừng Mờ Dần */}
         {showCelebration && (
           <div className="fixed inset-0 z-50 pointer-events-none flex flex-col items-center justify-center transition-opacity duration-1000 animate-fade-out">
             <canvas ref={canvasRef} className="absolute inset-0 w-full h-full" />
@@ -237,7 +204,6 @@ export function ResultsTab() {
           </div>
         )}
 
-        {/* Toast thông báo */}
         {toastMessage && (
           <div className="fixed top-5 right-5 z-50 bg-slate-900 text-white px-6 py-3.5 rounded-2xl shadow-2xl flex items-center gap-3 border border-slate-700 animate-bounce text-sm font-bold">
             <Sparkles className="w-5 h-5 text-amber-400" />
@@ -245,7 +211,6 @@ export function ResultsTab() {
           </div>
         )}
 
-        {/* Top Header & Nút Quay Lại */}
         <div className="flex items-center justify-between border-b border-slate-200 pb-4">
           <button
             onClick={() => setSelectedResult(null)}
@@ -261,10 +226,7 @@ export function ResultsTab() {
           </button>
         </div>
 
-        {/* Khung Giao Diện Chi Tiết Chấm Điểm */}
         <div className="bg-white p-8 md:p-10 rounded-3xl border border-slate-200/90 shadow-sm space-y-8">
-
-          {/* Header Cuộc Thi & Tác Phẩm */}
           <div className="flex items-center gap-5 border-b border-slate-100 pb-6">
             <img
               src={selectedResult.imageUrl}
@@ -278,9 +240,7 @@ export function ResultsTab() {
             </div>
           </div>
 
-          {/* 2 Thẻ Cúp Giải Thưởng & Điểm Tổng */}
           <div className="grid grid-cols-1 md:grid-cols-2 gap-6">
-            {/* Thẻ Giải Thưởng */}
             <div className="bg-gradient-to-r from-amber-50 to-orange-50 border-2 border-amber-200 p-6 rounded-3xl flex items-center gap-5 shadow-sm">
               <div className="w-16 h-16 bg-gradient-to-tr from-amber-400 to-amber-500 rounded-2xl flex items-center justify-center text-white shadow-md flex-shrink-0">
                 <Trophy className="w-9 h-9" />
@@ -291,7 +251,6 @@ export function ResultsTab() {
               </div>
             </div>
 
-            {/* Thẻ Điểm Tổng */}
             <div className="bg-gradient-to-r from-blue-50 to-indigo-50 border-2 border-blue-200 p-6 rounded-3xl flex items-center justify-between shadow-sm">
               <div className="space-y-1">
                 <p className="text-xs font-black text-blue-700 uppercase tracking-wider">Điểm tổng</p>
@@ -306,7 +265,6 @@ export function ResultsTab() {
             </div>
           </div>
 
-          {/* Bảng Chi Tiết Điểm Từng Phần */}
           <div className="space-y-4">
             <h3 className="font-black text-slate-900 text-base">Chi tiết điểm</h3>
 
@@ -334,14 +292,13 @@ export function ResultsTab() {
                   <span className="text-right font-black text-slate-900">{selectedResult.criteriaScores.technique}</span>
                 </div>
                 <div className="grid grid-cols-2 px-6 py-4 hover:bg-slate-50/80 transition">
-                  <span className="text-slate-800">Tinh sáng tạo</span>
+                  <span className="text-slate-800">Tính sáng tạo</span>
                   <span className="text-right font-black text-slate-900">{selectedResult.criteriaScores.creativity}</span>
                 </div>
               </div>
             </div>
           </div>
 
-          {/* Nhận Xét Của Giám Khảo */}
           <div className="space-y-4">
             <h3 className="font-black text-slate-900 text-base">Nhận xét của giám khảo</h3>
 
@@ -364,7 +321,6 @@ export function ResultsTab() {
             </div>
           </div>
 
-          {/* Nút Xem Tất Cả Kết Quả */}
           <div className="pt-4 flex justify-center">
             <button
               onClick={() => setSelectedResult(null)}
@@ -373,13 +329,11 @@ export function ResultsTab() {
               Xem tất cả kết quả
             </button>
           </div>
-
         </div>
       </div>
     );
   }
 
-  // DANH SÁCH KẾT QUẢ TỔNG QUAN
   return (
     <div className="space-y-8 max-w-[1800px] mx-auto pb-20">
       {toastMessage && (
@@ -389,7 +343,6 @@ export function ResultsTab() {
         </div>
       )}
 
-      {/* Header Banner */}
       <div className="bg-white p-8 rounded-3xl border border-slate-200/90 shadow-sm space-y-2">
         <span className="text-xs font-black text-blue-600 uppercase tracking-widest bg-blue-50 px-3.5 py-1.5 rounded-full border border-blue-200">
           ● OFFICIAL DIGITAL ARCHIVE
@@ -398,9 +351,8 @@ export function ResultsTab() {
         <p className="text-sm text-slate-500">Xem kết quả chính thức, bảng điểm chi tiết và nhận xét từ Hội đồng Giám khảo quốc tế.</p>
       </div>
 
-      {/* Grid 4 Cuộc Thi Đạt Giải */}
       <div className="grid grid-cols-1 md:grid-cols-2 gap-8">
-        {ALL_RESULTS.map((res) => (
+        {resultsList.map((res) => (
           <div
             key={res.id}
             className="bg-white rounded-3xl border border-slate-200/90 shadow-sm hover:border-blue-400 hover:shadow-md transition duration-200 overflow-hidden flex flex-col justify-between"
