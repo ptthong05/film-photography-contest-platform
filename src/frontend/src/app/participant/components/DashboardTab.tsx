@@ -35,6 +35,10 @@ export interface ContestItem {
   judgingCriteria: string[];
 }
 
+interface StoredDashboardEntryItem {
+  status?: string;
+}
+
 const INITIAL_CONTESTS: ContestItem[] = [
   {
     id: 'contest-01',
@@ -127,6 +131,7 @@ export interface DashboardTabProps {
 export function DashboardTab({ registeredCount = 0, registeredIds = [], onNavigate, onToggleRegister }: DashboardTabProps) {
   const [userName, setUserName] = useState('Hồ Thanh Bình');
   const [totalEntriesCount, setTotalEntriesCount] = useState(2);
+  const [pendingEntriesCount, setPendingEntriesCount] = useState(0);
   const [selectedContest, setSelectedContest] = useState<ContestItem | null>(null);
   const [toastMessage, setToastMessage] = useState<string | null>(null);
 
@@ -160,13 +165,15 @@ export function DashboardTab({ registeredCount = 0, registeredIds = [], onNaviga
         const savedCount = localStorage.getItem('participant_total_entries_count');
         if (savedCount) {
           setTotalEntriesCount(parseInt(savedCount, 10));
-        } else {
-          const savedEntries = localStorage.getItem('participant_entries');
-          if (savedEntries) {
-            const parsedEntries = JSON.parse(savedEntries);
-            if (Array.isArray(parsedEntries)) {
-              setTotalEntriesCount(parsedEntries.length);
-            }
+        }
+
+        const savedEntries = localStorage.getItem('participant_entries');
+        if (savedEntries) {
+          const parsedEntries: StoredDashboardEntryItem[] = JSON.parse(savedEntries);
+          if (Array.isArray(parsedEntries)) {
+            setTotalEntriesCount(parsedEntries.length);
+            const pendingCount = parsedEntries.filter((item: StoredDashboardEntryItem) => item.status === 'Đang chờ duyệt').length;
+            setPendingEntriesCount(pendingCount);
           }
         }
       } catch (e) {
@@ -411,8 +418,8 @@ export function DashboardTab({ registeredCount = 0, registeredIds = [], onNaviga
           <div className="space-y-2">
             <p className="text-xs font-black text-slate-400 uppercase tracking-wider">ĐANG CHỜ DUYỆT</p>
             <div className="flex items-baseline gap-2">
-              <span className="text-3xl font-black text-slate-900">1</span>
-              <span className="text-xs font-bold text-amber-700 bg-amber-50 px-2.5 py-1 rounded-full border border-amber-200">Bài nộp #001</span>
+              <span className="text-3xl font-black text-slate-900">{pendingEntriesCount}</span>
+              <span className="text-xs font-bold text-amber-700 bg-amber-50 px-2.5 py-1 rounded-full border border-amber-200">Bài chờ duyệt</span>
             </div>
             <p className="text-[11px] font-extrabold text-amber-600">🕒 Hệ thống AI đang quét</p>
           </div>

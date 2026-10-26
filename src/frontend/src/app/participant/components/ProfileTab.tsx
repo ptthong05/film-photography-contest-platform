@@ -1,14 +1,61 @@
 import React, { useState, useEffect } from 'react';
 import { User, Mail, Phone, MapPin, Calendar, Camera, Edit3, Plus, Sparkles, Trophy, CheckCircle2, ArrowRight, ExternalLink, Users, MessageSquare, X, Send, Award, Film, Image as ImageIcon, Trash2 } from 'lucide-react';
 
+interface ParticipantEntryItem {
+  id?: string;
+  contestTitle?: string;
+  title?: string;
+  status?: string;
+  submittedAt?: string;
+  description?: string;
+}
+
+interface ContestDetail {
+  id: string;
+  title: string;
+  artworkTitle?: string;
+  role: string;
+  status: string;
+  date: string;
+  badge: string;
+  description: string;
+  artisticConcept: string;
+  rules: string;
+  prizePool: string;
+}
+
+interface AchievementDetail {
+  id: string;
+  title: string;
+  contest: string;
+  prize: string;
+  date: string;
+  description: string;
+  issuedBy: string;
+}
+
+interface FriendItem {
+  id: string;
+  name: string;
+  role: string;
+  avatar: string;
+  status: string;
+  mutualContests: number;
+  email: string;
+  phone: string;
+  equipment: string;
+  bio: string;
+  recentPhotos: string[];
+}
+
 export function ProfileTab() {
   const [isEditing, setIsEditing] = useState(false);
   const [toastMessage, setToastMessage] = useState<string | null>(null);
 
-  const [selectedContest, setSelectedContest] = useState<any | null>(null);
-  const [selectedAward, setSelectedAward] = useState<any | null>(null);
-  const [chatFriend, setChatFriend] = useState<any | null>(null);
-  const [viewProfileFriend, setViewProfileFriend] = useState<any | null>(null);
+  const [selectedContest, setSelectedContest] = useState<ContestDetail | null>(null);
+  const [selectedAward, setSelectedAward] = useState<AchievementDetail | null>(null);
+  const [chatFriend, setChatFriend] = useState<FriendItem | null>(null);
+  const [viewProfileFriend, setViewProfileFriend] = useState<FriendItem | null>(null);
 
   const [chatMessage, setChatMessage] = useState('');
   const [chatHistory, setChatHistory] = useState<string[]>([]);
@@ -31,55 +78,129 @@ export function ProfileTab() {
     'https://images.unsplash.com/photo-1514565131-fce0801e5785?auto=format&fit=crop&q=80'
   ]);
 
-  const [joinedContests] = useState([
-    {
-      id: '1',
-      title: 'Hơi Thở Sài Gòn Xưa',
-      role: 'Thí sinh dự thi chính thức',
-      status: 'Đang diễn ra',
-      date: 'Tháng 10/2026',
-      badge: 'Active',
-      description: 'Cuộc thi tìm kiếm những góc máy analog tái hiện nét đẹp hoài cổ, nhịp sống trầm mặc và hoài niệm của Sài Gòn qua lăng kính mộc mạc của film Kodak Portra.',
-      artisticConcept: 'Tập trung khai thác chiều sâu cảm xúc đô thị, sự giao thoa giữa kiến trúc cổ kính và nhịp sống hiện đại dưới góc độ ánh sáng tự nhiên.',
-      rules: 'Sử dụng máy cơ hoàn toàn (Full Mechanical Camera), không qua chỉnh sửa số hóa, đính kèm thông tin khẩu độ và tốc độ chụp cụ thể.',
-      prizePool: '10,000,000 VND + Huy hiệu Vàng Danh Vọng + Cúp Triển Vọng'
-    },
-    {
-      id: '2',
-      title: 'Khoảnh Khắc Analog 2026',
-      role: 'Thí sinh dự thi',
-      status: 'Đã hoàn thành',
-      date: 'Tháng 08/2026',
-      badge: 'Completed',
-      description: 'Sân chơi lớn dành cho cộng đồng yêu thích nhiếp ảnh máy cơ, kỹ thuật tráng rọi thủ công truyền thống tại phòng tối (Darkroom).',
-      artisticConcept: 'Tôn vinh hạt film (grain), độ tương phản cao và nghệ thuật kể chuyện bằng hình ảnh đơn sắc.',
-      rules: 'Bài dự thi phải gửi kèm cuộn film gốc (Negative) hoặc bản scan trực tiếp từ máy quét chuyên dụng.',
-      prizePool: 'Quà tặng cuộn phim Kodak Portra & Ilford HP5 độc quyền'
-    }
-  ]);
+  const [joinedContests, setJoinedContests] = useState<ContestDetail[]>([]);
+  const [achievements, setAchievements] = useState<AchievementDetail[]>([]);
 
-  const [achievements] = useState([
-    {
-      id: 'a1',
-      title: 'Top 10 Bức Ảnh Ấn Tượng Nhất',
-      contest: 'Hơi Thở Sài Gòn Xưa',
-      prize: 'Chứng nhận & Huy hiệu Vàng Danh Vọng',
-      date: '2026',
-      description: 'Đạt điểm số tuyệt đối từ hội đồng giám khảo quốc tế về kỹ thuật xử lý ánh sáng và bố cục film.',
-      issuedBy: 'Hội Nhiếp Ảnh Nghệ Thuật TP.HCM'
-    },
-    {
-      id: 'a2',
-      title: 'Giải Triển Vọng Film Roll',
-      contest: 'Khoảnh Khắc Analog 2026',
-      prize: 'Phần quà cuộn phim Kodak Portra',
-      date: '2026',
-      description: 'Tác phẩm có câu chuyện nghệ thuật chạm đến cảm xúc sâu lắng của người xem.',
-      issuedBy: 'Ban Tổ Chức Vietnam Analog Festival'
-    }
-  ]);
+  useEffect(() => {
+    const loadProfileData = () => {
+      try {
+        const savedProfile = localStorage.getItem('participant_profile');
+        if (savedProfile) {
+          const parsed = JSON.parse(savedProfile);
+          setProfile(prev => ({ ...prev, ...parsed }));
+        }
+        const savedPortfolio = localStorage.getItem('participant_portfolio');
+        if (savedPortfolio) {
+          const parsedPortfolio = JSON.parse(savedPortfolio);
+          if (Array.isArray(parsedPortfolio)) {
+            setPortfolioImages(parsedPortfolio);
+          }
+        }
 
-  const [friendsList] = useState([
+        const savedEntries = localStorage.getItem('participant_entries');
+        if (savedEntries) {
+          const parsed: ParticipantEntryItem[] = JSON.parse(savedEntries);
+          if (Array.isArray(parsed)) {
+            const graded = parsed.filter((item: ParticipantEntryItem) => item.status === 'Đã chấm');
+
+            const mappedContests: ContestDetail[] = graded.map((item: ParticipantEntryItem, idx: number) => ({
+              id: item.id || `graded-${idx}`,
+              title: item.contestTitle || 'CUỘC THI PHIM ANALOG',
+              artworkTitle: item.title,
+              role: 'Thí sinh dự thi chính thức',
+              status: 'Đã hoàn thành',
+              date: item.submittedAt ? `Tháng ${item.submittedAt.slice(3)}` : 'Tháng 10/2026',
+              badge: 'Completed',
+              description: item.description || 'Tác phẩm đã hoàn thành quá trình chấm điểm từ hội đồng giám khảo.',
+              artisticConcept: 'Nhiếp ảnh phim truyền thống nguyên bản.',
+              rules: 'Tuân thủ quy chế kỹ thuật phòng tối.',
+              prizePool: 'Đã hoàn thành chấm điểm chính thức'
+            }));
+
+            const mappedAchievements: AchievementDetail[] = graded.map((item: ParticipantEntryItem, idx: number) => ({
+              id: `ach-${idx}`,
+              title: `Tác phẩm: ${item.title || 'Không tên'}`,
+              contest: item.contestTitle || 'CUỘC THI PHIM ANALOG',
+              prize: 'Đã hoàn thành chấm điểm • Top Đánh Giá',
+              date: '2026',
+              description: item.description || 'Được hội đồng giám khảo đánh giá cao về mặt cảm xúc.',
+              issuedBy: 'Hội đồng Giám khảo'
+            }));
+
+            const defaultBaSonContest: ContestDetail = {
+              id: 'res-01',
+              title: 'ANALOG MOMENTS 2025',
+              artworkTitle: 'Hoàng Hôn Cầu Ba Son',
+              role: 'Thí sinh dự thi chính thức',
+              status: 'Đã hoàn thành',
+              date: 'Tháng 06/2025',
+              badge: 'Completed',
+              description: 'Cuộc thi nhiếp ảnh phim nhựa quy mô lớn nhất năm 2025, tìm kiếm những khoảnh khắc chân thực và cảm xúc nhất.',
+              artisticConcept: 'Tôn vinh hạt film (grain), độ tương phản và nghệ thuật kể chuyện.',
+              rules: 'Sử dụng máy ảnh phim analog (35mm, Medium Format).',
+              prizePool: 'Giải Nhì • 15,000,000 VNĐ'
+            };
+
+            const defaultBaSonAchievement: AchievementDetail = {
+              id: 'a1',
+              title: 'Giải Nhì - Hoàng Hôn Cầu Ba Son',
+              contest: 'ANALOG MOMENTS 2025',
+              prize: 'Hạng 2 / 25 • Điểm: 86.5 / 100',
+              date: '2025',
+              description: 'Tác phẩm có bố cục tốt, ánh sáng hài hòa và thể hiện được cảm xúc rất chân thực.',
+              issuedBy: 'Ban Tổ Chức Analog Moments'
+            };
+
+            const finalContests = [defaultBaSonContest, ...mappedContests];
+            const finalAchievements = [defaultBaSonAchievement, ...mappedAchievements];
+
+            setJoinedContests(finalContests);
+            setAchievements(finalAchievements);
+          }
+        } else {
+          setJoinedContests([
+            {
+              id: 'res-01',
+              title: 'ANALOG MOMENTS 2025',
+              artworkTitle: 'Hoàng Hôn Cầu Ba Son',
+              role: 'Thí sinh dự thi chính thức',
+              status: 'Đã hoàn thành',
+              date: 'Tháng 06/2025',
+              badge: 'Completed',
+              description: 'Cuộc thi nhiếp ảnh phim nhựa quy mô lớn nhất năm 2025, tìm kiếm những khoảnh khắc chân thực và cảm xúc nhất.',
+              artisticConcept: 'Tôn vinh hạt film (grain), độ tương phản và nghệ thuật kể chuyện.',
+              rules: 'Sử dụng máy ảnh phim analog (35mm, Medium Format).',
+              prizePool: 'Giải Nhì • 15,000,000 VNĐ'
+            }
+          ]);
+          setAchievements([
+            {
+              id: 'a1',
+              title: 'Giải Nhì - Hoàng Hôn Cầu Ba Son',
+              contest: 'ANALOG MOMENTS 2025',
+              prize: 'Hạng 2 / 25 • Điểm: 86.5 / 100',
+              date: '2025',
+              description: 'Tác phẩm có bố cục tốt, ánh sáng hài hòa và thể hiện được cảm xúc rất chân thực.',
+              issuedBy: 'Ban Tổ Chức Analog Moments'
+            }
+          ]);
+        }
+      } catch (e) {
+        console.error(e);
+      }
+    };
+
+    loadProfileData();
+    window.addEventListener('storage', loadProfileData);
+    window.addEventListener('avatarChanged', loadProfileData);
+
+    return () => {
+      window.removeEventListener('storage', loadProfileData);
+      window.removeEventListener('avatarChanged', loadProfileData);
+    };
+  }, []);
+
+  const [friendsList] = useState<FriendItem[]>([
     {
       id: 'f1',
       name: 'Nguyễn Minh Khôi',
@@ -110,57 +231,8 @@ export function ProfileTab() {
       recentPhotos: [
         'https://images.unsplash.com/photo-1500648767791-00dcc994a43e?auto=format&fit=crop&q=80'
       ]
-    },
-    {
-      id: 'f3',
-      name: 'Lê Hoàng Phương',
-      role: 'Sưu tầm máy ảnh cổ',
-      avatar: 'https://images.unsplash.com/photo-1494790108377-be9c29b29330?auto=format&fit=crop&q=80',
-      status: 'Đang hoạt động',
-      mutualContests: 2,
-      email: 'phuong.vintage@gmail.com',
-      phone: '0933334444',
-      equipment: 'Nikon F2, Canon F-1',
-      bio: 'Sưu tầm và phục chế các dòng máy cơ huyền thoại thập niên 70-80.',
-      recentPhotos: [
-        'https://images.unsplash.com/photo-1526170375885-4d8ecf77b99f?auto=format&fit=crop&q=80'
-      ]
-    },
-    {
-      id: 'f4',
-      name: 'Phạm Quỳnh Anh',
-      role: 'Đam mê dòng phim Slide',
-      avatar: 'https://images.unsplash.com/photo-1438761681033-6461ffad8d80?auto=format&fit=crop&q=80',
-      status: 'Hoạt động hôm qua',
-      mutualContests: 1,
-      email: 'quynhanh.slide@gmail.com',
-      phone: '0977778888',
-      equipment: 'Olympus OM-1, Zuiko 50mm f/1.4',
-      bio: 'Yêu thích độ rực rỡ và sắc nét tuyệt đối của phim màu đảo dương (Slide film).',
-      recentPhotos: [
-        'https://images.unsplash.com/photo-1469474968028-56623f02e42e?auto=format&fit=crop&q=80'
-      ]
     }
   ]);
-
-  useEffect(() => {
-    try {
-      const savedProfile = localStorage.getItem('participant_profile');
-      if (savedProfile) {
-        const parsed = JSON.parse(savedProfile);
-        setProfile(prev => ({ ...prev, ...parsed }));
-      }
-      const savedPortfolio = localStorage.getItem('participant_portfolio');
-      if (savedPortfolio) {
-        const parsedPortfolio = JSON.parse(savedPortfolio);
-        if (Array.isArray(parsedPortfolio)) {
-          setPortfolioImages(parsedPortfolio);
-        }
-      }
-    } catch (e) {
-      console.error(e);
-    }
-  }, []);
 
   const showToast = (msg: string) => {
     setToastMessage(msg);
@@ -230,7 +302,6 @@ export function ProfileTab() {
     }
   };
 
-  // Hàm xóa ảnh đại diện
   const handleRemoveAvatar = (e: React.MouseEvent) => {
     e.stopPropagation();
     const updatedProfile = { ...profile, avatarUrl: '' };
@@ -254,7 +325,6 @@ export function ProfileTab() {
     }
   };
 
-  // Hàm xóa ảnh trong Portfolio
   const handleRemovePortfolioImage = (indexToRemove: number) => {
     const updatedList = portfolioImages.filter((_, idx) => idx !== indexToRemove);
     setPortfolioImages(updatedList);
@@ -292,7 +362,6 @@ export function ProfileTab() {
           <div className="bg-white p-8 rounded-3xl border border-slate-200/90 shadow-sm space-y-6 w-full">
             <div className="flex flex-col items-center text-center space-y-4 pb-6 border-b border-slate-100">
 
-              {/* AVATAR CÓ TÍNH NĂNG RÊ CHUỘT HIỆN NÚT XÓA */}
               <div className="relative group cursor-pointer" title="Click để thay đổi ảnh đại diện">
                 <div className="w-32 h-32 rounded-full overflow-hidden shadow-xl border-4 border-slate-100 bg-gradient-to-tr from-blue-600 to-indigo-600 flex items-center justify-center text-white text-4xl font-black">
                   {profile.avatarUrl ? (
@@ -309,7 +378,6 @@ export function ProfileTab() {
                   <Camera className="w-8 h-8" />
                 </div>
 
-                {/* Nút xóa ảnh đại diện khi rê chuột */}
                 {profile.avatarUrl && (
                   <button
                     onClick={handleRemoveAvatar}
@@ -429,23 +497,18 @@ export function ProfileTab() {
             </div>
           )}
 
-          {/* PORTFOLIO CÓ TÍNH NĂNG RÊ CHUỘT HIỆN NÚT XÓA ẢNH */}
           <div className="bg-white p-8 rounded-3xl border border-slate-200/90 shadow-sm space-y-6 w-full">
             <div className="flex justify-between items-center">
               <div>
                 <h3 className="font-black text-slate-900 text-2xl">Portfolio Của Tôi</h3>
                 <p className="text-sm text-slate-400 font-medium">Bộ sưu tập tác phẩm nhiếp ảnh film tiêu biểu</p>
               </div>
-              <button onClick={() => showToast('Đang chuyển đến thư viện quản lý Portfolio...')} className="text-sm font-extrabold text-blue-600 hover:underline cursor-pointer flex items-center gap-1">
-                Xem tất cả <ArrowRight className="w-4 h-4" />
-              </button>
             </div>
             <div className="grid grid-cols-2 md:grid-cols-4 gap-6">
               {portfolioImages.map((imgUrl, index) => (
                 <div key={index} className="relative h-56 rounded-2xl overflow-hidden border border-slate-200 shadow-sm group bg-slate-100">
                   <img src={imgUrl} alt={`Portfolio ${index + 1}`} className="w-full h-full object-cover group-hover:scale-105 transition duration-300" />
 
-                  {/* Nút xóa ảnh khi rê chuột */}
                   <button
                     onClick={() => handleRemovePortfolioImage(index)}
                     title="Xóa ảnh này"
@@ -516,7 +579,7 @@ export function ProfileTab() {
             <div className="flex justify-between items-center">
               <div>
                 <h3 className="font-black text-slate-900 text-2xl">Cuộc Thi Đã Tham Gia</h3>
-                <p className="text-sm text-slate-400 font-medium">Danh sách các cuộc thi nhiếp ảnh phim bạn đã đăng ký và nộp bài</p>
+                <p className="text-sm text-slate-400 font-medium">Danh sách các cuộc thi nhiếp ảnh phim bạn đã tham gia và có kết quả</p>
               </div>
               <span className="px-4 py-1.5 bg-blue-50 text-blue-700 font-extrabold text-xs rounded-full border border-blue-200">
                 {joinedContests.length} cuộc thi
@@ -529,11 +592,12 @@ export function ProfileTab() {
                   <div className="space-y-1">
                     <div className="flex justify-between items-start">
                       <span className="text-xs font-black uppercase text-blue-600">{contest.date}</span>
-                      <span className={`text-xs font-bold px-3 py-1 rounded-full ${contest.badge === 'Active' ? 'bg-emerald-100 text-emerald-700' : 'bg-slate-200 text-slate-700'}`}>
+                      <span className="text-xs font-bold px-3 py-1 rounded-full bg-slate-200 text-slate-700">
                         {contest.status}
                       </span>
                     </div>
                     <h4 className="font-black text-lg text-slate-900">{contest.title}</h4>
+                    <p className="text-xs font-extrabold text-blue-600">Tác phẩm: {contest.artworkTitle}</p>
                     <p className="text-xs font-semibold text-slate-500">Vai trò: {contest.role}</p>
                   </div>
 
@@ -552,7 +616,7 @@ export function ProfileTab() {
             <div className="flex justify-between items-center">
               <div>
                 <h3 className="font-black text-slate-900 text-2xl">Giải Thưởng & Thành Tích</h3>
-                <p className="text-sm text-slate-400 font-medium">Các huy hiệu, giải thưởng và chứng nhận đạt được</p>
+                <p className="text-sm text-slate-400 font-medium">Các huy hiệu, giải thưởng và chứng nhận đạt được từ kết quả cuộc thi</p>
               </div>
               <Trophy className="w-7 h-7 text-amber-500" />
             </div>
@@ -615,7 +679,7 @@ export function ProfileTab() {
                   <p className="text-lg font-black text-slate-900">{selectedContest.role}</p>
                 </div>
                 <div className="p-6 bg-white rounded-3xl border border-slate-200 shadow-sm space-y-2">
-                  <p className="text-xs font-black uppercase text-amber-600 tracking-wider">Cơ cấu giải thưởng</p>
+                  <p className="text-xs font-black uppercase text-amber-600 tracking-wider">Kết quả & Giải thưởng</p>
                   <p className="text-lg font-black text-slate-900">{selectedContest.prizePool}</p>
                 </div>
               </div>
@@ -625,20 +689,6 @@ export function ProfileTab() {
                   <Film className="w-6 h-6 text-blue-600" /> Tổng quan nghệ thuật cuộc thi
                 </h3>
                 <p className="text-base text-slate-700 leading-relaxed font-medium">{selectedContest.description}</p>
-              </div>
-
-              <div className="p-8 bg-white rounded-3xl border border-slate-200 shadow-sm space-y-4">
-                <h3 className="text-xl font-black text-slate-900 flex items-center gap-2">
-                  <Sparkles className="w-6 h-6 text-indigo-600" /> Cấu trúc sáng tạo & Định hướng
-                </h3>
-                <p className="text-base text-slate-700 leading-relaxed font-medium">{selectedContest.artisticConcept}</p>
-              </div>
-
-              <div className="p-8 bg-white rounded-3xl border border-slate-200 shadow-sm space-y-4">
-                <h3 className="text-xl font-black text-slate-900 flex items-center gap-2">
-                  <Award className="w-6 h-6 text-emerald-600" /> Thể lệ & Quy chuẩn kỹ thuật Film
-                </h3>
-                <p className="text-base text-slate-700 leading-relaxed font-medium">{selectedContest.rules}</p>
               </div>
             </div>
 
@@ -711,17 +761,6 @@ export function ProfileTab() {
               <div className="p-5 bg-white rounded-2xl border border-slate-200 space-y-2">
                 <p className="text-xs font-black uppercase text-slate-400">Giới thiệu bản thân</p>
                 <p className="text-sm text-slate-700 italic">"{viewProfileFriend.bio}"</p>
-              </div>
-
-              <div className="space-y-3">
-                <p className="text-xs font-black uppercase text-slate-400">Tác phẩm tiêu biểu của {viewProfileFriend.name}</p>
-                <div className="grid grid-cols-2 gap-4">
-                  {viewProfileFriend.recentPhotos.map((photo: string, idx: number) => (
-                    <div key={idx} className="h-40 rounded-2xl overflow-hidden border border-slate-200 shadow-sm">
-                      <img src={photo} alt="Photo" className="w-full h-full object-cover" />
-                    </div>
-                  ))}
-                </div>
               </div>
             </div>
 
