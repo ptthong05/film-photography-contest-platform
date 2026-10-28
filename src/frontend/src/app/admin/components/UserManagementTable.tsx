@@ -28,6 +28,7 @@ interface UserManagementTableProps {
 }
 
 function formatDate(date: string): string {
+  if (!date) return '—';
   const [year, month, day] = date.split('-');
   return `${day}/${month}/${year}`;
 }
@@ -98,7 +99,7 @@ export function UserManagementTable({
                       {ROLE_INFO[user.role].label}
                     </span>
                   </td>
-                  <td className="px-3 py-3 text-center">{user.contestCount}</td>
+                  <td className="px-3 py-3 text-center">{user.contestCount ?? '—'}</td>
                   <td className="px-3 py-3">
                     <span className={`inline-flex items-center gap-1 rounded-md px-2 py-1 text-xs font-semibold ${STATUS_INFO[user.status].classes}`}>
                       <span aria-hidden="true" className="h-1.5 w-1.5 rounded-full bg-current" />
@@ -123,7 +124,7 @@ export function UserManagementTable({
                         </button>
                         <button type="button" onClick={() => onDelete(user)}
                           className="flex w-full items-center gap-2 rounded-md px-3 py-2 text-xs text-red-600 hover:bg-red-50">
-                          <Trash2 size={15} /> Xóa (mẫu)
+                          <Trash2 size={15} /> Xóa
                         </button>
                       </div>
                     )}
@@ -141,7 +142,7 @@ export function UserManagementTable({
 
         <div className="flex flex-col gap-3 border-t border-slate-200 px-4 py-4 text-xs text-slate-500 sm:flex-row sm:items-center sm:justify-between">
           <span>
-            Hiển thị {totalCount === 0 ? 0 : (currentPage - 1) * pageSize + 1}–{Math.min(currentPage * pageSize, totalCount)} / {totalCount} người dùng (mẫu)
+            Hiển thị {totalCount === 0 ? 0 : (currentPage - 1) * pageSize + 1}–{Math.min(currentPage * pageSize, totalCount)} / {totalCount} người dùng
           </span>
           <nav aria-label="Phân trang người dùng" className="flex flex-wrap items-center gap-1">
             <button type="button" disabled={currentPage === 1} onClick={() => onPageChange(currentPage - 1)}

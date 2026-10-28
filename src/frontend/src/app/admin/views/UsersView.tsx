@@ -1,33 +1,24 @@
 import { useMemo, useCallback, useState } from 'react';
-import { ArrowUpDown, CheckCircle2, Plus, Search, SlidersHorizontal, X } from 'lucide-react';
+import { AlertCircle, ArrowUpDown, CheckCircle2, Plus, Search, SlidersHorizontal, X } from 'lucide-react';
+import { useFetch } from '../../../hooks/useFetch';
+import { userService } from '../../../services/userService';
+import type { UserRequest } from '../../../types/user';
+import { validateVietnamesePhone } from '../../../utils/phoneValidator';
 import { UserManagementTable } from '../components/UserManagementTable';
 import { UserModal } from '../components/UserModal';
-import { ROLE_INFO, STATUS_INFO, type AdminUser, type UserDraft, type UserRole, type UserStatus } from '../types/adminUser';
+import { ROLE_INFO, STATUS_INFO, toAdminUser, type AdminUser, type UserDraft, type UserRole, type UserStatus } from '../types/adminUser';
 
-// Dữ liệu minh họa phục vụ xây dựng giao diện, CHƯA kết nối Spring Boot/MongoDB.
 type RoleFilter = UserRole | 'ALL';
 type StatusFilter = UserStatus | 'ALL';
 type SortOrder = 'newest' | 'oldest' | 'name';
 
 const PAGE_SIZE = 8;
+const PASSWORD_MIN_LENGTH = 8;
+const PASSWORD_MAX_LENGTH = 72;
 
-const INITIAL_USERS: AdminUser[] = [
-  { id: 'U01', fullName: 'Nguyễn Văn A', email: 'nguyenvana@example.com', role: 'ADMIN', contestCount: 8, status: 'ACTIVE', joinedAt: '2025-01-10' },
-  { id: 'U02', fullName: 'Trần Thị Bình', email: 'tranthibinh@example.com', role: 'PARTICIPANT', contestCount: 12, status: 'ACTIVE', joinedAt: '2025-02-12' },
-  { id: 'U03', fullName: 'Lê Minh Công', email: 'leminhcong@example.com', role: 'JUDGE', contestCount: 5, status: 'ACTIVE', joinedAt: '2025-02-15' },
-  { id: 'U04', fullName: 'Phạm Thị Dung', email: 'phamthidung@example.com', role: 'ORGANIZER', contestCount: 4, status: 'ACTIVE', joinedAt: '2025-03-01' },
-  { id: 'U05', fullName: 'Hoàng Văn E', email: 'hoangvane@example.com', role: 'PARTICIPANT', contestCount: 6, status: 'SUSPENDED', joinedAt: '2025-03-05' },
-  { id: 'U06', fullName: 'Nguyễn Thị F', email: 'nguyenthif@example.com', role: 'PARTICIPANT', contestCount: 3, status: 'ACTIVE', joinedAt: '2025-03-10' },
-  { id: 'U07', fullName: 'Đỗ Minh G', email: 'dominhg@example.com', role: 'JUDGE', contestCount: 2, status: 'ACTIVE', joinedAt: '2025-03-12' },
-  { id: 'U08', fullName: 'Trần Văn H', email: 'tranvanh@example.com', role: 'PARTICIPANT', contestCount: 1, status: 'LOCKED', joinedAt: '2025-03-18' },
-  { id: 'U09', fullName: 'Võ Thị I', email: 'vothii@example.com', role: 'ORGANIZER', contestCount: 7, status: 'ACTIVE', joinedAt: '2025-04-01' },
-  { id: 'U10', fullName: 'Bùi Văn K', email: 'buivank@example.com', role: 'PARTICIPANT', contestCount: 2, status: 'ACTIVE', joinedAt: '2025-04-07' },
-  { id: 'U11', fullName: 'Lý Thị L', email: 'lythil@example.com', role: 'JUDGE', contestCount: 3, status: 'ACTIVE', joinedAt: '2025-04-15' },
-  { id: 'U12', fullName: 'Ngô Văn M', email: 'ngovanm@example.com', role: 'ADMIN', contestCount: 2, status: 'ACTIVE', joinedAt: '2025-04-21' },
-  { id: 'U13', fullName: 'Phan Thị N', email: 'phanthin@example.com', role: 'PARTICIPANT', contestCount: 4, status: 'SUSPENDED', joinedAt: '2025-05-02' },
-  { id: 'U14', fullName: 'Dương Văn P', email: 'duongvanp@example.com', role: 'PARTICIPANT', contestCount: 6, status: 'ACTIVE', joinedAt: '2025-05-08' },
-  { id: 'U15', fullName: 'Mai Thị Q', email: 'maithiq@example.com', role: 'PARTICIPANT', contestCount: 2, status: 'ACTIVE', joinedAt: '2025-05-20' },
-];
+function errorMessage(err: unknown, fallback: string): string {
+  return err instanceof Error ? err.message : fallback;
+}
 
 const ROLE_TABS: { value: RoleFilter; label: string }[] = [
   { value: 'ALL', label: 'Tất cả' },
@@ -40,13 +31,18 @@ const ROLE_TABS: { value: RoleFilter; label: string }[] = [
 const EMPTY_DRAFT: UserDraft = {
   fullName: '',
   email: '',
+  phone: '',
+  password: '',
   role: 'PARTICIPANT',
   status: 'ACTIVE',
 };
 
-/** Màn hình Admin > Quản lý người dùng; tất cả thay đổi hiện chỉ ở bộ nhớ trình duyệt. */
+/** Màn hình Admin > Quản lý người dùng, đọc / ghi qua /api/users. */
 export function UsersView() {
-  const [users, setUsers] = useState<AdminUser[]>(INITIAL_USERS);
+  const { data, isLoading, error: loadError, refetch } = useFetch(userService.getAll);
+  const users = useMemo(() => (data ?? []).map(toAdminUser), [data]);
+  const [isSaving, setIsSaving] = useState(false);
+  const [actionError, setActionError] = useState('');
   const [activeTab, setActiveTab] = useState<RoleFilter>('ALL');
   const [roleFilter, setRoleFilter] = useState<RoleFilter>('ALL');
   const [statusFilter, setStatusFilter] = useState<StatusFilter>('ALL');
@@ -91,7 +87,7 @@ export function UsersView() {
     setIsEditorOpen(true);
   };
   const openEdit = (user: AdminUser) => {
-    setDraft({ fullName: user.fullName, email: user.email, role: user.role, status: user.status });
+    setDraft({ fullName: user.fullName, email: user.email, phone: user.phone, password: '', role: user.role, status: user.status });
     setEditorId(user.id);
     setFormError('');
     setOpenMenuId(null);
@@ -99,9 +95,10 @@ export function UsersView() {
   };
   const closeEditor = useCallback(() => { setIsEditorOpen(false); setFormError(''); }, []);
 
-  const saveUser = () => {
+  const saveUser = async () => {
     const fullName = draft.fullName.trim();
     const email = draft.email.trim().toLowerCase();
+    const password = draft.password;
     if (fullName.length < 2 || fullName.length > 80) {
       setFormError('Họ và tên phải có từ 2 đến 80 ký tự.');
       return;
@@ -110,44 +107,89 @@ export function UsersView() {
       setFormError('Vui lòng nhập email hợp lệ (tối đa 120 ký tự).');
       return;
     }
-    if (users.some((user) => user.email.toLowerCase() === email && user.id !== editorId)) {
-      setFormError('Email này đã tồn tại trong danh sách mẫu.');
+    const phone = draft.phone.trim() ? validateVietnamesePhone(draft.phone) : null;
+    if (phone && !phone.isValid) {
+      setFormError(phone.error);
       return;
     }
-    if (editorId) {
-      setUsers((previous) => previous.map((user) => user.id === editorId
-        ? { ...user, ...draft, fullName, email } : user));
-      setNotice('Đã cập nhật người dùng trong dữ liệu mẫu (chưa lưu máy chủ).');
-    } else {
-      const newUser: AdminUser = {
-        id: `LOCAL-${Date.now()}`,
-        fullName, email, role: draft.role, status: draft.status,
-        contestCount: 0,
-        joinedAt: new Date().toLocaleDateString('sv-SE'),
-      };
-      setUsers((previous) => [newUser, ...previous]);
-      setNotice('Đã thêm người dùng vào dữ liệu mẫu (chưa lưu máy chủ).');
+    if ((!editorId || password) && (password.length < PASSWORD_MIN_LENGTH || password.length > PASSWORD_MAX_LENGTH)) {
+      setFormError(`Mật khẩu phải từ ${PASSWORD_MIN_LENGTH} đến ${PASSWORD_MAX_LENGTH} ký tự.`);
+      return;
     }
-    setActiveTab('ALL'); setRoleFilter('ALL'); setStatusFilter('ALL'); setSearch(''); setPage(1);
-    closeEditor();
+    if (users.some((user) => user.email.toLowerCase() === email && user.id !== editorId)) {
+      setFormError('Email này đã được sử dụng.');
+      return;
+    }
+
+    const body: UserRequest = {
+      name: fullName,
+      email,
+      phone: phone?.normalizedPhone ?? '',
+      password: password || undefined,
+      role: draft.role,
+    };
+    setIsSaving(true);
+    try {
+      // Trạng thái không nằm trong UserRequest nên đổi riêng qua PATCH /status khi khác mặc định / khác giá trị cũ
+      if (editorId) {
+        const original = users.find((user) => user.id === editorId);
+        await userService.update(editorId, body);
+        if (original && original.status !== draft.status) await userService.updateStatus(editorId, draft.status);
+        setNotice('Đã cập nhật người dùng.');
+      } else {
+        const created = await userService.create(body);
+        if (draft.status !== 'ACTIVE') await userService.updateStatus(created.id, draft.status);
+        setNotice(`Đã tạo tài khoản ${ROLE_INFO[draft.role].label} ${email}.`);
+      }
+      setActionError('');
+      await refetch();
+      setActiveTab('ALL'); setRoleFilter('ALL'); setStatusFilter('ALL'); setSearch(''); setPage(1);
+      closeEditor();
+    } catch (err) {
+      setFormError(errorMessage(err, 'Không thể lưu người dùng.'));
+      // Có thể đã tạo xong tài khoản nhưng lỗi ở bước đổi trạng thái → tải lại để danh sách khớp máy chủ
+      void refetch();
+    } finally {
+      setIsSaving(false);
+    }
   };
 
-  const changeStatus = (id: string, status: UserStatus) => {
-    setUsers((previous) => previous.map((user) => user.id === id ? { ...user, status } : user));
-    setNotice('Đã thay đổi trạng thái trong dữ liệu mẫu (chưa lưu máy chủ).');
+  const changeStatus = async (id: string, status: UserStatus) => {
     setOpenMenuId(null);
+    try {
+      await userService.updateStatus(id, status);
+      setActionError('');
+      setNotice('Đã thay đổi trạng thái tài khoản.');
+      await refetch();
+    } catch (err) {
+      setActionError(errorMessage(err, 'Không thể thay đổi trạng thái.'));
+    }
   };
-  const deleteUser = (user: AdminUser) => {
-    if (!window.confirm(`Xóa "${user.fullName}" khỏi danh sách dữ liệu mẫu?`)) return;
-    setUsers((previous) => previous.filter((item) => item.id !== user.id));
-    setSelectedIds((previous) => { const next = new Set(previous); next.delete(user.id); return next; });
-    setNotice('Đã xóa khỏi dữ liệu mẫu (chưa thay đổi cơ sở dữ liệu).');
+  const deleteUser = async (user: AdminUser) => {
     setOpenMenuId(null);
+    if (!window.confirm(`Xóa vĩnh viễn tài khoản "${user.fullName}" (${user.email})? Hành động này không thể hoàn tác.`)) return;
+    try {
+      await userService.remove(user.id);
+      setSelectedIds((previous) => { const next = new Set(previous); next.delete(user.id); return next; });
+      setActionError('');
+      setNotice('Đã xóa tài khoản.');
+      await refetch();
+    } catch (err) {
+      setActionError(errorMessage(err, 'Không thể xóa tài khoản.'));
+    }
   };
-  const updateSelectedStatus = (status: UserStatus) => {
-    setUsers((previous) => previous.map((user) => selectedIds.has(user.id) ? { ...user, status } : user));
+  const updateSelectedStatus = async (status: UserStatus) => {
+    const ids = [...selectedIds];
+    const results = await Promise.allSettled(ids.map((id) => userService.updateStatus(id, status)));
+    const failures = results.filter((result): result is PromiseRejectedResult => result.status === 'rejected');
     setSelectedIds(new Set());
-    setNotice('Đã cập nhật các tài khoản được chọn trong dữ liệu mẫu.');
+    if (failures.length) {
+      setActionError(`${failures.length}/${ids.length} tài khoản không cập nhật được: ${errorMessage(failures[0].reason, 'Lỗi không xác định')}`);
+    } else {
+      setActionError('');
+    }
+    if (failures.length < ids.length) setNotice(`Đã cập nhật ${ids.length - failures.length} tài khoản.`);
+    await refetch();
   };
   const toggleSelected = (id: string) => {
     setSelectedIds((previous) => {
@@ -167,9 +209,7 @@ export function UsersView() {
   return (
     <section aria-label="Quản lý người dùng" className="space-y-4">
       <div className="flex flex-wrap items-center justify-between gap-3">
-        <p className="rounded-md bg-amber-50 px-3 py-2 text-xs font-medium text-amber-800">
-          Dữ liệu minh họa ({users.length} tài khoản) — chưa kết nối API
-        </p>
+        <p className="text-sm text-slate-500">{data ? `${users.length} tài khoản` : ''}</p>
         <button type="button" onClick={openCreate}
           className="inline-flex items-center gap-2 rounded-lg bg-blue-600 px-4 py-2.5 text-sm font-semibold text-white shadow-sm hover:bg-blue-700 focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-blue-600">
           <Plus size={17} aria-hidden="true" /> Thêm người dùng
@@ -183,7 +223,25 @@ export function UsersView() {
         </div>
       )}
 
-      <div className="rounded-xl border border-slate-200 bg-white shadow-sm">
+      {actionError && (
+        <div role="alert" className="flex items-center justify-between gap-2 rounded-lg border border-rose-200 bg-rose-50 px-4 py-3 text-sm text-rose-700">
+          <span className="flex items-center gap-2"><AlertCircle size={17} aria-hidden="true" />{actionError}</span>
+          <button type="button" onClick={() => setActionError('')} aria-label="Đóng thông báo lỗi"><X size={17} /></button>
+        </div>
+      )}
+
+      {!data && (
+        <div className="rounded-xl border border-slate-200 bg-white px-4 py-12 text-center text-sm text-slate-500 shadow-sm">
+          {isLoading ? 'Đang tải danh sách người dùng...' : (
+            <span className="text-rose-700">
+              {loadError ?? 'Không tải được danh sách người dùng.'}{' '}
+              <button type="button" onClick={() => void refetch()} className="font-semibold text-blue-600 hover:underline">Thử lại</button>
+            </span>
+          )}
+        </div>
+      )}
+
+      {data && <div className="rounded-xl border border-slate-200 bg-white shadow-sm">
         <div className="flex gap-1 overflow-x-auto border-b border-slate-200 px-4 pt-3" role="tablist" aria-label="Lọc theo vai trò">
           {ROLE_TABS.map((tab) => {
             const count = tab.value === 'ALL' ? users.length : users.filter((user) => user.role === tab.value).length;
@@ -248,8 +306,8 @@ export function UsersView() {
         {selectedIds.size > 0 && (
           <div className="flex flex-wrap items-center gap-2 border-t border-slate-100 bg-blue-50 px-4 py-3 text-xs text-blue-900 sm:text-sm">
             <span className="mr-2 font-semibold">Đã chọn {selectedIds.size} tài khoản</span>
-            <button type="button" onClick={() => updateSelectedStatus('SUSPENDED')} className="rounded-lg border border-blue-200 bg-white px-3 py-1.5 hover:bg-blue-100">Tạm khóa</button>
-            <button type="button" onClick={() => updateSelectedStatus('ACTIVE')} className="rounded-lg border border-blue-200 bg-white px-3 py-1.5 hover:bg-blue-100">Kích hoạt</button>
+            <button type="button" onClick={() => void updateSelectedStatus('SUSPENDED')} className="rounded-lg border border-blue-200 bg-white px-3 py-1.5 hover:bg-blue-100">Tạm khóa</button>
+            <button type="button" onClick={() => void updateSelectedStatus('ACTIVE')} className="rounded-lg border border-blue-200 bg-white px-3 py-1.5 hover:bg-blue-100">Kích hoạt</button>
             <button type="button" onClick={() => setSelectedIds(new Set())} className="ml-auto text-blue-700 underline">Bỏ chọn</button>
           </div>
         )}
@@ -267,16 +325,16 @@ export function UsersView() {
           onToggleSelected={toggleSelected}
           onToggleMenu={(id) => setOpenMenuId((previous) => previous === id ? null : id)}
           onEdit={openEdit}
-          onChangeStatus={changeStatus}
-          onDelete={deleteUser}
+          onChangeStatus={(id, status) => void changeStatus(id, status)}
+          onDelete={(user) => void deleteUser(user)}
           onPageChange={setPage}
         />
-      </div>
+      </div>}
 
       {isEditorOpen && (
-        <UserModal draft={draft} isEditing={editorId !== null} error={formError}
+        <UserModal draft={draft} isEditing={editorId !== null} isSaving={isSaving} error={formError}
           onChange={(nextDraft) => { setDraft(nextDraft); setFormError(''); }}
-          onSave={saveUser} onClose={closeEditor} />
+          onSave={() => void saveUser()} onClose={closeEditor} />
       )}
     </section>
   );

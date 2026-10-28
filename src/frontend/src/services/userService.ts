@@ -1,4 +1,4 @@
-import type { User, UserRequest } from '../types/user';
+import type { User, UserRequest, UserStatus } from '../types/user';
 import { request } from './apiClient';
 
 /** File mẫu: mỗi resource backend tương ứng 1 service. */
@@ -12,6 +12,9 @@ export const userService = {
 
   update: (id: string, body: UserRequest) =>
     request<User>(`/users/${id}`, { method: 'PUT', body: JSON.stringify(body) }),
+
+  updateStatus: (id: string, status: UserStatus) =>
+    request<User>(`/users/${id}/status`, { method: 'PATCH', body: JSON.stringify({ status }) }),
 
   remove: (id: string) => request<void>(`/users/${id}`, { method: 'DELETE' }),
 };

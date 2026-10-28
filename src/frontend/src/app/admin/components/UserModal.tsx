@@ -5,6 +5,7 @@ import { ROLE_INFO, STATUS_INFO, type UserDraft, type UserRole, type UserStatus 
 interface UserModalProps {
   draft: UserDraft;
   isEditing: boolean;
+  isSaving: boolean;
   error: string;
   onChange: (nextDraft: UserDraft) => void;
   onSave: () => void;
@@ -21,11 +22,12 @@ const EMAIL_PATTERN = /^[^\s@]+@[^\s@]+\.[^\s@]+$/;
 /**
  * Hộp thoại thêm/sửa người dùng cho giao diện Admin.
  * Chỉ hiển thị biểu mẫu và kiểm tra dữ liệu đầu vào ở phía trình duyệt.
- * UsersView giữ dữ liệu và thực hiện thao tác lưu (hiện là dữ liệu mẫu).
+ * UsersView giữ dữ liệu và gọi API để lưu.
  */
 export function UserModal({
   draft,
   isEditing,
+  isSaving,
   error,
   onChange,
   onSave,
@@ -113,8 +115,10 @@ export function UserModal({
             <h2 id={dialogTitleId} className="text-xl font-bold text-[#0B356B]">
               {isEditing ? 'Chỉnh sửa người dùng' : 'Thêm người dùng'}
             </h2>
-            <p id={dialogNoteId} className="mt-1 text-xs text-amber-700">
-              Dữ liệu mô phỏng — chưa lưu vào máy chủ Java/MongoDB.
+            <p id={dialogNoteId} className="mt-1 text-xs text-slate-500">
+              {isEditing
+                ? 'Để trống mật khẩu nếu muốn giữ mật khẩu cũ.'
+                : 'Người dùng đăng nhập bằng email hoặc số điện thoại và mật khẩu này.'}
             </p>
           </div>
           <button
@@ -172,6 +176,39 @@ export function UserModal({
 
           <div className="grid gap-3 sm:grid-cols-2">
             <div>
+              <label htmlFor={`${dialogTitleId}-phone`} className="block text-sm font-medium text-slate-700">Số điện thoại</label>
+              <input
+                id={`${dialogTitleId}-phone`}
+                type="tel"
+                name="phone"
+                autoComplete="tel"
+                value={draft.phone}
+                maxLength={15}
+                onChange={(event) => onChange({ ...draft, phone: event.target.value })}
+                placeholder="Không bắt buộc"
+                className={selectClass}
+              />
+            </div>
+            <div>
+              <label htmlFor={`${dialogTitleId}-password`} className="block text-sm font-medium text-slate-700">
+                Mật khẩu {!isEditing && <span className="text-red-600">*</span>}
+              </label>
+              <input
+                id={`${dialogTitleId}-password`}
+                type="password"
+                name="password"
+                autoComplete="new-password"
+                value={draft.password}
+                maxLength={72}
+                onChange={(event) => onChange({ ...draft, password: event.target.value })}
+                placeholder={isEditing ? 'Giữ nguyên' : 'Tối thiểu 8 ký tự'}
+                className={selectClass}
+              />
+            </div>
+          </div>
+
+          <div className="grid gap-3 sm:grid-cols-2">
+            <div>
               <label htmlFor={`${dialogTitleId}-role`} className="block text-sm font-medium text-slate-700">Vai trò</label>
               <select
                 id={`${dialogTitleId}-role`}
@@ -206,9 +243,9 @@ export function UserModal({
               className="rounded-lg border border-slate-300 px-4 py-2 text-sm font-medium text-slate-700 hover:bg-slate-50">
               Hủy
             </button>
-            <button type="submit"
-              className="rounded-lg bg-blue-600 px-4 py-2 text-sm font-semibold text-white hover:bg-blue-700 focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-blue-600">
-              {isEditing ? 'Lưu thay đổi' : 'Thêm người dùng'}
+            <button type="submit" disabled={isSaving}
+              className="rounded-lg bg-blue-600 px-4 py-2 text-sm font-semibold text-white hover:bg-blue-700 focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-blue-600 disabled:cursor-wait disabled:opacity-70">
+              {isSaving ? 'Đang lưu...' : isEditing ? 'Lưu thay đổi' : 'Thêm người dùng'}
             </button>
           </div>
         </form>
