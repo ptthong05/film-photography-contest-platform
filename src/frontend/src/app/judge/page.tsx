@@ -25,9 +25,10 @@ const VIEW_META: Record<JudgeView, { title: string; subtitle: string }> = {
 
 interface JudgePageProps {
   onExit: () => void;
+  onLogout: () => void;
 }
 
-export default function JudgePage({ onExit }: JudgePageProps) {
+export default function JudgePage({ onExit, onLogout }: JudgePageProps) {
   const [activeView, setActiveView] = useState<JudgeView>('OVERVIEW');
   const [isMenuOpen, setIsMenuOpen] = useState(false);
   const [contestFilterId, setContestFilterId] = useState<string | null>(null);
@@ -78,6 +79,7 @@ export default function JudgePage({ onExit }: JudgePageProps) {
           onOpenNotifications={() => handleNavigate('MESSAGES')}
           onOpenProfile={() => handleNavigate('PROFILE')}
           onExit={onExit}
+          onLogout={onLogout}
         />
 
         <main className="mt-6">

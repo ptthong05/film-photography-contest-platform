@@ -585,7 +585,15 @@ export default function RootPage() {
       )}
       {activePortal === 'ADMIN' && <AdminPage />}
       {activePortal === 'ORGANIZER' && <OrganizerPage onGoHome={goHome} />}
-      {activePortal === 'JUDGE' && <JudgePage onExit={goHome} />}
+      {activePortal === 'JUDGE' && (
+        <JudgePage
+          onExit={goHome}
+          onLogout={() => {
+            goHome();
+            clearSession();
+          }}
+        />
+      )}
       {activePortal === 'PARTICIPANT' && <ParticipantPage onGoHome={goHome} />}
     </div>
   );

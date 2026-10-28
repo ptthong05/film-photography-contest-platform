@@ -1,5 +1,5 @@
 import { useState } from 'react';
-import { Bell, ChevronDown, House, Menu, UserRound } from 'lucide-react';
+import { Bell, ChevronDown, House, LogOut, Menu, UserRound } from 'lucide-react';
 import type { JudgeProfile } from '../../../types/judge';
 import { Avatar } from './Avatar';
 
@@ -12,6 +12,7 @@ interface JudgeHeaderProps {
   onOpenNotifications: () => void;
   onOpenProfile: () => void;
   onExit: () => void;
+  onLogout: () => void;
 }
 
 export function JudgeHeader({
@@ -23,6 +24,7 @@ export function JudgeHeader({
   onOpenNotifications,
   onOpenProfile,
   onExit,
+  onLogout,
 }: JudgeHeaderProps) {
   const [isUserMenuOpen, setIsUserMenuOpen] = useState(false);
 
@@ -86,6 +88,10 @@ export function JudgeHeader({
                 </button>
                 <button type="button" role="menuitem" onClick={() => handleUserMenuAction(onExit)} className="flex w-full cursor-pointer items-center gap-2 px-3 py-2 text-sm text-slate-700 hover:bg-slate-50">
                   <House className="h-4 w-4" /> Về trang chủ
+                </button>
+                <div className="my-1 border-t border-slate-100" role="separator" />
+                <button type="button" role="menuitem" onClick={() => handleUserMenuAction(onLogout)} className="flex w-full cursor-pointer items-center gap-2 px-3 py-2 text-sm text-slate-700 hover:bg-rose-50 hover:text-rose-600">
+                  <LogOut className="h-4 w-4" /> Đăng xuất
                 </button>
               </div>
             </>
