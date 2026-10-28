@@ -1,9 +1,10 @@
 import {
-  Aperture,
   BarChart3,
+  Camera,
   ClipboardList,
   CircleUser,
   Database,
+  Globe,
   Images,
   LayoutDashboard,
   Medal,
@@ -13,11 +14,12 @@ import {
   type LucideIcon,
 } from "lucide-react";
 import type { OrganizerView } from "../../../types/organizer";
+import { OrganizerAvatar } from "./OrganizerAvatar";
 
 interface MenuItem {
   label: string;
   icon: LucideIcon;
-  view?: OrganizerView; // chưa có view = màn hình chưa được làm
+  view: OrganizerView;
 }
 
 const MENU_ITEMS: MenuItem[] = [
@@ -36,39 +38,50 @@ const MENU_ITEMS: MenuItem[] = [
 interface SidebarProps {
   activeView: OrganizerView;
   onNavigate: (view: OrganizerView) => void;
+  onGoHome?: () => void;
+  organizerName?: string;
 }
 
-export function Sidebar({ activeView, onNavigate }: SidebarProps) {
+export function Sidebar({ activeView, onNavigate, onGoHome, organizerName = "Nguyễn Văn A" }: SidebarProps) {
   return (
-    <aside className="flex w-60 shrink-0 flex-col gap-1 bg-navy-950 p-3">
-      <div className="mb-4 flex items-center gap-2 px-2 py-3 text-white">
-        <Aperture size={28} className="text-brand-500" aria-hidden />
-        <div>
-          <p className="font-bold leading-tight">FilmContest</p>
-          <p className="text-[10px] text-slate-400">Organizer panel</p>
-        </div>
+    <aside className="sticky top-0 flex h-screen w-60 shrink-0 flex-col bg-[#0B356B] text-white">
+      <div className="flex items-center gap-3 border-b border-white/15 px-4 pb-5 pt-6">
+        <span className="flex h-10 w-10 items-center justify-center rounded-xl bg-blue-600"><Camera size={22} aria-hidden="true" /></span>
+        <div><p className="text-base font-bold leading-5">FilmContest</p><p className="mt-0.5 text-[10px] font-semibold tracking-[0.14em] text-blue-200">ORGANIZER PORTAL</p></div>
       </div>
-      <nav className="flex flex-col gap-1">
-        {MENU_ITEMS.map(({ label, icon: Icon, view }) => {
-          const isActive = view === activeView;
-          const isDisabled = view === undefined;
-          return (
-            <button
-              key={label}
-              type="button"
-              disabled={isDisabled}
-              title={isDisabled ? "Sắp có" : undefined}
-              onClick={() => view && onNavigate(view)}
-              className={`flex items-center gap-3 rounded-lg px-3 py-2.5 text-left text-sm focus-visible:outline-2 focus-visible:outline-brand-500 ${
-                isActive ? "bg-brand-500 font-semibold text-white" : "text-slate-300 hover:bg-navy-800"
-              } ${isDisabled ? "cursor-not-allowed opacity-45 hover:bg-transparent" : ""}`}
-            >
-              <Icon size={18} aria-hidden />
-              {label}
-            </button>
-          );
-        })}
+      {onGoHome && (
+        <button
+          type="button"
+          onClick={onGoHome}
+          className="mx-3 mt-4 flex items-center justify-center gap-2 rounded-lg bg-blue-600 px-4 py-2.5 text-sm font-semibold hover:bg-blue-500"
+        >
+          <Globe size={18} aria-hidden />
+          Về Trang Chủ
+        </button>
+      )}
+      <nav aria-label="Điều hướng ban tổ chức" className="min-h-0 flex-1 space-y-1 overflow-y-auto px-3 py-5">
+        {MENU_ITEMS.map(({ label, icon: Icon, view }) => (
+          <button
+            key={label}
+            type="button"
+            onClick={() => onNavigate(view)}
+            aria-current={view === activeView ? "page" : undefined}
+            className={`flex w-full items-center gap-3 rounded-lg px-3 py-3 text-left text-sm font-medium transition-colors focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-white ${
+              view === activeView ? "bg-blue-600 text-white shadow-sm" : "text-blue-100 hover:bg-white/10 hover:text-white"
+            }`}
+          >
+            <Icon size={20} aria-hidden />
+            {label}
+          </button>
+        ))}
       </nav>
+      <div className="border-t border-white/15 p-3">
+        <button type="button" onClick={() => onNavigate("PROFILE")} className="flex w-full items-center gap-3 rounded-lg px-2 py-2 text-left transition-colors hover:bg-white/10" aria-label="Mở hồ sơ cá nhân">
+          <OrganizerAvatar name={organizerName} />
+          <span className="min-w-0 flex-1"><span className="block truncate text-sm font-semibold">{organizerName}</span><span className="block text-xs text-blue-200">Ban tổ chức</span></span>
+          <span aria-hidden="true" className="text-blue-200">›</span>
+        </button>
+      </div>
     </aside>
   );
 }

@@ -8,7 +8,7 @@ interface SearchInputProps {
 
 export function SearchInput({ value, placeholder, onChange }: SearchInputProps) {
   return (
-    <label className="card flex flex-1 items-center gap-2 px-3 py-2 text-sm text-slate-500">
+    <label className="flex min-w-0 flex-1 items-center gap-2 rounded-lg border border-slate-200 bg-white px-3 py-2.5 text-sm text-slate-500 focus-within:border-blue-500 focus-within:ring-2 focus-within:ring-blue-100">
       <Search size={16} aria-hidden />
       <input
         value={value}

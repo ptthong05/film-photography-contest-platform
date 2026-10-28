@@ -3,7 +3,7 @@ import type { Judge, OrganizerProfile, Participant } from "../types/organizerUse
 import type { Assignment } from "../types/assignment";
 import type { ContestResult } from "../types/result";
 import type { ReportItem } from "../types/report";
-import type { Submission } from "../types/submission";
+import type { FilmMetadata, Submission } from "../types/submission";
 
 export const MOCK_OVERVIEW_STATS: OverviewStats = {
   ongoingContests: 5,
@@ -13,35 +13,49 @@ export const MOCK_OVERVIEW_STATS: OverviewStats = {
 };
 
 export const MOCK_CONTESTS: Contest[] = [
-  { id: "c1", name: "Analog Moments 2025", startDate: "2025-06-01", endDate: "2025-09-30", participantCount: 342, submissionCount: 1025, status: "ONGOING" },
-  { id: "c2", name: "Film & City", startDate: "2025-08-15", endDate: "2025-11-30", participantCount: 285, submissionCount: 680, status: "UPCOMING" },
-  { id: "c3", name: "The Vintage Look", startDate: "2025-07-10", endDate: "2025-09-30", participantCount: 198, submissionCount: 540, status: "ENDED" },
+  { id: "c1", name: "Analog Moments 2025", startDate: "2025-06-01", endDate: "2025-09-30", participantCount: 342, submissionCount: 1025, status: "ONGOING", tags: ["Phong cảnh", "Chân dung", "Đời sống"], description: "Cuộc thi nhiếp ảnh phim quy mô toàn quốc dành cho cộng đồng yêu thích nhiếp ảnh cơ học truyền thống.", prizes: [{ name: "Giải Nhất", reward: "10.000.000đ" }, { name: "Giải Nhì", reward: "5.000.000đ" }, { name: "Giải Ba", reward: "2.000.000đ" }], judgeNames: ["Trần Quang Huy", "Lê Thị Mai"] },
+  { id: "c2", name: "Film & City", startDate: "2025-08-15", endDate: "2025-11-30", participantCount: 285, submissionCount: 680, status: "UPCOMING", tags: ["Đường phố", "Kiến trúc"] },
+  { id: "c3", name: "The Vintage Look", startDate: "2025-07-10", endDate: "2025-09-30", participantCount: 198, submissionCount: 540, status: "ENDED", tags: ["Hoài cổ", "Chân dung"] },
   { id: "c4", name: "Nature on Film", startDate: "2023-06-01", endDate: "2023-12-21", participantCount: 160, submissionCount: 426, status: "ENDED" },
   { id: "c5", name: "Street Life", startDate: "2023-03-12", endDate: "2023-06-30", participantCount: 120, submissionCount: 310, status: "ENDED" },
 ];
 
 export const MOCK_PARTICIPANTS: Participant[] = [
-  { id: "p1", fullName: "Trần Minh Quân", email: "quantran@gmail.com", submissionCount: 3, registeredAt: "2025-06-10", status: "ACTIVE" },
-  { id: "p2", fullName: "Lê Thu Hà", email: "ha.le@gmail.com", submissionCount: 2, registeredAt: "2025-06-12", status: "ACTIVE" },
-  { id: "p3", fullName: "Nguyễn Hoàng Nam", email: "nam.ng@gmail.com", submissionCount: 5, registeredAt: "2025-06-15", status: "ACTIVE" },
-  { id: "p4", fullName: "Phạm Thị Dung", email: "dung.pt@gmail.com", submissionCount: 2, registeredAt: "2025-06-16", status: "LOCKED" },
-  { id: "p5", fullName: "Đỗ Minh Đức", email: "duc.dm@gmail.com", submissionCount: 1, registeredAt: "2025-06-20", status: "ACTIVE" },
+  { id: "p1", fullName: "Trần Minh Quân", email: "quantran@gmail.com", submissionCount: 3, registeredAt: "2025-06-10", status: "ACTIVE", recentSubmissions: [{ id: "ps1", title: "Ánh nắng cuối ngày", contestName: "Analog Moments 2025", submittedAt: "2025-06-18", status: "VALID" }, { id: "ps2", title: "Qua ô cửa cũ", contestName: "Film & City", submittedAt: "2025-06-14", status: "PENDING" }] },
+  { id: "p2", fullName: "Lê Thu Hà", email: "ha.le@gmail.com", submissionCount: 2, registeredAt: "2025-06-12", status: "ACTIVE", recentSubmissions: [{ id: "ps3", title: "Mùa hè trong veo", contestName: "The Vintage Look", submittedAt: "2025-06-21", status: "VALID" }] },
+  { id: "p3", fullName: "Nguyễn Hoàng Nam", email: "nam.ng@gmail.com", submissionCount: 5, registeredAt: "2025-06-15", status: "ACTIVE", recentSubmissions: [{ id: "ps4", title: "Một góc bình yên", contestName: "Nature on Film", submittedAt: "2025-06-24", status: "PENDING" }, { id: "ps5", title: "Vệt nắng qua phố", contestName: "Film & City", submittedAt: "2025-06-19", status: "VALID" }] },
+  { id: "p4", fullName: "Phạm Thị Dung", email: "dung.pt@gmail.com", submissionCount: 2, registeredAt: "2025-06-16", status: "LOCKED", recentSubmissions: [{ id: "ps6", title: "Tĩnh lặng", contestName: "Analog Moments 2025", submittedAt: "2025-06-25", status: "PENDING" }] },
+  { id: "p5", fullName: "Đỗ Minh Đức", email: "duc.dm@gmail.com", submissionCount: 1, registeredAt: "2025-06-20", status: "ACTIVE", recentSubmissions: [{ id: "ps7", title: "Chuyến tàu sớm", contestName: "Film & City", submittedAt: "2025-06-27", status: "VALID" }] },
 ];
 
+const sampleMetadata = (filmStock: string, camera: string, rollCode: string): FilmMetadata => ({
+  filmStock,
+  iso: "400",
+  camera,
+  lens: "50mm f/1.8",
+  format: "35mm",
+  rollCode,
+  frame: "24",
+  location: "TP. Hồ Chí Minh",
+  lab: "Lab A (mẫu)",
+  scan: "JPEG · 3000 × 2000 px · 24-bit",
+  negative: "Có (mẫu)",
+});
+
 export const MOCK_SUBMISSIONS: Submission[] = [
-  { id: "s1", title: "Chiều bên hồ", authorName: "Nguyễn Văn A", contestName: "Analog Moments 2025", submittedAt: "2025-06-10", status: "VALID" },
-  { id: "s2", title: "Góc phố cũ", authorName: "Lê Minh Cường", contestName: "Film & City", submittedAt: "2025-06-12", status: "VALID" },
-  { id: "s3", title: "Ánh sáng cuối ngày", authorName: "Phạm Thị Dung", contestName: "The Vintage Look", submittedAt: "2025-06-15", status: "SUSPECT_AI" },
-  { id: "s4", title: "Ga xưa", authorName: "Đỗ Minh G", contestName: "Film & City", submittedAt: "2025-06-16", status: "VALID" },
-  { id: "s5", title: "Nhịp sống thành phố", authorName: "Trần Văn H", contestName: "Analog Moments 2025", submittedAt: "2025-06-20", status: "PENDING" },
+  { id: "s1", code: "SUB-001", title: "Chiều bên hồ", authorName: "Nguyễn Văn A", contestName: "Analog Moments 2025", submittedAt: "2025-06-10", status: "VALID", metadata: sampleMetadata("Kodak Portra 400", "Nikon FM2", "ROLL-001") },
+  { id: "s2", code: "SUB-002", title: "Góc phố cũ", authorName: "Lê Minh Cường", contestName: "Film & City", submittedAt: "2025-06-12", status: "VALID", metadata: sampleMetadata("Fujifilm C200", "Canon AE-1", "ROLL-002") },
+  { id: "s3", code: "SUB-003", title: "Ánh sáng cuối ngày", authorName: "Phạm Thị Dung", contestName: "The Vintage Look", submittedAt: "2025-06-15", status: "PENDING", metadata: sampleMetadata("Ilford HP5 Plus", "Pentax K1000", "ROLL-003") },
+  { id: "s4", code: "SUB-004", title: "Ga xưa", authorName: "Đỗ Minh G", contestName: "Film & City", submittedAt: "2025-06-16", status: "VALID", metadata: sampleMetadata("Kodak Gold 200", "Olympus OM-1", "ROLL-004") },
+  { id: "s5", code: "SUB-005", title: "Nhịp sống thành phố", authorName: "Trần Văn H", contestName: "Analog Moments 2025", submittedAt: "2025-06-20", status: "PENDING", metadata: sampleMetadata("CineStill 800T", "Leica M6", "ROLL-005") },
 ];
 
 export const MOCK_JUDGES: Judge[] = [
-  { id: "j1", fullName: "Trần Quang Huy", email: "huy.tq@gmail.com", specialty: "Nhiếp ảnh phim", contestCount: 3, status: "ACTIVE" },
-  { id: "j2", fullName: "Lê Thị Mai", email: "mai.lt@gmail.com", specialty: "Nhiếp ảnh nghệ thuật", contestCount: 2, status: "ACTIVE" },
-  { id: "j3", fullName: "Nguyễn Hoàng Nam", email: "nam.nh@gmail.com", specialty: "Nhiếp ảnh phong cảnh", contestCount: 4, status: "ACTIVE" },
-  { id: "j4", fullName: "Phạm Thu Trang", email: "trang.pt@gmail.com", specialty: "Nhiếp ảnh tài liệu", contestCount: 1, status: "LOCKED" },
-  { id: "j5", fullName: "Đỗ Khánh Quân", email: "quan.dk@gmail.com", specialty: "Nhiếp ảnh đường phố", contestCount: 1, status: "ACTIVE" },
+  { id: "j1", fullName: "Trần Quang Huy", email: "huy.tq@gmail.com", specialty: "Nhiếp ảnh phim", contestCount: 3, status: "ACTIVE", isDefault: true },
+  { id: "j2", fullName: "Lê Thị Mai", email: "mai.lt@gmail.com", specialty: "Nhiếp ảnh nghệ thuật", contestCount: 2, status: "ACTIVE", isDefault: true },
+  { id: "j3", fullName: "Nguyễn Hoàng Nam", email: "nam.nh@gmail.com", specialty: "Nhiếp ảnh phong cảnh", contestCount: 4, status: "ACTIVE", isDefault: false },
+  { id: "j4", fullName: "Phạm Thu Trang", email: "trang.pt@gmail.com", specialty: "Nhiếp ảnh tài liệu", contestCount: 1, status: "LOCKED", isDefault: false },
+  { id: "j5", fullName: "Đỗ Khánh Quân", email: "quan.dk@gmail.com", specialty: "Nhiếp ảnh đường phố", contestCount: 1, status: "ACTIVE", isDefault: false },
 ];
 
 export const MOCK_ASSIGNMENTS: Assignment[] = [
