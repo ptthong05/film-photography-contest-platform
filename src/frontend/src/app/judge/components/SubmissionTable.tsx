@@ -54,7 +54,7 @@ export function SubmissionTable({ submissions, startIndex, onStartScoring, onVie
                 </td>
                 <td className="px-3 py-3 text-xs leading-5 text-slate-600">
                   <p className="font-medium text-slate-800">{submission.metadata.filmStock}</p>
-                  <p>{submission.metadata.cameraBody}</p>
+                  <p>{submission.metadata.camera}</p>
                   <p>{submission.metadata.lens}</p>
                 </td>
                 <td className="px-3 py-3 text-slate-600">{formatDate(submission.submittedAt)}</td>

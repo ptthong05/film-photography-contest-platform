@@ -51,7 +51,7 @@ export function AssignedSubmissionsView({ initialContestId, onStartScoring, onVi
   const filteredByFields = useMemo(() => {
     const normalizedKeyword = keyword.trim().toLowerCase();
     return submissions.filter((item) => {
-      const searchable = `${item.title} ${item.authorName ?? ''} ${item.metadata.filmStock} ${item.metadata.cameraBody}`.toLowerCase();
+      const searchable = `${item.title} ${item.authorName ?? ''} ${item.metadata.filmStock} ${item.metadata.camera}`.toLowerCase();
       return (
         (!normalizedKeyword || searchable.includes(normalizedKeyword)) &&
         (!contestId || item.contestId === contestId) &&

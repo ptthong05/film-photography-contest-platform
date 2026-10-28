@@ -37,15 +37,17 @@ export interface JudgeContest {
   isResultPublished: boolean;
 }
 
-/** Metadata kỹ thuật bắt buộc của ảnh phim (SRS 4.1), snapshot tại thời điểm nộp. */
+/** Metadata kỹ thuật của ảnh phim (SRS 4.1), snapshot tại thời điểm nộp. Khớp FilmMetadata của backend. */
 export interface FilmMetadata {
+  filmBrand: string | null;
   filmStock: string;
-  iso: number;
-  cameraBody: string;
+  iso: number | null;
+  camera: string;
   lens: string;
   filmFormat: string;
   frameNumber: string;
-  shootingDate: string;
+  /** yyyy-MM-dd */
+  shootingDate: string | null;
   shootingLocation: string;
   developingLab: string;
   scanSpec: string;

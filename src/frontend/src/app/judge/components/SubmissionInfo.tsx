@@ -13,11 +13,11 @@ interface SubmissionInfoProps {
 export function SubmissionInfo({ submission, footer }: SubmissionInfoProps) {
   const { metadata } = submission;
   const rows: [string, string][] = [
-    ['Film stock', `${metadata.filmStock} (ISO ${metadata.iso})`],
-    ['Máy ảnh', metadata.cameraBody],
+    ['Film stock', metadata.iso === null ? metadata.filmStock : `${metadata.filmStock} (ISO ${metadata.iso})`],
+    ['Máy ảnh', metadata.camera],
     ['Ống kính', metadata.lens],
     ['Định dạng', metadata.filmFormat],
-    ['Ngày chụp', formatDate(metadata.shootingDate)],
+    ['Ngày chụp', metadata.shootingDate ? formatDate(metadata.shootingDate) : '—'],
     ['Lab xử lý', metadata.developingLab],
     ['Scan', metadata.scanSpec],
   ];

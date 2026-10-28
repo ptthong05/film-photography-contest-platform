@@ -140,7 +140,7 @@ function ExtraInfoTab({ submission }: { submission: AssignedSubmission }) {
     ['Cuộc thi', submission.contestTitle],
     ['Vòng chấm', submission.roundName],
     ['Ngày nộp', formatDate(submission.submittedAt)],
-    ['ISO', String(metadata.iso)],
+    ['ISO', metadata.iso === null ? '—' : String(metadata.iso)],
     ['Số khung hình', metadata.frameNumber],
     ['Địa điểm chụp', metadata.shootingLocation],
     ['Phòng lab tráng', metadata.developingLab],
