@@ -12,5 +12,7 @@ import java.util.Optional;
 public interface EvaluationRepository extends MongoRepository<Evaluation, String> {
     List<Evaluation> findByJudgeId(String judgeId);
     List<Evaluation> findBySubmissionIdAndStatus(String submissionId, EvaluationStatus status);
+
+    List<Evaluation> findBySubmissionIdAndJudgeIdAndStatus(String submissionId, String judgeId, EvaluationStatus status);
     Optional<Evaluation> findBySubmissionIdAndRoundIdAndJudgeId(String submissionId, String roundId, String judgeId);
 }

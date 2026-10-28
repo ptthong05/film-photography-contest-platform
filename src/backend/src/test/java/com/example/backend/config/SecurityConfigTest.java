@@ -1,6 +1,7 @@
 package com.example.backend.config;
 
 import com.example.backend.controller.AuthController;
+import com.example.backend.controller.JudgeController;
 import com.example.backend.controller.UserController;
 import com.example.backend.dto.UserResponse;
 import com.example.backend.entity.User;
@@ -10,6 +11,7 @@ import com.example.backend.repository.UserRepository;
 import com.example.backend.security.JwtService;
 import com.example.backend.security.RestAuthErrorHandler;
 import com.example.backend.service.AuthService;
+import com.example.backend.service.JudgeService;
 import com.example.backend.service.UserService;
 import org.junit.jupiter.api.BeforeEach;
 import org.junit.jupiter.api.Test;
@@ -31,7 +33,7 @@ import static org.springframework.test.web.servlet.result.MockMvcResultMatchers.
 import static org.springframework.test.web.servlet.result.MockMvcResultMatchers.status;
 
 /** Kiểm tra quy tắc phân quyền theo URL trong SecurityConfig, đi qua filter JWT thật. */
-@WebMvcTest(controllers = {UserController.class, AuthController.class})
+@WebMvcTest(controllers = {UserController.class, AuthController.class, JudgeController.class})
 @Import({SecurityConfig.class, RestAuthErrorHandler.class})
 class SecurityConfigTest {
 
@@ -50,11 +52,16 @@ class SecurityConfigTest {
     @MockBean
     private AuthService authService;
 
+    @MockBean
+    private JudgeService judgeService;
+
     @BeforeEach
     void setUp() {
         when(jwtService.extractUserId(anyString())).thenReturn(Optional.empty());
         givenToken("admin-token", user("admin-1", Role.ADMIN, UserStatus.ACTIVE));
         givenToken("participant-token", user("participant-1", Role.PARTICIPANT, UserStatus.ACTIVE));
+        givenToken("judge-token", user("judge-1", Role.JUDGE, UserStatus.ACTIVE));
+        when(judgeService.getAssignedSubmissions("judge-1")).thenReturn(List.of());
         givenToken("locked-admin-token", user("admin-2", Role.ADMIN, UserStatus.LOCKED));
         when(userService.getAllUsers()).thenReturn(List.of());
     }
@@ -112,6 +119,25 @@ class SecurityConfigTest {
         mockMvc.perform(get("/api/auth/me").header("Authorization", "Bearer participant-token"))
                 .andExpect(status().isOk())
                 .andExpect(jsonPath("$.role").value("PARTICIPANT"));
+    }
+
+    @Test
+    void judgeApiAsJudgeReturns200() throws Exception {
+        mockMvc.perform(get("/api/judges/me/submissions").header("Authorization", "Bearer judge-token"))
+                .andExpect(status().isOk());
+    }
+
+    @Test
+    void judgeApiWithoutTokenReturns401() throws Exception {
+        mockMvc.perform(get("/api/judges/me/submissions")).andExpect(status().isUnauthorized());
+    }
+
+    @Test
+    void judgeApiAsOtherRolesReturns403() throws Exception {
+        mockMvc.perform(get("/api/judges/me/submissions").header("Authorization", "Bearer participant-token"))
+                .andExpect(status().isForbidden());
+        mockMvc.perform(get("/api/judges/me/submissions").header("Authorization", "Bearer admin-token"))
+                .andExpect(status().isForbidden());
     }
 
     private void givenToken(String token, User user) {

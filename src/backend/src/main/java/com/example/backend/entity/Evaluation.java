@@ -43,6 +43,9 @@ public class Evaluation extends BaseDocument {
     /** Ghi chú riêng, chỉ giám khảo đó thấy */
     private String privateNote;
 
+    /** Giám khảo đề xuất bài vào vòng tiếp theo */
+    private boolean recommendNextRound;
+
     private EvaluationStatus status = EvaluationStatus.DRAFT;
 
     private Instant finalizedAt;
@@ -112,6 +115,14 @@ public class Evaluation extends BaseDocument {
 
     public void setPrivateNote(String privateNote) {
         this.privateNote = privateNote;
+    }
+
+    public boolean isRecommendNextRound() {
+        return recommendNextRound;
+    }
+
+    public void setRecommendNextRound(boolean recommendNextRound) {
+        this.recommendNextRound = recommendNextRound;
     }
 
     public EvaluationStatus getStatus() {

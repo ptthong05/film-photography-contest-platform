@@ -30,6 +30,8 @@ public class DemoAccountInitializer implements ApplicationRunner {
             new DemoAccount("Quản trị viên", "admin@gmail.com", "0900000001", "admin12345", Role.ADMIN),
             new DemoAccount("Nguyễn Văn An", "organizer@gmail.com", "0900000002", "organizer12345", Role.ORGANIZER),
             new DemoAccount("Trần Thị Bình", "judge@gmail.com", "0900000003", "judge12345", Role.JUDGE),
+            // Judge thứ 2 để kiểm tra mỗi giám khảo chỉ thấy bài được phân công cho mình (xem DemoJudgingDataInitializer)
+            new DemoAccount("Phạm Quốc Dũng", "judge2@gmail.com", "0900000005", "judge12345", Role.JUDGE),
             new DemoAccount("Lê Minh Châu", "participant@gmail.com", "0900000004", "participant12345", Role.PARTICIPANT));
 
     private final UserService userService;

@@ -71,8 +71,9 @@ Mọi API trong mục này yêu cầu role `JUDGE` (sai role → `403`). Đườ
 ### 6.2. Cuộc thi được phân công
 - `GET /api/judges/me/contests`: Các cuộc thi giám khảo có ít nhất 1 phân công.
   - Response: mảng `{ "id", "title", "coverUrl", "startDate", "endDate", "status", "currentRound", "criteria", "assignedCount", "evaluatedCount", "isResultPublished" }`
-  - `status` là tiến độ chấm của giám khảo (`NOT_STARTED` / `JUDGING` / `COMPLETED`), suy ra từ `contests.status`
-    và thời gian vòng — xem mục 6.6.
+  - `status` là tiến độ chấm của chính giám khảo, backend tính mỗi lần đọc: `COMPLETED` khi
+    `evaluatedCount = assignedCount > 0`; `JUDGING` khi đã có ít nhất 1 phiếu (kể cả `DRAFT`); còn lại `NOT_STARTED`.
+    Giai đoạn của cuộc thi (`contests.status`) là thông tin khác — xem mục 6.6.
   - `startDate` / `endDate` = `judgingStart` / `judgingEnd`; `isResultPublished` = `resultPublishedAt != null`.
 
 ### 6.3. Bài dự thi được phân công
@@ -117,7 +118,7 @@ Mọi API trong mục này yêu cầu role `JUDGE` (sai role → `403`). Đườ
 | # | Vấn đề | Đề xuất |
 |---|---|---|
 | 1 | Thời điểm được chấm chưa có quy tắc | Chỉ cho `PUT .../evaluation` khi `contests.status = JUDGING` và thời điểm hiện tại nằm trong `startDate`–`endDate` của vòng |
-| 2 | Trạng thái cuộc thi: DB dùng `DRAFT/UPCOMING/ONGOING/JUDGING/ENDED`, Judge UI dùng `NOT_STARTED/JUDGING/COMPLETED` | Giữ enum DB; API Judge trả trạng thái suy ra: `JUDGING` → `JUDGING`, `ENDED` → `COMPLETED`, còn lại → `NOT_STARTED` |
+| 2 | Trạng thái cuộc thi: DB dùng `DRAFT/UPCOMING/ONGOING/JUDGING/ENDED`, Judge UI dùng `NOT_STARTED/JUDGING/COMPLETED` | Giữ enum DB cho giai đoạn cuộc thi; `status` của API Judge chỉ là tiến độ chấm (mục 6.2). Nếu UI cần hiện giai đoạn, thêm trường riêng `contestStatus` |
 | 3 | Thang điểm chưa quy định | Điểm tối thiểu 1, bước 0.5, điểm tổng quy về thang 10: `Σ(score / maxScore × weight) / Σweight × 10`, làm tròn 1 chữ số |
 | 4 | Ẩn danh: UC-J1 ghi luôn ẩn danh, DB có cờ `anonymousJudging` theo cuộc thi | Giữ cờ theo cuộc thi, mặc định `true` |
 | 5 | `recommendNextRound` có ở UI nhưng chưa có trong `evaluations` | Thêm trường `recommendNextRound: boolean` vào `evaluations` |
