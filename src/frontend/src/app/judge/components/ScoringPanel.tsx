@@ -43,7 +43,12 @@ export function ScoringPanel({ criteria, evaluation, onSave }: ScoringPanelProps
   const maxScale = criteria[0]?.maxScore ?? 10;
 
   const handleScoreChange = (criterion: JudgingCriterion, rawValue: string) => {
-    const value = rawValue === '' ? null : Math.min(criterion.maxScore, Math.max(MIN_SCORE, Number(rawValue)));
+    const parsed = Number(rawValue);
+    // Gõ tay có thể ra số lệch bước (vd. 7.3) nên làm tròn về bội số gần nhất của SCORE_STEP rồi mới kẹp biên
+    const value =
+      rawValue === '' || Number.isNaN(parsed)
+        ? null
+        : Math.min(criterion.maxScore, Math.max(MIN_SCORE, Math.round(parsed / SCORE_STEP) * SCORE_STEP));
     setScores((current) => ({ ...current, [criterion.id]: value }));
     setMessage(null);
   };
