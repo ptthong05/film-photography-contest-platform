@@ -67,6 +67,7 @@ export default function JudgePage({ onExit, onLogout }: JudgePageProps) {
         isOpen={isMenuOpen}
         onNavigate={handleNavigate}
         onClose={() => setIsMenuOpen(false)}
+        onGoHome={onExit}
       />
 
       <div className="px-4 py-6 sm:px-6 lg:ml-64 lg:px-8">

@@ -20,7 +20,6 @@ import AdminPage from './admin/page';
 import OrganizerPage from './organizer/page';
 import JudgePage from './judge/page';
 import ParticipantPage from './participant/page';
-import { BackButton } from '../components/BackButton';
 import { AccessDenied } from '../components/AccessDenied';
 import { useAuth } from '../hooks/useAuth';
 import { authService } from '../services/authService';
@@ -580,10 +579,7 @@ export default function RootPage() {
 
   return (
     <div className="relative min-h-screen bg-slate-50 text-slate-800">
-      {activePortal !== 'PARTICIPANT' && activePortal !== 'ORGANIZER' && activePortal !== 'JUDGE' && (
-        <BackButton label="Về Trang Chủ" onClick={goHome} />
-      )}
-      {activePortal === 'ADMIN' && <AdminPage />}
+      {activePortal === 'ADMIN' && <AdminPage onGoHome={goHome} />}
       {activePortal === 'ORGANIZER' && <OrganizerPage onGoHome={goHome} />}
       {activePortal === 'JUDGE' && (
         <JudgePage

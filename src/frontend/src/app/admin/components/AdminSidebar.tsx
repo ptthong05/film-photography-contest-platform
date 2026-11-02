@@ -30,6 +30,7 @@ export type AdminView =
 interface AdminSidebarProps {
   activeView: AdminView;
   onNavigate: (view: AdminView) => void;
+  onGoHome: () => void;
   adminName?: string;
   className?: string;
 }
@@ -56,6 +57,7 @@ const ADMIN_MENU_ITEMS: AdminMenuItem[] = [
 export function AdminSidebar({
   activeView,
   onNavigate,
+  onGoHome,
   adminName = 'Quản trị viên',
   className = '',
 }: AdminSidebarProps) {
@@ -63,7 +65,12 @@ export function AdminSidebar({
     <aside
       className={`sticky top-0 flex h-screen w-60 shrink-0 flex-col bg-[#0B356B] text-white ${className}`}
     >
-      <div className="flex items-center gap-3 border-b border-white/15 px-4 pb-5 pt-[4.5rem]">
+      <button
+        type="button"
+        onClick={onGoHome}
+        aria-label="Về trang chủ FilmContest"
+        className="flex cursor-pointer items-center gap-3 border-b border-white/15 px-4 pb-5 pt-6 text-left transition-opacity hover:opacity-80"
+      >
         <span className="flex h-10 w-10 items-center justify-center rounded-xl bg-blue-600">
           <Camera size={22} aria-hidden="true" />
         </span>
@@ -73,7 +80,7 @@ export function AdminSidebar({
             ADMIN PANEL
           </p>
         </div>
-      </div>
+      </button>
 
       <nav aria-label="Điều hướng quản trị" className="min-h-0 flex-1 space-y-1 overflow-y-auto px-3 py-5">
         {ADMIN_MENU_ITEMS.map(({ id, label, icon: Icon }) => {

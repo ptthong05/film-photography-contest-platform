@@ -10,6 +10,7 @@ import { AdminSidebar, type AdminView } from './AdminSidebar';
 export interface AdminLayoutProps {
   activeView: AdminView;
   onNavigate: (view: AdminView) => void;
+  onGoHome: () => void;
   children: ReactNode;
   actions?: ReactNode;
   adminName?: string;
@@ -19,6 +20,7 @@ export interface AdminLayoutProps {
 export function AdminLayout({
   activeView,
   onNavigate,
+  onGoHome,
   children,
   actions,
   adminName = 'Quản trị viên',
@@ -65,13 +67,14 @@ export function AdminLayout({
         <AdminSidebar
           activeView={activeView}
           onNavigate={handleNavigate}
+          onGoHome={onGoHome}
           adminName={adminName}
         />
       </div>
 
       <div className="min-w-0 flex-1">
         {/* Trên màn hình nhỏ, dùng nút để mở menu dạng ngăn kéo. */}
-        <div className="flex items-center gap-3 border-b border-slate-200 bg-white px-4 pb-3 pt-[4.5rem] md:hidden">
+        <div className="flex items-center gap-3 border-b border-slate-200 bg-white px-4 py-3 md:hidden">
           <button
             type="button"
             onClick={() => setIsMobileMenuOpen(true)}
@@ -120,6 +123,7 @@ export function AdminLayout({
             <AdminSidebar
               activeView={activeView}
               onNavigate={handleNavigate}
+              onGoHome={onGoHome}
               adminName={adminName}
             />
           </div>

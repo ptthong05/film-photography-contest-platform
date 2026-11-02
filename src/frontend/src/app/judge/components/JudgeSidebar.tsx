@@ -25,9 +25,10 @@ interface JudgeSidebarProps {
   isOpen: boolean;
   onNavigate: (view: JudgeView) => void;
   onClose: () => void;
+  onGoHome: () => void;
 }
 
-export function JudgeSidebar({ activeView, profile, isOpen, onNavigate, onClose }: JudgeSidebarProps) {
+export function JudgeSidebar({ activeView, profile, isOpen, onNavigate, onClose, onGoHome }: JudgeSidebarProps) {
   return (
     <>
       {isOpen && (
@@ -36,7 +37,12 @@ export function JudgeSidebar({ activeView, profile, isOpen, onNavigate, onClose 
       <aside
         className={`fixed inset-y-0 left-0 z-40 flex w-64 flex-col bg-blue-950 text-slate-200 transition-transform lg:translate-x-0 ${isOpen ? 'translate-x-0' : '-translate-x-full'}`}
       >
-        <div className="flex items-center gap-3 px-6 py-6">
+        <button
+          type="button"
+          onClick={onGoHome}
+          aria-label="Về trang chủ FilmContest"
+          className="flex cursor-pointer items-center gap-3 px-6 py-6 text-left transition-opacity hover:opacity-80"
+        >
           <span className="flex h-10 w-10 items-center justify-center rounded-xl bg-blue-600 text-white">
             <Camera className="h-5 w-5" />
           </span>
@@ -44,7 +50,7 @@ export function JudgeSidebar({ activeView, profile, isOpen, onNavigate, onClose 
             <p className="text-lg font-bold text-white">FilmContest</p>
             <p className="text-[10px] font-semibold tracking-widest text-slate-400">JUDGE PANEL</p>
           </div>
-        </div>
+        </button>
 
         <nav className="flex-1 space-y-1 overflow-y-auto px-3" aria-label="Điều hướng giám khảo">
           {NAV_ITEMS.map(({ view, label, icon: Icon }) => {

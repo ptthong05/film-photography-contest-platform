@@ -12,8 +12,12 @@ import { SettingsView } from './views/SettingsView';
 import { LogsView } from './views/LogsView';
 import { ProfileView, readAdminDemoProfile } from './views/ProfileView';
 
+interface AdminPageProps {
+  onGoHome: () => void;
+}
+
 /** Trang chính dành riêng cho Admin; không thay đổi router chung của nhóm. */
-export default function AdminPage() {
+export default function AdminPage({ onGoHome }: AdminPageProps) {
   const [activeView, setActiveView] = useState<AdminView>('dashboard');
   const [adminName, setAdminName] = useState(() => readAdminDemoProfile().fullName);
 
@@ -21,6 +25,7 @@ export default function AdminPage() {
     <AdminLayout
       activeView={activeView}
       onNavigate={setActiveView}
+      onGoHome={onGoHome}
       adminName={adminName}
     >
       {activeView === 'dashboard' ? (
