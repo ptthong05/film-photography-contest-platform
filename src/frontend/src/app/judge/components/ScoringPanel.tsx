@@ -7,6 +7,9 @@ import { formatDate } from '../../../utils/formatDate';
 const MAX_COMMENT_LENGTH = 1000;
 const SCORE_STEP = 0.5;
 const MIN_SCORE = 1;
+const MAX_PRIVATE_NOTE_LENGTH = 1000;
+/** Phím thay đổi giá trị thanh trượt; Tab không nằm trong đây để chỉ di chuyển focus thì không tính là chấm */
+const SLIDER_KEYS = new Set(['ArrowLeft', 'ArrowRight', 'ArrowUp', 'ArrowDown', 'Home', 'End', 'PageUp', 'PageDown']);
 
 type ScoreMap = Record<string, number | null>;
 
@@ -29,6 +32,7 @@ function toScoreMap(criteria: JudgingCriterion[], evaluation: Evaluation | null)
 export function ScoringPanel({ criteria, evaluation, onSave }: ScoringPanelProps) {
   const [scores, setScores] = useState<ScoreMap>(() => toScoreMap(criteria, evaluation));
   const [comment, setComment] = useState(evaluation?.comment ?? '');
+  const [privateNote, setPrivateNote] = useState(evaluation?.privateNote ?? '');
   const [recommendNextRound, setRecommendNextRound] = useState(evaluation?.recommendNextRound ?? false);
   const [isSaving, setIsSaving] = useState(false);
   const [message, setMessage] = useState<{ type: 'success' | 'error'; text: string } | null>(null);
@@ -60,7 +64,7 @@ export function ScoringPanel({ criteria, evaluation, onSave }: ScoringPanelProps
     setIsSaving(true);
     setMessage(null);
     try {
-      await onSave({ scores: scoreList, comment: comment.trim(), recommendNextRound, isFinal });
+      await onSave({ scores: scoreList, comment: comment.trim(), privateNote: privateNote.trim(), recommendNextRound, isFinal });
       setMessage({ type: 'success', text: isFinal ? 'Đã gửi đánh giá chính thức.' : 'Đã lưu nháp.' });
     } catch (err) {
       setMessage({ type: 'error', text: err instanceof Error ? err.message : 'Không thể lưu phiếu chấm' });
@@ -108,6 +112,10 @@ export function ScoringPanel({ criteria, evaluation, onSave }: ScoringPanelProps
                 value={score ?? MIN_SCORE}
                 disabled={isLocked}
                 onChange={(event) => handleScoreChange(criterion, event.target.value)}
+                // Chưa chấm thì thanh trượt nằm sẵn ở MIN_SCORE: bấm / bấm phím mà giá trị không đổi sẽ không có onChange,
+                // nên ghi nhận thẳng giá trị hiện tại để chọn được điểm thấp nhất
+                onClick={(event) => !isScored && handleScoreChange(criterion, event.currentTarget.value)}
+                onKeyUp={(event) => !isScored && SLIDER_KEYS.has(event.key) && handleScoreChange(criterion, event.currentTarget.value)}
                 className={`mt-1 w-full cursor-pointer accent-blue-600 disabled:cursor-not-allowed ${isScored ? '' : 'opacity-40'}`}
               />
             </div>
@@ -133,6 +141,22 @@ export function ScoringPanel({ criteria, evaluation, onSave }: ScoringPanelProps
           className="judge-input mt-2 w-full resize-none disabled:bg-slate-50"
         />
         <p className="text-right text-xs text-slate-400">{comment.length}/{MAX_COMMENT_LENGTH}</p>
+      </div>
+
+      <div className="mt-2">
+        <label htmlFor="judge-private-note" className="text-sm font-semibold text-slate-900">
+          Ghi chú riêng <span className="text-xs font-normal text-slate-400">(chỉ bạn thấy, không gửi thí sinh)</span>
+        </label>
+        <textarea
+          id="judge-private-note"
+          rows={2}
+          maxLength={MAX_PRIVATE_NOTE_LENGTH}
+          value={privateNote}
+          disabled={isLocked}
+          onChange={(event) => setPrivateNote(event.target.value)}
+          placeholder="Ghi nhớ để đối chiếu khi chấm các bài khác..."
+          className="judge-input mt-2 w-full resize-none disabled:bg-slate-50"
+        />
       </div>
 
       <label className="mt-2 flex cursor-pointer items-center gap-2 text-sm text-slate-700">

@@ -86,6 +86,8 @@ export interface Evaluation {
   roundId: string;
   scores: CriterionScore[];
   comment: string;
+  /** Ghi chú riêng của giám khảo, không gửi thí sinh */
+  privateNote: string | null;
   recommendNextRound: boolean;
   status: EvaluationStatus;
   totalScore: number | null;
@@ -95,6 +97,7 @@ export interface Evaluation {
 export interface EvaluationRequest {
   scores: CriterionScore[];
   comment: string;
+  privateNote: string;
   recommendNextRound: boolean;
   /** true = gửi chính thức (khóa phiếu), false = lưu nháp */
   isFinal: boolean;
