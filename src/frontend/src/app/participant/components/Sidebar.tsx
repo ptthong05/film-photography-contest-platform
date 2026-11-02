@@ -1,6 +1,5 @@
 import React, { useState, useEffect, useRef } from 'react';
 import {
-  Globe,
   Home,
   Trophy,
   MapPin,
@@ -8,8 +7,7 @@ import {
   Film,
   Image as ImageIcon,
   BarChart2,
-  User as UserIcon,
-  Settings
+  User as UserIcon
 } from 'lucide-react';
 
 interface SidebarProps {
@@ -107,17 +105,22 @@ export function Sidebar({ activeTab, setActiveTab, onGoHome }: SidebarProps) {
   ];
 
   return (
-    <aside className="w-72 bg-[#004282] text-white p-5 space-y-6 flex-shrink-0 min-h-screen shadow-2xl flex flex-col justify-between">
+    <aside className="w-72 bg-[#004282] text-white p-5 space-y-6 flex-shrink-0 min-h-screen shadow-2xl flex flex-col">
       <div className="space-y-6">
-        {onGoHome && (
-          <button
-            onClick={onGoHome}
-            className="w-full flex items-center justify-center space-x-3 px-4 py-3 bg-[#1A6EDB] hover:bg-[#155BB8] text-white rounded-xl font-bold text-base transition-all shadow-md cursor-pointer"
-          >
-            <Globe className="w-5 h-5" />
-            <span>Về Trang Chủ System</span>
-          </button>
-        )}
+        <button
+          type="button"
+          onClick={onGoHome}
+          aria-label="Về trang chủ FilmContest"
+          className="flex w-full items-center gap-3 text-left transition-opacity hover:opacity-80 cursor-pointer"
+        >
+          <span className="flex h-10 w-10 items-center justify-center rounded-xl bg-blue-600 text-white">
+            <Camera className="h-5 w-5" />
+          </span>
+          <div>
+            <p className="text-lg font-bold text-white">FilmContest</p>
+            <p className="text-[10px] font-semibold tracking-widest text-blue-200">PARTICIPANT PORTAL</p>
+          </div>
+        </button>
 
         <div className="flex items-center space-x-3.5 pb-4 border-b border-blue-400/30">
           <div
@@ -170,13 +173,6 @@ export function Sidebar({ activeTab, setActiveTab, onGoHome }: SidebarProps) {
             );
           })}
         </nav>
-      </div>
-
-      <div className="p-4 bg-gradient-to-br from-blue-600 to-indigo-700 rounded-2xl text-center space-y-2 border border-blue-300/30 shadow-lg">
-        <Settings className="w-6 h-6 mx-auto text-white" />
-        <p className="font-bold text-sm text-white leading-tight">
-          Film Photography Smarter with AI
-        </p>
       </div>
     </aside>
   );
