@@ -10,53 +10,47 @@ import type {
   JudgeProfileChanges,
   JudgeStats,
 } from '../types/judge';
-import { getSession, updateSessionUser } from '../utils/authSession';
 import { request } from './apiClient';
-import { authService } from './authService';
-import { mockNotifications, mockProfile } from './judgeMockData';
+import { notificationService } from './notificationService';
+import { profileService } from './profileService';
+import type { ApiContestResult } from './resultService';
 
 /*
  * Cuộc thi, bài dự thi, phiếu chấm gọi API /judges/me — backend chỉ trả bài được phân công cho giám khảo
- * đang đăng nhập (bài khác trả 404). Hồ sơ chuyên môn, thông báo, kết quả chung cuộc: backend chưa có module
- * nên tạm dùng dữ liệu mẫu trong bộ nhớ.
+ * đang đăng nhập (bài khác trả 404). Hồ sơ dùng /auth/me/profile, thông báo dùng /notifications.
  */
 
-const MOCK_LATENCY_MS = 250;
-
-function respond<T>(data: T): Promise<T> {
-  return new Promise((resolve) => {
-    setTimeout(() => resolve(structuredClone(data)), MOCK_LATENCY_MS);
-  });
-}
-
-/** Họ tên, email, SĐT là thông tin tài khoản đăng nhập nên lấy từ phiên hiện tại; chưa đăng nhập thì dùng dữ liệu mẫu. */
-function withAccountInfo(profile: JudgeProfile): JudgeProfile {
-  const user = getSession()?.user;
-  if (!user) {
-    return profile;
-  }
-  return { ...profile, fullName: user.name, email: user.email, phone: user.phone ?? '' };
-}
 
 function submissionPath(submissionId: string) {
   return `/judges/me/submissions/${encodeURIComponent(submissionId)}`;
 }
 
 export const judgeService = {
-  /** GET /judges/me (chưa có API — dữ liệu mẫu + thông tin tài khoản thật) */
-  getProfile: (): Promise<JudgeProfile> => respond(withAccountInfo(mockProfile)),
+  getProfile: async (): Promise<JudgeProfile> => {
+    const profile = await profileService.getProfile();
+    return {
+      id: profile.id,
+      fullName: profile.name,
+      email: profile.email,
+      phone: profile.phone ?? '',
+      specialty: profile.specialty ?? '',
+      yearsOfExperience: profile.yearsOfExperience ?? 0,
+      bio: profile.bio ?? '',
+      avatarUrl: profile.avatarUrl ?? '',
+    };
+  },
 
-  /**
-   * Họ tên/email/SĐT lưu vào tài khoản qua PUT /auth/me để đăng nhập được bằng thông tin mới.
-   * Các trường còn lại: PATCH /judges/me (backend chưa có nên tạm lưu vào dữ liệu mẫu).
-   */
+  /** Họ tên / email / SĐT là thông tin đăng nhập; chuyên môn lưu vào hồ sơ */
   updateProfile: async (changes: JudgeProfileChanges): Promise<JudgeProfile> => {
-    if (getSession()) {
-      const user = await authService.updateCurrentUser({ name: changes.fullName, email: changes.email, phone: changes.phone });
-      updateSessionUser(user);
-    }
-    Object.assign(mockProfile, changes);
-    return respond(withAccountInfo(mockProfile));
+    await profileService.saveProfile({
+      name: changes.fullName,
+      email: changes.email,
+      phone: changes.phone,
+      specialty: changes.specialty,
+      yearsOfExperience: changes.yearsOfExperience,
+      bio: changes.bio,
+    });
+    return judgeService.getProfile();
   },
 
   getEvaluations: () => request<Evaluation[]>('/judges/me/evaluations'),
@@ -93,20 +87,28 @@ export const judgeService = {
   getEvaluationHistory: (submissionId: string) =>
     request<EvaluationHistoryItem[]>(`${submissionPath(submissionId)}/evaluation-history`),
 
-  /** GET /contests/{contestId}/results — backend chưa có module kết quả nên trả rỗng (BR-008) */
-  getContestResults: (contestId: string): Promise<ContestResultEntry[]> => {
-    void contestId;
-    return respond([]);
+  /** Chưa công bố kết quả → mảng rỗng */
+  getContestResults: async (contestId: string): Promise<ContestResultEntry[]> => {
+    const results = await request<ApiContestResult[]>(`/contests/${contestId}/results`);
+    return results.map((item) => ({
+      rank: item.rank,
+      submissionTitle: item.submissionTitle,
+      authorName: item.authorName ?? '',
+      averageScore: item.averageScore,
+      award: item.awardTitle,
+    }));
   },
 
-  /** GET /notifications (chưa có API — dữ liệu mẫu) */
-  getNotifications: (): Promise<JudgeNotification[]> => respond(mockNotifications),
-
-  /** PATCH /notifications/read-all (chưa có API — dữ liệu mẫu) */
-  markAllNotificationsRead: (): Promise<void> => {
-    mockNotifications.forEach((item) => {
-      item.isRead = true;
-    });
-    return respond(undefined);
+  getNotifications: async (): Promise<JudgeNotification[]> => {
+    const notifications = await notificationService.getMine();
+    return notifications.map((item) => ({
+      id: item.id,
+      type: item.type as JudgeNotification['type'],
+      message: item.message,
+      createdAt: item.createdAt,
+      isRead: item.isRead,
+    }));
   },
+
+  markAllNotificationsRead: () => notificationService.markAllRead(),
 };
