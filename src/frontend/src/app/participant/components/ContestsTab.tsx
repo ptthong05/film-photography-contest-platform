@@ -1,6 +1,7 @@
 import React, { useState } from 'react';
 import { useFetch } from '../../../hooks/useFetch';
-import { participantService, type ContestItem } from '../../../services/participantService';
+import { participantService, type ContestDisplayStatus, type ContestItem } from '../../../services/participantService';
+import { PARTICIPANT_CONTEST_BADGE } from '../../../utils/statusBadges';
 import {
   Trophy, Calendar, Users, Eye, X, CheckCircle2, AlertTriangle,
   Sparkles, ShieldCheck, FileText, Award, Disc, MapPin, Trash2, Check
@@ -18,7 +19,7 @@ export function ContestsTab({ registeredIds = [], onToggleRegister, filterRegist
   const { data, isLoading, error } = useFetch(participantService.getContests);
   const contests = data ?? [];
   const [selectedContest, setSelectedContest] = useState<ContestItem | null>(null);
-  const [filterTab, setFilterTab] = useState<'Tất cả' | 'Đang diễn ra' | 'Sắp diễn ra' | 'Đã kết thúc'>('Tất cả');
+  const [filterTab, setFilterTab] = useState<'Tất cả' | ContestDisplayStatus>('Tất cả');
   const [toastMessage, setToastMessage] = useState<string | null>(null);
 
   const showToast = (msg: string) => {
@@ -77,9 +78,7 @@ export function ContestsTab({ registeredIds = [], onToggleRegister, filterRegist
               />
               <div className="absolute inset-0 bg-gradient-to-t from-slate-950/90 via-slate-950/40 to-transparent flex flex-col justify-end p-6 md:p-8 text-white space-y-2">
                 <div className="flex flex-wrap items-center gap-3">
-                  <span className={`px-3.5 py-1 text-[11px] font-black rounded-full uppercase tracking-wider shadow-md text-white ${
-                    selectedContest.status === 'Đang diễn ra' ? 'bg-emerald-500' : selectedContest.status === 'Sắp diễn ra' ? 'bg-blue-500' : 'bg-slate-500'
-                  }`}>
+                  <span className={`px-3.5 py-1 text-[11px] font-black rounded-full uppercase tracking-wider shadow-md text-white ${PARTICIPANT_CONTEST_BADGE[selectedContest.status]}`}>
                     ● {selectedContest.status}
                   </span>
                   <span className="px-3.5 py-1 bg-white/20 backdrop-blur-md text-white text-[11px] font-black rounded-full border border-white/30">
@@ -88,7 +87,7 @@ export function ContestsTab({ registeredIds = [], onToggleRegister, filterRegist
                 </div>
                 <h2 className="text-3xl md:text-4xl font-black tracking-tight">{selectedContest.title}</h2>
                 <p className="text-xs md:text-sm text-slate-200 font-bold flex items-center gap-4">
-                  <span>📅 Thời gian: {selectedContest.dateRange}</span>
+                  <span>📅 {selectedContest.dateLabel}: {selectedContest.dateRange}</span>
                   <span>👥 Đã tham gia: {selectedContest.participantsCount} tay máy</span>
                 </p>
               </div>
@@ -188,6 +187,10 @@ export function ContestsTab({ registeredIds = [], onToggleRegister, filterRegist
                   >
                     <Trash2 className="w-4 h-4" /> Hủy đăng ký cuộc thi này
                   </button>
+                ) : !selectedContest.registrationOpen ? (
+                  <span className="px-6 py-4 bg-slate-100 text-slate-500 font-black text-xs rounded-2xl">
+                    Đã hết hạn đăng ký
+                  </span>
                 ) : (
                   <button
                     onClick={() => handleRegisterClick(selectedContest.id, selectedContest.title, false)}
@@ -219,7 +222,7 @@ export function ContestsTab({ registeredIds = [], onToggleRegister, filterRegist
       </div>
 
       <div className="bg-white p-5 rounded-3xl border border-slate-200/90 shadow-sm flex items-center gap-3 overflow-x-auto">
-        {(['Tất cả', 'Đang diễn ra', 'Sắp diễn ra', 'Đã kết thúc'] as const).map((tab) => (
+        {(['Tất cả', 'Đang diễn ra', 'Sắp diễn ra', 'Đang chấm', 'Đã kết thúc'] as const).map((tab) => (
           <button
             key={tab}
             onClick={() => setFilterTab(tab)}
@@ -253,9 +256,7 @@ export function ContestsTab({ registeredIds = [], onToggleRegister, filterRegist
                       alt={contest.title}
                       className="w-full h-full object-cover group-hover:scale-105 transition duration-500"
                     />
-                    <span className={`absolute top-3 left-3 px-3.5 py-1 text-[10px] font-black rounded-full shadow-md text-white ${
-                      contest.status === 'Đang diễn ra' ? 'bg-emerald-500' : contest.status === 'Sắp diễn ra' ? 'bg-blue-500' : 'bg-slate-500'
-                    }`}>
+                    <span className={`absolute top-3 left-3 px-3.5 py-1 text-[10px] font-black rounded-full shadow-md text-white ${PARTICIPANT_CONTEST_BADGE[contest.status]}`}>
                       ● {contest.status}
                     </span>
 
@@ -270,7 +271,7 @@ export function ContestsTab({ registeredIds = [], onToggleRegister, filterRegist
                     <p className="text-[10px] font-black text-blue-600 uppercase tracking-wider">{contest.category}</p>
                     <h3 className="font-black text-slate-900 text-xl">{contest.title}</h3>
                     <p className="text-xs text-slate-400 font-bold flex items-center gap-2">
-                      <span>📅 {contest.dateRange}</span>
+                      <span>📅 {contest.dateLabel}: {contest.dateRange}</span>
                       <span>•</span>
                       <span>👥 {contest.participantsCount} tham gia</span>
                     </p>
@@ -301,6 +302,13 @@ export function ContestsTab({ registeredIds = [], onToggleRegister, filterRegist
                       className="w-full py-3.5 bg-rose-50 hover:bg-rose-100 text-rose-700 border border-rose-200 font-black text-xs rounded-2xl transition cursor-pointer flex items-center justify-center gap-1.5 active:scale-95 shadow-sm"
                     >
                       <Trash2 className="w-4 h-4" /> Hủy đăng ký
+                    </button>
+                  ) : !contest.registrationOpen ? (
+                    <button
+                      disabled
+                      className="w-full py-3.5 bg-slate-100 text-slate-400 font-black text-xs rounded-2xl cursor-not-allowed flex items-center justify-center gap-1.5"
+                    >
+                      Hết hạn đăng ký
                     </button>
                   ) : (
                     <button

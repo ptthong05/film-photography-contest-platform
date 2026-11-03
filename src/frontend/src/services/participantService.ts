@@ -7,19 +7,23 @@ import { formatDate } from '../utils/formatDate';
 const DEFAULT_BANNER = '/ai-banner-bg.jpg';
 const NOT_SET = 'Chưa công bố';
 
-export type ContestDisplayStatus = 'Đang diễn ra' | 'Sắp diễn ra' | 'Đã kết thúc';
+export type ContestDisplayStatus = 'Đang diễn ra' | 'Sắp diễn ra' | 'Đang chấm' | 'Đã kết thúc';
 
 /** Dữ liệu cuộc thi theo cách các tab Participant hiển thị */
 export interface ContestItem {
   id: string;
   title: string;
   category: string;
+  /** Tên của khoảng thời gian trong dateRange: nhận bài hoặc chấm bài */
+  dateLabel: string;
   dateRange: string;
   participantsCount: number;
   bannerUrl: string;
   status: ContestDisplayStatus;
   /** Cuộc thi đang mở cổng nhận bài, dùng cho form nộp ảnh */
   acceptingSubmissions: boolean;
+  /** Còn cho đăng ký, cùng điều kiện với RegistrationService ở backend */
+  registrationOpen: boolean;
   categories: string[];
   maxPhotos: number;
   description: string;
@@ -95,21 +99,26 @@ export interface Registration {
 
 function toDisplayStatus(status: ApiContest['status']): ContestDisplayStatus {
   if (status === 'ENDED') return 'Đã kết thúc';
-  return status === 'ONGOING' || status === 'JUDGING' ? 'Đang diễn ra' : 'Sắp diễn ra';
+  if (status === 'JUDGING') return 'Đang chấm';
+  return status === 'ONGOING' ? 'Đang diễn ra' : 'Sắp diễn ra';
 }
 
 export function toContestItem(item: ApiContest): ContestItem {
-  const start = item.submissionStart ?? item.judgingStart;
-  const end = item.submissionEnd ?? item.judgingEnd;
+  // Cuộc thi chưa có lịch nhận bài thì hiển thị lịch chấm, kèm nhãn để không nhầm là hạn đăng ký
+  const hasSubmissionDates = Boolean(item.submissionStart && item.submissionEnd);
+  const start = hasSubmissionDates ? item.submissionStart : item.judgingStart;
+  const end = hasSubmissionDates ? item.submissionEnd : item.judgingEnd;
   return {
     id: item.id,
     title: item.title,
     category: item.categories.join(' • '),
+    dateLabel: !start || !end ? 'Thời gian' : hasSubmissionDates ? 'Nhận bài' : 'Chấm bài',
     dateRange: start && end ? `${formatDate(start)} - ${formatDate(end)}` : 'Chưa cập nhật',
     participantsCount: item.participantCount,
     bannerUrl: item.coverUrl || DEFAULT_BANNER,
     status: toDisplayStatus(item.status),
     acceptingSubmissions: item.acceptingSubmissions,
+    registrationOpen: item.status === 'UPCOMING' || item.status === 'ONGOING',
     categories: item.categories,
     maxPhotos: item.maxPhotosPerParticipant,
     description: item.description ?? '',

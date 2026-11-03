@@ -2,6 +2,7 @@ import React, { useState } from 'react';
 import { useAuth } from '../../../hooks/useAuth';
 import { useFetch } from '../../../hooks/useFetch';
 import { participantService, type ContestItem } from '../../../services/participantService';
+import { PARTICIPANT_CONTEST_BADGE } from '../../../utils/statusBadges';
 import {
   Trophy,
   BookOpen,
@@ -84,9 +85,7 @@ export function DashboardTab({ registeredCount = 0, registeredIds = [], onNaviga
               />
               <div className="absolute inset-0 bg-gradient-to-t from-slate-950/90 via-slate-950/40 to-transparent flex flex-col justify-end p-6 md:p-8 text-white space-y-2">
                 <div className="flex flex-wrap items-center gap-3">
-                  <span className={`px-3.5 py-1 text-[11px] font-black rounded-full uppercase tracking-wider shadow-md text-white ${
-                    selectedContest.status === 'Đang diễn ra' ? 'bg-emerald-500' : selectedContest.status === 'Sắp diễn ra' ? 'bg-blue-500' : 'bg-slate-500'
-                  }`}>
+                  <span className={`px-3.5 py-1 text-[11px] font-black rounded-full uppercase tracking-wider shadow-md text-white ${PARTICIPANT_CONTEST_BADGE[selectedContest.status]}`}>
                     ● {selectedContest.status}
                   </span>
                   <span className="px-3.5 py-1 bg-white/20 backdrop-blur-md text-white text-[11px] font-black rounded-full border border-white/30">
@@ -95,7 +94,7 @@ export function DashboardTab({ registeredCount = 0, registeredIds = [], onNaviga
                 </div>
                 <h2 className="text-3xl md:text-4xl font-black tracking-tight">{selectedContest.title}</h2>
                 <p className="text-xs md:text-sm text-slate-200 font-bold flex items-center gap-4">
-                  <span>📅 Thời gian: {selectedContest.dateRange}</span>
+                  <span>📅 {selectedContest.dateLabel}: {selectedContest.dateRange}</span>
                   <span>👥 Đã tham gia: {selectedContest.participantsCount} tay máy</span>
                 </p>
               </div>
@@ -195,6 +194,10 @@ export function DashboardTab({ registeredCount = 0, registeredIds = [], onNaviga
                   >
                     <Trash2 className="w-4 h-4" /> Hủy đăng ký cuộc thi này
                   </button>
+                ) : !selectedContest.registrationOpen ? (
+                  <span className="px-6 py-4 bg-slate-100 text-slate-500 font-black text-xs rounded-2xl">
+                    Đã hết hạn đăng ký
+                  </span>
                 ) : (
                   <button
                     onClick={() => handleRegisterClick(selectedContest.id, selectedContest.title, false)}
@@ -335,16 +338,14 @@ export function DashboardTab({ registeredCount = 0, registeredIds = [], onNaviga
                     alt={contest.title}
                     className="w-full h-full object-cover"
                   />
-                  <span className={`absolute top-3 left-3 px-3 py-1 text-[10px] font-black rounded-full shadow-md text-white ${
-                    contest.status === 'Đang diễn ra' ? 'bg-emerald-500' : 'bg-blue-500'
-                  }`}>
+                  <span className={`absolute top-3 left-3 px-3 py-1 text-[10px] font-black rounded-full shadow-md text-white ${PARTICIPANT_CONTEST_BADGE[contest.status]}`}>
                     ● {contest.status}
                   </span>
                 </div>
                 <div className="space-y-1">
                   <p className="text-[10px] font-black text-blue-600 uppercase">{contest.category}</p>
                   <h3 className="font-black text-slate-900 text-lg">{contest.title}</h3>
-                  <p className="text-xs text-slate-400 font-bold">📅 {contest.dateRange}</p>
+                  <p className="text-xs text-slate-400 font-bold">📅 {contest.dateLabel}: {contest.dateRange}</p>
                 </div>
               </div>
               <div className="p-5 pt-0">
