@@ -49,6 +49,12 @@ public class SecurityConfig {
                         .requestMatchers(HttpMethod.POST, "/api/auth/login", "/api/auth/register").permitAll()
                         .requestMatchers("/api/users/**").hasRole("ADMIN")
                         .requestMatchers("/api/judges/**").hasRole("JUDGE")
+                        .requestMatchers("/api/admin/**").hasRole("ADMIN")
+                        .requestMatchers("/api/organizer/**").hasAnyRole("ORGANIZER", "ADMIN")
+                        // Quản lý phải đăng nhập, nên đặt trước quy tắc công khai của /api/contests/*
+                        .requestMatchers(HttpMethod.GET, "/api/contests/managed", "/api/contests/managed/**").authenticated()
+                        .requestMatchers(HttpMethod.GET, "/api/contests", "/api/contests/*", "/api/contests/*/results",
+                                "/api/archive", "/api/public/**", "/uploads/**").permitAll()
                         .anyRequest().authenticated())
                 .addFilterBefore(new JwtAuthenticationFilter(jwtService, userRepository),
                         UsernamePasswordAuthenticationFilter.class);
