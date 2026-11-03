@@ -43,6 +43,14 @@ public class AuthController {
         return ResponseEntity.ok(authService.getCurrentUser(currentUser.id()));
     }
 
+    @PutMapping("/me/password")
+    public ResponseEntity<Void> changePassword(
+            @AuthenticationPrincipal AuthenticatedUser currentUser,
+            @Valid @RequestBody com.example.backend.dto.ChangePasswordRequest request) {
+        authService.changePassword(currentUser.id(), request.currentPassword(), request.newPassword());
+        return ResponseEntity.noContent().build();
+    }
+
     @PutMapping("/me")
     public ResponseEntity<UserResponse> updateCurrentUser(
             @AuthenticationPrincipal AuthenticatedUser currentUser,

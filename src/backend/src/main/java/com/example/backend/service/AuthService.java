@@ -8,6 +8,7 @@ import com.example.backend.dto.UserResponse;
 import com.example.backend.entity.User;
 import com.example.backend.enums.Role;
 import com.example.backend.enums.UserStatus;
+import com.example.backend.exception.BadRequestException;
 import com.example.backend.exception.DuplicateResourceException;
 import com.example.backend.exception.ForbiddenOperationException;
 import com.example.backend.exception.InvalidCredentialsException;
@@ -31,11 +32,14 @@ public class AuthService {
     private final UserRepository userRepository;
     private final PasswordEncoder passwordEncoder;
     private final JwtService jwtService;
+    private final ActivityLogService activityLogService;
 
-    public AuthService(UserRepository userRepository, PasswordEncoder passwordEncoder, JwtService jwtService) {
+    public AuthService(UserRepository userRepository, PasswordEncoder passwordEncoder, JwtService jwtService,
+                       ActivityLogService activityLogService) {
         this.userRepository = userRepository;
         this.passwordEncoder = passwordEncoder;
         this.jwtService = jwtService;
+        this.activityLogService = activityLogService;
     }
 
     public AuthResponse register(RegisterRequest request) {
@@ -70,7 +74,20 @@ public class AuthService {
         }
 
         user.setLastLoginAt(Instant.now());
-        return issueToken(userRepository.save(user));
+        User saved = userRepository.save(user);
+        activityLogService.log(saved.getId(), saved.getRole(), "LOGIN", "USER", saved.getId(), null);
+        return issueToken(saved);
+    }
+
+    public void changePassword(String userId, String currentPassword, String newPassword) {
+        User user = userRepository.findById(userId)
+                .orElseThrow(() -> new InvalidCredentialsException(INVALID_CREDENTIALS));
+        if (user.getPasswordHash() == null || !passwordEncoder.matches(currentPassword, user.getPasswordHash())) {
+            throw new BadRequestException("Mật khẩu hiện tại không đúng");
+        }
+        user.setPasswordHash(passwordEncoder.encode(newPassword));
+        userRepository.save(user);
+        activityLogService.log(user.getId(), user.getRole(), "PASSWORD_CHANGE", "USER", user.getId(), null);
     }
 
     public UserResponse getCurrentUser(String userId) {
