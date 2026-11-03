@@ -3,11 +3,11 @@ import type { Portal } from '../../../../types/portal';
 import { Navbar } from '../Navbar';
 import { Footer } from '../Footer';
 import {
-  LEADERBOARD_AUTHORS,
-  LEADERBOARD_PHOTOS,
   type PhotographerRankItem,
   type PhotoRankItem,
 } from './data';
+import { useFetch } from '../../../../hooks/useFetch';
+import { publicDataService } from '../../../../services/publicDataService';
 import {
   Trophy,
   ChevronDown,
@@ -128,21 +128,23 @@ export function LeaderboardPage({
     }
   };
 
+  const publicData = useFetch(publicDataService.getData);
+
+  const years = [...new Set((publicData.data?.rankedPhotos ?? []).map((photo) => photo.year))].sort().reverse();
+
   // Filter Authors
   const filteredAuthors = useMemo(() => {
-    return LEADERBOARD_AUTHORS.filter((author) => {
+    return (publicData.data?.rankedAuthors ?? []).filter((author) => {
       const matchSearch =
         searchQuery.trim() === '' ||
         author.name.toLowerCase().includes(searchQuery.toLowerCase());
-      const matchTime = timeFilter === 'all' || author.year === timeFilter;
-      const matchContest = contestFilter === 'all' || author.contestId === contestFilter;
-      return matchSearch && matchTime && matchContest;
+      return matchSearch;
     });
-  }, [searchQuery, timeFilter, contestFilter]);
+  }, [searchQuery, timeFilter, contestFilter, publicData.data]);
 
   // Filter Photos
   const filteredPhotos = useMemo(() => {
-    return LEADERBOARD_PHOTOS.filter((photo) => {
+    return (publicData.data?.rankedPhotos ?? []).filter((photo) => {
       const matchSearch =
         searchQuery.trim() === '' ||
         photo.title.toLowerCase().includes(searchQuery.toLowerCase()) ||
@@ -151,7 +153,7 @@ export function LeaderboardPage({
       const matchContest = contestFilter === 'all' || photo.contestId === contestFilter;
       return matchSearch && matchTime && matchContest;
     });
-  }, [searchQuery, timeFilter, contestFilter]);
+  }, [searchQuery, timeFilter, contestFilter, publicData.data]);
 
   return (
     <div className="min-h-screen bg-slate-50 flex flex-col text-slate-800">
@@ -213,9 +215,7 @@ export function LeaderboardPage({
                 className="appearance-none bg-white border border-slate-200/90 rounded-xl px-4 py-2 pr-9 text-xs sm:text-sm font-medium text-slate-700 shadow-xs hover:border-slate-300 focus:outline-none focus:ring-2 focus:ring-blue-500/20 cursor-pointer"
               >
                 <option value="all">Tất cả thời gian</option>
-                <option value="2025">Năm 2025</option>
-                <option value="2024">Năm 2024</option>
-                <option value="2023">Năm 2023</option>
+                {years.map((year) => <option key={year} value={year}>Năm {year}</option>)}
               </select>
               <ChevronDown className="w-4 h-4 text-slate-400 absolute right-3 top-1/2 -translate-y-1/2 pointer-events-none" />
             </div>
@@ -228,11 +228,7 @@ export function LeaderboardPage({
                 className="appearance-none bg-white border border-slate-200/90 rounded-xl px-4 py-2 pr-9 text-xs sm:text-sm font-medium text-slate-700 shadow-xs hover:border-slate-300 focus:outline-none focus:ring-2 focus:ring-blue-500/20 cursor-pointer"
               >
                 <option value="all">Tất cả cuộc thi</option>
-                <option value="analog-2025">Analog Moments 2025</option>
-                <option value="analog-2024">Analog Moments 2024</option>
-                <option value="monochrome">Monochrome Film Spirit</option>
-                <option value="vintage">The Vintage Look 2024</option>
-                <option value="city">Film & City Exhibition</option>
+                {(publicData.data?.contests ?? []).map((contest) => <option key={contest.id} value={contest.id}>{contest.title}</option>)}
               </select>
               <ChevronDown className="w-4 h-4 text-slate-400 absolute right-3 top-1/2 -translate-y-1/2 pointer-events-none" />
             </div>

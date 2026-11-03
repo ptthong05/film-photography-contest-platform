@@ -3,7 +3,8 @@ import type { Portal } from '../../../../types/portal';
 import { Navbar } from '../Navbar';
 import { Footer } from '../Footer';
 import type { PhotoDetailItem } from './data';
-import { ALL_PHOTOS_DATA } from './data';
+import { useFetch } from '../../../../hooks/useFetch';
+import { publicDataService } from '../../../../services/publicDataService';
 import {
   ChevronRight,
   Heart,
@@ -35,7 +36,9 @@ interface PhotoDetailPageProps {
   onSelectPortal?: (portal: Portal) => void;
 }
 
-export function PhotoDetailPage({
+function PhotoDetailContent({
+  photo,
+  allPhotos,
   photoId = 'p1',
   onGoHome,
   onGoContests,
@@ -44,9 +47,7 @@ export function PhotoDetailPage({
   onOpenAuthorProfile,
   onOpenWinningPhotos,
   onSelectPortal,
-}: PhotoDetailPageProps) {
-  // Find photo by id or fallback to default
-  const photo: PhotoDetailItem = ALL_PHOTOS_DATA[photoId] || ALL_PHOTOS_DATA.p1;
+}: PhotoDetailPageProps & { photo: PhotoDetailItem; allPhotos: PhotoDetailItem[] }) {
 
   const [isLiked, setIsLiked] = useState(() => {
     try {
@@ -125,7 +126,7 @@ export function PhotoDetailPage({
   };
 
   // Other related photos
-  const relatedPhotos = Object.values(ALL_PHOTOS_DATA).filter((p) => p.id !== photo.id).slice(0, 4);
+  const relatedPhotos = allPhotos.filter((p) => p.id !== photo.id).slice(0, 4);
 
   return (
     <div className="min-h-screen bg-slate-50 text-slate-800 flex flex-col font-sans">
@@ -465,4 +466,18 @@ export function PhotoDetailPage({
       <Footer onSelectPortal={onSelectPortal} onGoHome={onGoHome} />
     </div>
   );
+}
+
+export function PhotoDetailPage(props: PhotoDetailPageProps) {
+  const { data, isLoading, error } = useFetch(publicDataService.getData);
+  const photo = data?.photos[props.photoId ?? ''];
+  if (!photo || !data) {
+    return (
+      <div className="flex min-h-screen flex-col items-center justify-center gap-4 bg-slate-50 p-8 text-center">
+        <p className="text-sm text-slate-600">{isLoading ? 'Đang tải tác phẩm...' : error ?? 'Không tìm thấy tác phẩm.'}</p>
+        <button type="button" onClick={props.onGoHome} className="rounded-lg bg-blue-600 px-4 py-2 text-sm font-semibold text-white hover:bg-blue-700">Về trang chủ</button>
+      </div>
+    );
+  }
+  return <PhotoDetailContent {...props} photo={photo} allPhotos={Object.values(data.photos)} />;
 }

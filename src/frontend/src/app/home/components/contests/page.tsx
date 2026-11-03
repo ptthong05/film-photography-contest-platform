@@ -1,3 +1,5 @@
+import { useFetch } from '../../../../hooks/useFetch';
+import { publicDataService } from '../../../../services/publicDataService';
 import React, { useState, useMemo } from 'react';
 import type { Portal } from '../../../../types/portal';
 import { Navbar } from '../Navbar';
@@ -13,112 +15,7 @@ interface ContestsPageProps {
   onOpenContestDetail?: (contestId: string) => void;
 }
 
-export const ALL_CONTESTS_DATA: ContestItem[] = [
-  {
-    id: 'analog-moments-2025',
-    title: 'Analog Moments 2025',
-    status: 'active',
-    statusLabel: 'Đang diễn ra',
-    image: 'https://images.unsplash.com/photo-1464822759023-fed622ff2c3b?auto=format&fit=crop&w=1000&q=80',
-    startDate: '01/06/2025',
-    endDate: '30/09/2025',
-    participantsCount: 342,
-    categories: ['Phong cảnh', 'Chân dung', 'Đời sống'],
-    description: 'Ghi lại những khoảnh khắc của thời đại nhiếp ảnh phim. Khám phá vẻ đẹp thuần khiết từ các cuộn phim cổ điển.',
-    prizePool: '50.000.000 VNĐ + Máy ảnh Leica M6',
-  },
-  {
-    id: 'film-and-city',
-    title: 'Film & City',
-    status: 'active',
-    statusLabel: 'Đang diễn ra',
-    image: 'https://images.unsplash.com/photo-1514565131-fce0801e5785?auto=format&fit=crop&w=1000&q=80',
-    startDate: '15/08/2025',
-    endDate: '30/11/2025',
-    participantsCount: 285,
-    categories: ['Đường phố', 'Kiến trúc', 'Đời sống'],
-    description: 'Nhịp sống đô thị qua lăng kính phim 35mm. Sự giao thoa giữa ánh sáng đường phố và sự hoài niệm của màu phim.',
-    prizePool: '35.000.000 VNĐ + 50 cuộn Kodak Tri-X 400',
-  },
-  {
-    id: 'the-vintage-look',
-    title: 'The Vintage Look',
-    status: 'upcoming',
-    statusLabel: 'Sắp diễn ra',
-    image: 'https://images.unsplash.com/photo-1507525428034-b723cf961d3e?auto=format&fit=crop&w=1000&q=80',
-    startDate: '10/07/2025',
-    endDate: '30/09/2025',
-    participantsCount: 198,
-    categories: ['Chân dung', 'Nghệ thuật', 'Tự do'],
-    description: 'Tôn vinh phong cách retro cổ điển thập niên 80s-90s với màu sắc ấm áp, độ hạt grain tự nhiên và cảm xúc chân thật.',
-    prizePool: '30.000.000 VNĐ + Lens ngàm M vintage',
-  },
-  {
-    id: 'film-portrait-2025',
-    title: 'Film Portrait 2025',
-    status: 'active',
-    statusLabel: 'Đang diễn ra',
-    image: 'https://images.unsplash.com/photo-1534447677768-be436bb09401?auto=format&fit=crop&w=1000&q=80',
-    startDate: '20/07/2025',
-    endDate: '20/10/2025',
-    participantsCount: 215,
-    categories: ['Chân dung', 'Nghệ thuật', 'Ánh sáng'],
-    description: 'Khắc hoạ chân dung con người với chiều sâu cảm xúc, độ tương phản mượt mà và dải sắc độ tự nhiên của film âm bản.',
-    prizePool: '25.000.000 VNĐ + Body Nikon FM2',
-  },
-  {
-    id: 'goc-pho-film',
-    title: 'Góc Phố Film',
-    status: 'active',
-    statusLabel: 'Đang diễn ra',
-    image: 'https://images.unsplash.com/photo-1477959858617-67f30bc75b82?auto=format&fit=crop&w=1000&q=80',
-    startDate: '01/08/2025',
-    endDate: '15/11/2025',
-    participantsCount: 178,
-    categories: ['Đường phố', 'Đời thường', 'Trắng đen'],
-    description: 'Tìm kiếm vẻ đẹp trong những lát cắt bình dị thường nhật trên từng con phố thân quen qua tông màu film hoài niệm.',
-    prizePool: '20.000.000 VNĐ + Voucher tráng scan 1 năm',
-  },
-  {
-    id: 'nang-cuoi-ngay',
-    title: 'Nắng Cuối Ngày',
-    status: 'upcoming',
-    statusLabel: 'Sắp diễn ra',
-    image: 'https://images.unsplash.com/photo-1506744038136-46273834b3fb?auto=format&fit=crop&w=1000&q=80',
-    startDate: '01/10/2025',
-    endDate: '31/12/2025',
-    participantsCount: 145,
-    categories: ['Hoàng hôn', 'Phong cảnh', 'Tự nhiên'],
-    description: 'Bắt trọn ánh vàng kỳ ảo của giờ vàng (Golden Hour) trên những thước phim dương bản rực rỡ.',
-    prizePool: '22.000.000 VNĐ + Bộ kính lọc màu',
-  },
-  {
-    id: 'ky-uc-trang-den',
-    title: 'Ký Ức Trắng Đen',
-    status: 'ended',
-    statusLabel: 'Đã kết thúc',
-    image: 'https://images.unsplash.com/photo-1495745966610-2a67f2297e5e?auto=format&fit=crop&w=1000&q=80',
-    startDate: '01/01/2025',
-    endDate: '30/04/2025',
-    participantsCount: 420,
-    categories: ['Trắng đen', 'Tương phản', 'Cổ điển'],
-    description: 'Cuộc thi nhiếp ảnh phim đen trắng tôn vinh sức mạnh thị giác của ánh sáng, bóng tối và hạt film grain.',
-    prizePool: '40.000.000 VNĐ + Cúp lưu niệm',
-  },
-  {
-    id: 'sac-mau-mua-ha',
-    title: 'Sắc Màu Mùa Hạ',
-    status: 'ended',
-    statusLabel: 'Đã kết thúc',
-    image: 'https://images.unsplash.com/photo-1516035069371-29a1b244cc32?auto=format&fit=crop&w=1000&q=80',
-    startDate: '01/03/2025',
-    endDate: '31/05/2025',
-    participantsCount: 388,
-    categories: ['Màu sắc', 'Mùa hè', 'Du lịch'],
-    description: 'Lễ hội màu sắc mùa hè với các cuộn phim Kodak Ektar và Fuji Velvia cho độ bão hoà màu rực rỡ.',
-    prizePool: '30.000.000 VNĐ + 30 cuộn film',
-  },
-];
+const fetchContests = () => publicDataService.getContests();
 
 export default function ContestsPage({
   onGoHome,
@@ -126,12 +23,14 @@ export default function ContestsPage({
   onOpenAuth,
   onOpenContestDetail,
 }: ContestsPageProps) {
+  const contestsQuery = useFetch(fetchContests);
+  const allContests = useMemo<ContestItem[]>(() => contestsQuery.data ?? [], [contestsQuery.data]);
   const [statusFilter, setStatusFilter] = useState<'all' | 'active' | 'upcoming' | 'ended'>('all');
   const [searchQuery, setSearchQuery] = useState('');
   const [selectedContest, setSelectedContest] = useState<ContestItem | null>(null);
 
   const filteredContests = useMemo(() => {
-    return ALL_CONTESTS_DATA.filter((contest) => {
+    return allContests.filter((contest) => {
       const matchStatus = statusFilter === 'all' || contest.status === statusFilter;
       const matchSearch =
         searchQuery === '' ||
@@ -139,13 +38,13 @@ export default function ContestsPage({
         contest.categories.some((c) => c.toLowerCase().includes(searchQuery.toLowerCase()));
       return matchStatus && matchSearch;
     });
-  }, [statusFilter, searchQuery]);
+  }, [statusFilter, searchQuery, allContests]);
 
   const counts = {
-    all: ALL_CONTESTS_DATA.length,
-    active: ALL_CONTESTS_DATA.filter((c) => c.status === 'active').length,
-    upcoming: ALL_CONTESTS_DATA.filter((c) => c.status === 'upcoming').length,
-    ended: ALL_CONTESTS_DATA.filter((c) => c.status === 'ended').length,
+    all: allContests.length,
+    active: allContests.filter((c) => c.status === 'active').length,
+    upcoming: allContests.filter((c) => c.status === 'upcoming').length,
+    ended: allContests.filter((c) => c.status === 'ended').length,
   };
 
   return (

@@ -3,7 +3,8 @@ import type { Portal } from '../../../../types/portal';
 import { Navbar } from '../Navbar';
 import { Footer } from '../Footer';
 import type { ContestDetailData } from './data';
-import { ALL_CONTESTS, DEFAULT_PRIZES_TEMPLATE } from './data';
+import { useFetch } from '../../../../hooks/useFetch';
+import { publicDataService } from '../../../../services/publicDataService';
 import {
   Calendar,
   Users,
@@ -28,7 +29,8 @@ interface ContestDetailPageProps {
   onOpenWinningPhotos?: () => void;
 }
 
-export function ContestDetailPage({
+function ContestDetailContent({
+  contest,
   contestId = 'analog-moments-2025',
   onGoHome,
   onGoContests,
@@ -36,7 +38,7 @@ export function ContestDetailPage({
   onOpenAuth,
   onOpenPhotoDetail,
   onOpenWinningPhotos,
-}: ContestDetailPageProps) {
+}: ContestDetailPageProps & { contest: ContestDetailData }) {
   const [activeTab, setActiveTab] = useState<'info' | 'rules' | 'prizes'>('info');
   const [likedPast, setLikedPast] = useState<Record<string, boolean>>({});
 
@@ -48,8 +50,6 @@ export function ContestDetailPage({
     }));
   };
 
-  // Find contest data by id or fallback to the first contest
-  const contest = ALL_CONTESTS.find((c) => c.id === contestId) || ALL_CONTESTS[0];
 
   const handleRegisterContest = () => {
     onOpenAuth('REGISTER');
@@ -289,7 +289,7 @@ export function ContestDetailPage({
 
         {/* Tab Giải thưởng */}
         {activeTab === 'prizes' && (() => {
-          const displayPrizes = contest.prizes && contest.prizes.length > 0 ? contest.prizes : DEFAULT_PRIZES_TEMPLATE;
+          const displayPrizes = contest.prizes && contest.prizes.length > 0 ? contest.prizes : [];
           return (
             <div className="bg-white p-6 sm:p-8 rounded-3xl border border-slate-200/90 shadow-xs space-y-6">
               <div className="flex flex-wrap items-center justify-between gap-3">
@@ -400,4 +400,20 @@ export function ContestDetailPage({
       <Footer onSelectPortal={onSelectPortal} onGoHome={onGoHome} />
     </div>
   );
+}
+
+const fetchContests = () => publicDataService.getContests();
+
+export function ContestDetailPage(props: ContestDetailPageProps) {
+  const { data, isLoading, error } = useFetch(fetchContests);
+  const contest = data?.find((item) => item.id === props.contestId);
+  if (!contest) {
+    return (
+      <div className="flex min-h-screen flex-col items-center justify-center gap-4 bg-slate-50 p-8 text-center">
+        <p className="text-sm text-slate-600">{isLoading ? 'Đang tải cuộc thi...' : error ?? 'Không tìm thấy cuộc thi.'}</p>
+        <button type="button" onClick={props.onGoHome} className="rounded-lg bg-blue-600 px-4 py-2 text-sm font-semibold text-white hover:bg-blue-700">Về trang chủ</button>
+      </div>
+    );
+  }
+  return <ContestDetailContent {...props} contest={contest} />;
 }

@@ -1,5 +1,7 @@
 ﻿import React, { useState, useEffect, useRef } from 'react';
 import { Trophy, Calendar, Users, ArrowRight } from 'lucide-react';
+import { useFetch } from '../../../hooks/useFetch';
+import { publicDataService } from '../../../services/publicDataService';
 
 export interface ContestItem {
   id: string;
@@ -20,75 +22,11 @@ interface LiveContestsSectionProps {
   onViewAll?: () => void;
 }
 
-export const FEATURED_CONTESTS: ContestItem[] = [
-  {
-    id: 'analog-moments-2025',
-    title: 'Analog Moments 2025',
-    status: 'active',
-    statusLabel: 'Đang diễn ra',
-    image: 'https://images.unsplash.com/photo-1464822759023-fed622ff2c3b?auto=format&fit=crop&w=1000&q=80',
-    startDate: '01/06/2025',
-    endDate: '30/09/2025',
-    participantsCount: 342,
-    categories: ['Phong cảnh', 'Chân dung', 'Đời sống'],
-    description: 'Ghi lại những khoảnh khắc của thời đại nhiếp ảnh phim. Khám phá vẻ đẹp thuần khiết từ các cuộn phim cổ điển.',
-    prizePool: '50.000.000 VNĐ + Máy ảnh Leica M6',
-  },
-  {
-    id: 'film-and-city',
-    title: 'Film & City',
-    status: 'active',
-    statusLabel: 'Đang diễn ra',
-    image: 'https://images.unsplash.com/photo-1514565131-fce0801e5785?auto=format&fit=crop&w=1000&q=80',
-    startDate: '15/08/2025',
-    endDate: '30/11/2025',
-    participantsCount: 285,
-    categories: ['Đường phố', 'Kiến trúc', 'Đời sống'],
-    description: 'Nhịp sống đô thị qua lăng kính phim 35mm. Sự giao thoa giữa ánh sáng đường phố và sự hoài niệm của màu phim.',
-    prizePool: '35.000.000 VNĐ + 50 cuộn Kodak Tri-X 400',
-  },
-  {
-    id: 'the-vintage-look',
-    title: 'The Vintage Look',
-    status: 'upcoming',
-    statusLabel: 'Sắp diễn ra',
-    image: 'https://images.unsplash.com/photo-1507525428034-b723cf961d3e?auto=format&fit=crop&w=1000&q=80',
-    startDate: '10/07/2025',
-    endDate: '30/09/2025',
-    participantsCount: 198,
-    categories: ['Chân dung', 'Nghệ thuật', 'Tự do'],
-    description: 'Tôn vinh phong cách retro cổ điển thập niên 80s-90s với màu sắc ấm áp, độ hạt grain tự nhiên và cảm xúc chân thật.',
-    prizePool: '30.000.000 VNĐ + Lens ngàm M vintage',
-  },
-  {
-    id: 'film-portrait-2025',
-    title: 'Film Portrait 2025',
-    status: 'active',
-    statusLabel: 'Đang diễn ra',
-    image: 'https://images.unsplash.com/photo-1534447677768-be436bb09401?auto=format&fit=crop&w=1000&q=80',
-    startDate: '20/07/2025',
-    endDate: '20/10/2025',
-    participantsCount: 215,
-    categories: ['Chân dung', 'Nghệ thuật', 'Ánh sáng'],
-    description: 'Khắc hoạ chân dung con người với chiều sâu cảm xúc, độ tương phản mượt mà và dải sắc độ tự nhiên của film âm bản.',
-    prizePool: '25.000.000 VNĐ + Body Nikon FM2',
-  },
-  {
-    id: 'goc-pho-film',
-    title: 'Góc Phố Film',
-    status: 'active',
-    statusLabel: 'Đang diễn ra',
-    image: 'https://images.unsplash.com/photo-1477959858617-67f30bc75b82?auto=format&fit=crop&w=1000&q=80',
-    startDate: '01/08/2025',
-    endDate: '15/11/2025',
-    participantsCount: 178,
-    categories: ['Đường phố', 'Đời thường', 'Trắng đen'],
-    description: 'Tìm kiếm vẻ đẹp trong những lát cắt bình dị thường nhật trên từng con phố thân quen qua tông màu film hoài niệm.',
-    prizePool: '20.000.000 VNĐ + Voucher tráng scan 1 năm',
-  },
-];
+const fetchFeaturedContests = () => publicDataService.getContests();
 
 export function LiveContestsSection({ onSelectContest, onViewAll }: LiveContestsSectionProps) {
+  const { data } = useFetch(fetchFeaturedContests);
+  const FEATURED_CONTESTS: ContestItem[] = (data ?? []).filter((contest) => contest.status !== 'ended');
   const scrollContainerRef = useRef<HTMLDivElement>(null);
   const [isPaused, setIsPaused] = useState(false);
   const [canScrollLeft, setCanScrollLeft] = useState(false);

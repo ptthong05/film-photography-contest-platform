@@ -17,9 +17,8 @@ import {
   ChevronRight,
 } from 'lucide-react';
 import type { Portal } from '../../../../types/portal';
-import { ALL_CONTESTS_DATA } from '../contests/page';
-import { ALL_PHOTOS_DATA } from '../photosHighlight/data';
-import { ALL_AUTHORS_DATA } from '../authors/data';
+import { useFetch } from '../../../../hooks/useFetch';
+import { publicDataService } from '../../../../services/publicDataService';
 import { ALL_ARTICLES_LIST } from '../articles/data';
 import { EVENTS_PAGE_CONTENT } from '../pages/EventsPage';
 
@@ -78,11 +77,12 @@ export function HeaderSearchModal({
   }, [isOpen]);
 
   // Aggregate all searchable items
+  const publicData = useFetch(publicDataService.getData);
   const allSearchItems = useMemo<SearchResultItem[]>(() => {
     const list: SearchResultItem[] = [];
 
     // 1. Cuộc thi (Contests)
-    ALL_CONTESTS_DATA.forEach((c) => {
+    (publicData.data?.contests ?? []).forEach((c) => {
       list.push({
         id: `contest-${c.id}`,
         type: 'contest',
@@ -98,7 +98,7 @@ export function HeaderSearchModal({
     });
 
     // 2. Tác phẩm đạt giải (Photos)
-    Object.values(ALL_PHOTOS_DATA).forEach((p) => {
+    Object.values(publicData.data?.photos ?? {}).forEach((p) => {
       list.push({
         id: `photo-${p.id}`,
         type: 'photo',
@@ -114,7 +114,7 @@ export function HeaderSearchModal({
     });
 
     // 3. Nhiếp ảnh gia / Tác giả (Authors)
-    Object.values(ALL_AUTHORS_DATA).forEach((a) => {
+    Object.values(publicData.data?.authors ?? {}).forEach((a) => {
       list.push({
         id: `author-${a.id}`,
         type: 'author',
@@ -162,7 +162,7 @@ export function HeaderSearchModal({
     });
 
     return list;
-  }, []);
+  }, [publicData.data]);
 
   // Filtered search results
   const filteredResults = useMemo(() => {

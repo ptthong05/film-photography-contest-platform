@@ -3,7 +3,8 @@ import type { Portal } from '../../../../types/portal';
 import { Navbar } from '../Navbar';
 import { Footer } from '../Footer';
 import type { AuthorProfile } from './data';
-import { ALL_AUTHORS_DATA } from './data';
+import { useFetch } from '../../../../hooks/useFetch';
+import { publicDataService } from '../../../../services/publicDataService';
 import {
   Award,
   Trophy,
@@ -32,7 +33,8 @@ interface AuthorProfilePageProps {
   onSelectPortal?: (portal: Portal) => void;
 }
 
-export function AuthorProfilePage({
+function AuthorProfileContent({
+  author,
   authorName = 'Hoàng Văn E',
   onGoHome,
   onGoContests,
@@ -40,14 +42,10 @@ export function AuthorProfilePage({
   onSelectPhoto,
   onOpenAuth,
   onSelectPortal,
-}: AuthorProfilePageProps) {
+}: AuthorProfilePageProps & { author: AuthorProfile }) {
   const [activeTab, setActiveTab] = useState<'awards' | 'contests' | 'works'>('awards');
   const [copied, setCopied] = useState(false);
 
-  // Find author data by name or fallback to Hoàng Văn E
-  const author: AuthorProfile =
-    ALL_AUTHORS_DATA[authorName] ||
-    ALL_AUTHORS_DATA['Hoàng Văn E'];
 
   const handleShare = () => {
     navigator.clipboard?.writeText(window.location.href);
@@ -496,4 +494,18 @@ export function AuthorProfilePage({
       <Footer onSelectPortal={onSelectPortal} onGoHome={onGoHome} />
     </div>
   );
+}
+
+export function AuthorProfilePage(props: AuthorProfilePageProps) {
+  const { data, isLoading, error } = useFetch(publicDataService.getData);
+  const author = data?.authors[props.authorName ?? ''];
+  if (!author) {
+    return (
+      <div className="flex min-h-screen flex-col items-center justify-center gap-4 bg-slate-50 p-8 text-center">
+        <p className="text-sm text-slate-600">{isLoading ? 'Đang tải hồ sơ...' : error ?? 'Không tìm thấy nhiếp ảnh gia.'}</p>
+        <button type="button" onClick={props.onGoHome} className="rounded-lg bg-blue-600 px-4 py-2 text-sm font-semibold text-white hover:bg-blue-700">Về trang chủ</button>
+      </div>
+    );
+  }
+  return <AuthorProfileContent {...props} author={author} />;
 }

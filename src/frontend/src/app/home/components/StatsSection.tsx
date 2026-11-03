@@ -1,13 +1,19 @@
 import React from 'react';
 import { Users, Calendar, Image as ImageIcon, Trophy, TrendingUp } from 'lucide-react';
+import { useFetch } from '../../../hooks/useFetch';
+import { publicDataService } from '../../../services/publicDataService';
+
+const NUMBER_FORMAT = new Intl.NumberFormat('vi-VN');
 
 export function StatsSection() {
+  const { data } = useFetch(publicDataService.getStats);
+  const format = (value?: number) => (value === undefined ? '–' : NUMBER_FORMAT.format(value));
   const stats = [
     {
       id: 'users',
       label: 'Người dùng',
-      value: '1,248',
-      change: '+ 12%',
+      value: format(data?.participants),
+      change: 'Từ hệ thống',
       icon: Users,
       iconColor: 'text-blue-600',
       bgColor: 'bg-blue-50',
@@ -16,8 +22,8 @@ export function StatsSection() {
     {
       id: 'contests',
       label: 'Cuộc thi đã tổ chức',
-      value: '12',
-      change: '+ 2',
+      value: format(data?.contests),
+      change: 'Từ hệ thống',
       icon: Calendar,
       iconColor: 'text-purple-600',
       bgColor: 'bg-purple-50',
@@ -26,8 +32,8 @@ export function StatsSection() {
     {
       id: 'photos',
       label: 'Tác phẩm dự thi',
-      value: '3,642',
-      change: '+ 18%',
+      value: format(data?.submissions),
+      change: 'Từ hệ thống',
       icon: ImageIcon,
       iconColor: 'text-emerald-600',
       bgColor: 'bg-emerald-50',
@@ -36,8 +42,8 @@ export function StatsSection() {
     {
       id: 'awards',
       label: 'Giải thưởng',
-      value: '28',
-      change: '+ 4',
+      value: format(data?.awards),
+      change: 'Từ hệ thống',
       icon: Trophy,
       iconColor: 'text-amber-600',
       bgColor: 'bg-amber-50',

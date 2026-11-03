@@ -3,7 +3,8 @@ import type { Portal } from '../../../../types/portal';
 import { Navbar } from '../Navbar';
 import { Footer } from '../Footer';
 import type { PhotoDetailItem } from './data';
-import { ALL_PHOTOS_DATA } from './data';
+import { useFetch } from '../../../../hooks/useFetch';
+import { publicDataService } from '../../../../services/publicDataService';
 import {
   Trophy,
   Award,
@@ -64,7 +65,8 @@ export function WinningPhotosPage({
     });
   };
 
-  const allPhotos = useMemo(() => Object.values(ALL_PHOTOS_DATA), []);
+  const publicData = useFetch(publicDataService.getData);
+  const allPhotos = useMemo(() => Object.values(publicData.data?.photos ?? {}), [publicData.data]);
 
   const ranks = [
     { id: 'all', label: 'Tất cả giải thưởng' },
@@ -76,9 +78,10 @@ export function WinningPhotosPage({
 
   const years = [
     { id: 'all', label: 'Tất cả các mùa' },
-    { id: '2025', label: 'Mùa 2025' },
-    { id: '2024', label: 'Mùa 2024' },
-    { id: '2023', label: 'Mùa 2023' },
+    ...[...new Set(allPhotos.map((photo) => photo.year).filter((year): year is string => Boolean(year)))]
+      .sort()
+      .reverse()
+      .map((year) => ({ id: year, label: `Mùa ${year}` })),
   ];
 
   const categories = [
@@ -187,7 +190,7 @@ export function WinningPhotosPage({
             </h1>
 
             <p className="text-sm sm:text-base text-slate-300 leading-relaxed max-w-2xl">
-              Nơi vinh danh những khung hình tương tự đẹp nhất, vượt qua hàng ngàn tác phẩm dự thi để giành lấy những giải thưởng danh giá qua các mùa giải.
+              Nơi vinh danh những khung hình tương tự đẹp nhất, vượt qua các tác phẩm dự thi để giành lấy những giải thưởng danh giá qua các mùa giải.
             </p>
 
             {/* Quick Stats */}
@@ -198,11 +201,11 @@ export function WinningPhotosPage({
               </span>
               <span className="flex items-center gap-2">
                 <span className="w-2 h-2 rounded-full bg-blue-400" />
-                3 Mùa giải tổ chức thành công
+                {years.length - 1} Mùa giải có tác phẩm đoạt giải
               </span>
               <span className="flex items-center gap-2">
                 <span className="w-2 h-2 rounded-full bg-emerald-400" />
-                100% Ảnh chụp phim cơ học xác thực AI
+                Tác phẩm được ban tổ chức xét duyệt và giám khảo chấm điểm
               </span>
             </div>
           </div>
