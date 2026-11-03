@@ -13,4 +13,8 @@ public interface SubmissionRepository extends MongoRepository<Submission, String
     List<Submission> findByContestIdAndStatus(String contestId, SubmissionStatus status);
     List<Submission> findByParticipantId(String participantId);
     long countByContestIdAndParticipantId(String contestId, String participantId);
+
+    long countByContestId(String contestId);
+
+    long countByStatus(com.example.backend.enums.SubmissionStatus status);
 }

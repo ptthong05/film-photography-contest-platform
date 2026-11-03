@@ -26,6 +26,7 @@ public class JudgeAssignment extends BaseDocument {
     private String assignedBy;
 
     private List<String> submissionIds = new ArrayList<>();
+    private int remindersSent;
 
     public JudgeAssignment() {
     }
@@ -68,5 +69,13 @@ public class JudgeAssignment extends BaseDocument {
 
     public void setSubmissionIds(List<String> submissionIds) {
         this.submissionIds = submissionIds;
+    }
+
+    public int getRemindersSent() {
+        return remindersSent;
+    }
+
+    public void setRemindersSent(int remindersSent) {
+        this.remindersSent = remindersSent;
     }
 }

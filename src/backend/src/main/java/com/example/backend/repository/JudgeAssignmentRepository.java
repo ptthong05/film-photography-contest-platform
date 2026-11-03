@@ -11,4 +11,6 @@ public interface JudgeAssignmentRepository extends MongoRepository<JudgeAssignme
     List<JudgeAssignment> findByJudgeId(String judgeId);
     List<JudgeAssignment> findByContestId(String contestId);
     boolean existsByContestIdAndJudgeId(String contestId, String judgeId);
+
+    void deleteByContestId(String contestId);
 }

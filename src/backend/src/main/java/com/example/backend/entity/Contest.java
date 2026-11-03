@@ -59,6 +59,12 @@ public class Contest extends BaseDocument {
 
     /** null = chưa công bố kết quả */
     private Instant resultPublishedAt;
+    private boolean archived;
+    private boolean submissionOpen = true;
+    private boolean paused;
+    private Instant plannedResultDate;
+    private List<String> judgeIds = new ArrayList<>();
+    private List<String> defaultJudgeIds = new ArrayList<>();
 
     public Contest() {
     }
@@ -213,5 +219,53 @@ public class Contest extends BaseDocument {
 
     public void setResultPublishedAt(Instant resultPublishedAt) {
         this.resultPublishedAt = resultPublishedAt;
+    }
+
+    public boolean isArchived() {
+        return archived;
+    }
+
+    public void setArchived(boolean archived) {
+        this.archived = archived;
+    }
+
+    public boolean isSubmissionOpen() {
+        return submissionOpen;
+    }
+
+    public void setSubmissionOpen(boolean submissionOpen) {
+        this.submissionOpen = submissionOpen;
+    }
+
+    public boolean isPaused() {
+        return paused;
+    }
+
+    public void setPaused(boolean paused) {
+        this.paused = paused;
+    }
+
+    public Instant getPlannedResultDate() {
+        return plannedResultDate;
+    }
+
+    public void setPlannedResultDate(Instant plannedResultDate) {
+        this.plannedResultDate = plannedResultDate;
+    }
+
+    public List<String> getJudgeIds() {
+        return judgeIds;
+    }
+
+    public void setJudgeIds(List<String> judgeIds) {
+        this.judgeIds = judgeIds;
+    }
+
+    public List<String> getDefaultJudgeIds() {
+        return defaultJudgeIds;
+    }
+
+    public void setDefaultJudgeIds(List<String> defaultJudgeIds) {
+        this.defaultJudgeIds = defaultJudgeIds;
     }
 }

@@ -51,6 +51,11 @@ public class User extends BaseDocument {
     private List<GearItem> gear = new ArrayList<>();
 
     private Instant lastLoginAt;
+    private Integer yearsOfExperience;
+    private boolean defaultJudge;
+    private String address;
+    private String equipment;
+    private List<String> portfolioImages = new ArrayList<>();
 
     public User() {
     }
@@ -157,5 +162,45 @@ public class User extends BaseDocument {
 
     public void setLastLoginAt(Instant lastLoginAt) {
         this.lastLoginAt = lastLoginAt;
+    }
+
+    public Integer getYearsOfExperience() {
+        return yearsOfExperience;
+    }
+
+    public void setYearsOfExperience(Integer yearsOfExperience) {
+        this.yearsOfExperience = yearsOfExperience;
+    }
+
+    public boolean isDefaultJudge() {
+        return defaultJudge;
+    }
+
+    public void setDefaultJudge(boolean defaultJudge) {
+        this.defaultJudge = defaultJudge;
+    }
+
+    public String getAddress() {
+        return address;
+    }
+
+    public void setAddress(String address) {
+        this.address = address;
+    }
+
+    public String getEquipment() {
+        return equipment;
+    }
+
+    public void setEquipment(String equipment) {
+        this.equipment = equipment;
+    }
+
+    public List<String> getPortfolioImages() {
+        return portfolioImages;
+    }
+
+    public void setPortfolioImages(List<String> portfolioImages) {
+        this.portfolioImages = portfolioImages;
     }
 }

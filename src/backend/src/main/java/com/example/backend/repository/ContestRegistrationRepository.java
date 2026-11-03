@@ -12,4 +12,8 @@ public interface ContestRegistrationRepository extends MongoRepository<ContestRe
     List<ContestRegistration> findByContestId(String contestId);
     List<ContestRegistration> findByParticipantId(String participantId);
     Optional<ContestRegistration> findByContestIdAndParticipantId(String contestId, String participantId);
+
+    long countByContestId(String contestId);
+
+    void deleteByContestId(String contestId);
 }

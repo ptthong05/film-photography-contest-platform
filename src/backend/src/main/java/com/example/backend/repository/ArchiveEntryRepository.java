@@ -11,4 +11,6 @@ public interface ArchiveEntryRepository extends MongoRepository<ArchiveEntry, St
     List<ArchiveEntry> findByYear(int year);
     List<ArchiveEntry> findByContestId(String contestId);
     boolean existsBySubmissionId(String submissionId);
+
+    void deleteByContestId(String contestId);
 }

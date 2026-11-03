@@ -63,6 +63,30 @@ public class GlobalExceptionHandler {
         return build(HttpStatus.BAD_REQUEST, message);
     }
 
+    @ExceptionHandler(org.springframework.web.servlet.resource.NoResourceFoundException.class)
+    public ResponseEntity<ErrorResponse> handleNoResource(org.springframework.web.servlet.resource.NoResourceFoundException ex) {
+        return build(HttpStatus.NOT_FOUND, "Không tìm thấy tài nguyên");
+    }
+
+    @ExceptionHandler(org.springframework.web.multipart.MaxUploadSizeExceededException.class)
+    public ResponseEntity<ErrorResponse> handleUploadTooLarge(org.springframework.web.multipart.MaxUploadSizeExceededException ex) {
+        return build(HttpStatus.BAD_REQUEST, "File ảnh vượt quá dung lượng cho phép");
+    }
+
+    @ExceptionHandler(org.springframework.web.multipart.support.MissingServletRequestPartException.class)
+    public ResponseEntity<ErrorResponse> handleMissingPart(org.springframework.web.multipart.support.MissingServletRequestPartException ex) {
+        return build(HttpStatus.BAD_REQUEST, "Vui lòng chọn file ảnh");
+    }
+
+    @ExceptionHandler(org.springframework.validation.BindException.class)
+    public ResponseEntity<ErrorResponse> handleBind(org.springframework.validation.BindException ex) {
+        String message = ex.getBindingResult().getFieldErrors().stream()
+                .findFirst()
+                .map(FieldError::getDefaultMessage)
+                .orElse("Dữ liệu không hợp lệ");
+        return build(HttpStatus.BAD_REQUEST, message);
+    }
+
     @ExceptionHandler(HttpMessageNotReadableException.class)
     public ResponseEntity<ErrorResponse> handleUnreadable(HttpMessageNotReadableException ex) {
         return build(HttpStatus.BAD_REQUEST, "Dữ liệu gửi lên sai định dạng");

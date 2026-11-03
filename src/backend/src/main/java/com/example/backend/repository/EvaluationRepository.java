@@ -15,4 +15,6 @@ public interface EvaluationRepository extends MongoRepository<Evaluation, String
 
     List<Evaluation> findBySubmissionIdAndJudgeIdAndStatus(String submissionId, String judgeId, EvaluationStatus status);
     Optional<Evaluation> findBySubmissionIdAndRoundIdAndJudgeId(String submissionId, String roundId, String judgeId);
+
+    List<Evaluation> findByContestId(String contestId);
 }
