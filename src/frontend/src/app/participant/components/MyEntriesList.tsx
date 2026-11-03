@@ -1,192 +1,74 @@
-import React, { useState, useEffect } from 'react';
+import React, { useState } from 'react';
+import { useFetch } from '../../../hooks/useFetch';
+import { participantService, type EntryDetail } from '../../../services/participantService';
 import {
   FileText, CheckCircle2, AlertTriangle, Clock, Eye,
   ArrowLeft, Cpu, Disc, Award, Sparkles, AlertCircle, X, MapPin, Camera, Sliders, ShieldCheck, Layers, EyeOff, Printer, Edit3, Trash2, Plus, RotateCcw
 } from 'lucide-react';
 
-export interface EntryDetail {
-  id: string;
-  contestId: string;
-  contestTitle?: string;
-  title: string;
-  description: string;
-  photoUrl: string;
-  submittedAt: string;
-  status: 'Đang chờ duyệt' | 'Đã duyệt' | 'Từ chối' | 'Đã chấm' | 'Đã xóa' | string;
-  rejectReason?: string;
-  aiAnalysis?: {
-    summary: string;
-    grainQuality: string;
-    lightingIssue: string;
-    compositionReview: string;
-    recommendation: string;
-  };
-  filmBrand?: string;
-  iso?: number | string;
-  cameraBody?: string;
-  lens?: string;
-  shutterSpeed?: string;
-  aperture?: string;
-  focalLength?: string;
-  shootingLocation?: string;
-  developingLab?: string;
-}
-
-const INITIAL_ENTRIES: EntryDetail[] = [
-  {
-    id: 'sub-004',
-    contestId: '2',
-    contestTitle: 'CUỘC THI PHIM 2026 • FILM & CITY',
-    title: 'Thành phố lúc hoàng hôn',
-    description: 'Sài Gòn chuyển mình trong khoảnh khắc giao thòa giữa ngày và đêm.',
-    photoUrl: 'https://images.unsplash.com/photo-1514565131-fce0801e5785?q=85&w=1000&auto=format&fit=crop',
-    submittedAt: '15/10/2026',
-    status: 'Từ chối',
-    rejectReason: 'Ảnh scan bị lóa sáng phần rìa trái, thông số Metadata không khớp với định dạng chuẩn của dòng máy cơ.',
-    aiAnalysis: {
-      summary: 'Hệ thống AI computer vision đã quét và phát hiện bất thường quang học trên bản scan.',
-      grainQuality: 'Hạt grain bị bết ở vùng tối (shadows) do quá trình tráng thuốc thiếu nhiệt độ.',
-      lightingIssue: 'Xuất hiện hiện tượng lóa sáng (light leak) do nắp lưng máy cơ đóng không khít khi chụp.',
-      compositionReview: 'Bố cục đường phố góc rộng tốt, cân bằng đối xứng nhưng vi phạm quy chuẩn kỹ thuật scan âm bản.',
-      recommendation: 'Cần mang cuộn film ra lab uy tín để scan lại khung hình hoặc chụp bù sáng ở cuộn tiếp theo.'
-    },
-    filmBrand: 'Ilford HP5 Plus 400',
-    iso: 400,
-    cameraBody: 'Leica M6',
-    lens: 'Summicron 35mm f/2.0',
-    shootingLocation: 'Quận 1, TP. Hồ Chí Minh'
-  },
-  {
-    id: 'sub-001',
-    contestId: '1',
-    contestTitle: 'CUỘC THI PHIM 2025 • ANALOG MOMENTS',
-    title: 'NIỀM VUI KHÔNG LỜI',
-    description: 'Giữa thảm cỏ xanh trải dài dưới ánh sáng dịu dàng, một chú chó nhỏ đứng lặng.',
-    photoUrl: 'https://images.unsplash.com/photo-1507525428034-b723cf961d3e?q=85&w=1000&auto=format&fit=crop',
-    submittedAt: '22/10/2026',
-    status: 'Đang chờ duyệt',
-    filmBrand: 'Kodak Portra 400',
-    iso: 400,
-    cameraBody: 'Canon AE-1 Program',
-    lens: 'Canon FD 50mm f/1.8',
-    shootingLocation: 'Đồi chè Cầu Đất, Lâm Đồng'
-  }
-];
 
 export function MyEntriesList() {
-  const [entries, setEntries] = useState<EntryDetail[]>([]);
-  const [trashEntries, setTrashEntries] = useState<EntryDetail[]>([]);
+  const { data, isLoading, error, refetch } = useFetch(participantService.getEntries);
+  const entries = data ?? [];
 
   const [selectedEntry, setSelectedEntry] = useState<EntryDetail | null>(null);
   const [editingEntry, setEditingEntry] = useState<EntryDetail | null>(null);
   const [deleteId, setDeleteId] = useState<string | null>(null);
 
-  const [filterTab, setFilterTab] = useState<'Tất cả' | 'Đang chờ duyệt' | 'Đã duyệt / Đã chấm' | 'Từ chối' | 'Lịch sử xóa'>('Tất cả');
+  const [filterTab, setFilterTab] = useState<'Tất cả' | 'Đang chờ duyệt' | 'Đã duyệt / Đã chấm' | 'Từ chối'>('Tất cả');
   const [toastMessage, setToastMessage] = useState<string | null>(null);
 
-  const syncCountToDashboard = (currentEntries: EntryDetail[]) => {
-    localStorage.setItem('participant_total_entries_count', currentEntries.length.toString());
-    window.dispatchEvent(new Event('storage'));
-  };
-
-  useEffect(() => {
-    try {
-      const savedTrash = localStorage.getItem('participant_trash_entries');
-      const trashList: EntryDetail[] = savedTrash ? JSON.parse(savedTrash) : [];
-      setTrashEntries(trashList);
-
-      const savedEntries = localStorage.getItem('participant_entries');
-      if (savedEntries) {
-        const parsed: EntryDetail[] = JSON.parse(savedEntries);
-        setEntries(parsed);
-        syncCountToDashboard(parsed);
-      } else {
-        const trashIds = trashList.map(t => t.id);
-        const initialFiltered = INITIAL_ENTRIES.filter(item => !trashIds.includes(item.id));
-        setEntries(initialFiltered);
-        localStorage.setItem('participant_entries', JSON.stringify(initialFiltered));
-        syncCountToDashboard(initialFiltered);
-      }
-    } catch (err) {
-      console.error(err);
-    }
-  }, []);
 
   const showToast = (msg: string) => {
     setToastMessage(msg);
     setTimeout(() => setToastMessage(null), 3000);
   };
 
-  const handleSaveFullEdit = (e: React.FormEvent) => {
+  const handleSaveFullEdit = async (e: React.FormEvent) => {
     e.preventDefault();
     if (!editingEntry) return;
-
-    if (editingEntry.status === 'Đã chấm') {
-      alert('Bài dự thi đã được chấm điểm chính thức, không thể thay đổi thông tin!');
+    try {
+      await participantService.updateEntry(editingEntry.id, {
+        contestId: editingEntry.contestId,
+        title: editingEntry.title,
+        description: editingEntry.description,
+        category: editingEntry.category,
+        filmBrand: editingEntry.filmBrand,
+        filmStock: editingEntry.filmStock ?? editingEntry.filmBrand,
+        iso: editingEntry.iso,
+        cameraBody: editingEntry.cameraBody,
+        lens: editingEntry.lens,
+        filmFormat: editingEntry.filmFormat,
+        frameNumber: editingEntry.frameNumber,
+        shootingLocation: editingEntry.shootingLocation,
+        developingLab: editingEntry.developingLab,
+        scanningSpecs: editingEntry.scanningSpecs,
+      });
+      await refetch();
       setEditingEntry(null);
-      return;
+      showToast('Đã lưu và cập nhật toàn bộ thông tin bài dự thi thành công!');
+    } catch (err) {
+      showToast(err instanceof Error ? err.message : 'Không thể cập nhật bài dự thi');
     }
-
-    const updated = entries.map(item => item.id === editingEntry.id ? editingEntry : item);
-    setEntries(updated);
-    localStorage.setItem('participant_entries', JSON.stringify(updated));
-    syncCountToDashboard(updated);
-    setEditingEntry(null);
-    showToast('Đã lưu và cập nhật toàn bộ thông tin bài dự thi thành công!');
   };
 
-  const handleDeleteEntry = (id: string) => {
-    const itemToDelete = entries.find(item => item.id === id);
-    if (!itemToDelete) return;
-
-    const updatedEntries = entries.filter(item => item.id !== id);
-    const updatedTrash = [itemToDelete, ...trashEntries];
-
-    setEntries(updatedEntries);
-    setTrashEntries(updatedTrash);
-
-    localStorage.setItem('participant_entries', JSON.stringify(updatedEntries));
-    localStorage.setItem('participant_trash_entries', JSON.stringify(updatedTrash));
-    syncCountToDashboard(updatedEntries);
-
+  const handleDeleteEntry = async (id: string) => {
+    try {
+      await participantService.deleteEntry(id);
+      await refetch();
+      showToast('Đã xóa bài dự thi!');
+    } catch (err) {
+      showToast(err instanceof Error ? err.message : 'Không thể xóa bài dự thi');
+    }
     setDeleteId(null);
-    showToast('Đã chuyển bài dự thi vào Lịch sử xóa (Thùng rác)!');
-  };
-
-  const handleRestoreEntry = (id: string) => {
-    const itemToRestore = trashEntries.find(item => item.id === id);
-    if (!itemToRestore) return;
-
-    const updatedTrash = trashEntries.filter(item => item.id !== id);
-    const updatedEntries = [itemToRestore, ...entries];
-
-    setTrashEntries(updatedTrash);
-    setEntries(updatedEntries);
-
-    localStorage.setItem('participant_trash_entries', JSON.stringify(updatedTrash));
-    localStorage.setItem('participant_entries', JSON.stringify(updatedEntries));
-    syncCountToDashboard(updatedEntries);
-
-    showToast('Đã khôi phục bài dự thi thành công!');
-  };
-
-  const handlePermanentDelete = (id: string) => {
-    const updatedTrash = trashEntries.filter(item => item.id !== id);
-    setTrashEntries(updatedTrash);
-    localStorage.setItem('participant_trash_entries', JSON.stringify(updatedTrash));
-    setDeleteId(null);
-    showToast('Đã xóa vĩnh viễn bài dự thi!');
   };
 
   const countAll = entries.length;
   const countPending = entries.filter(e => e.status === 'Đang chờ duyệt').length;
   const countApproved = entries.filter(e => e.status === 'Đã duyệt' || e.status === 'Đã chấm').length;
   const countRejected = entries.filter(e => e.status === 'Từ chối').length;
-  const countTrash = trashEntries.length;
 
-  const filteredEntries = filterTab === 'Lịch sử xóa'
-    ? trashEntries
-    : entries.filter(item => {
+  const filteredEntries = entries.filter(item => {
         if (filterTab === 'Tất cả') return true;
         if (filterTab === 'Đang chờ duyệt') return item.status === 'Đang chờ duyệt';
         if (filterTab === 'Đã duyệt / Đã chấm') return item.status === 'Đã duyệt' || item.status === 'Đã chấm';
@@ -380,35 +262,7 @@ export function MyEntriesList() {
               </p>
             </div>
 
-            <div className="bg-purple-900 text-white p-8 md:p-10 rounded-3xl shadow-xl space-y-6 border border-purple-700">
-              <div className="flex items-center gap-3 border-b border-purple-800 pb-4">
-                <Cpu className="w-8 h-8 text-purple-400 animate-pulse" />
-                <div>
-                  <h3 className="text-2xl font-black">AI Phân Tích Ảnh Bài Thi (Computer Vision Report)</h3>
-                  <p className="text-xs text-purple-300">Báo cáo đánh giá chi tiết lỗi hình ảnh và thông số quang học</p>
-                </div>
-              </div>
-
-              <div className="grid grid-cols-1 md:grid-cols-2 gap-6 text-sm">
-                <div className="bg-purple-950/70 p-6 rounded-2xl border border-purple-800/80 space-y-2">
-                  <p className="text-xs font-black text-purple-300 uppercase tracking-wider">🔬 Đánh giá hạt Film (Grain)</p>
-                  <p className="font-semibold text-purple-100 leading-relaxed">{selectedEntry.aiAnalysis?.grainQuality || 'Cấu trúc hạt film ổn định nhưng độ bão hòa màu chưa tối ưu.'}</p>
-                </div>
-                <div className="bg-purple-950/70 p-6 rounded-2xl border border-purple-800/80 space-y-2">
-                  <p className="text-xs font-black text-purple-300 uppercase tracking-wider">💡 Phân tích ánh sáng (Lighting)</p>
-                  <p className="font-semibold text-purple-100 leading-relaxed">{selectedEntry.aiAnalysis?.lightingIssue || 'Phát hiện vùng chói sáng gắt và hiện tượng lóa quang học cục bộ.'}</p>
-                </div>
-                <div className="bg-purple-950/70 p-6 rounded-2xl border border-purple-800/80 space-y-2">
-                  <p className="text-xs font-black text-purple-300 uppercase tracking-wider">🖼 Đánh giá bố cục (Composition)</p>
-                  <p className="font-semibold text-purple-100 leading-relaxed">{selectedEntry.aiAnalysis?.compositionReview || 'Đường dẫn hướng khung hình tốt nhưng điểm rơi chủ thể bị lệch góc.'}</p>
-                </div>
-                <div className="bg-purple-950/70 p-6 rounded-2xl border border-purple-800/80 space-y-2">
-                  <p className="text-xs font-black text-purple-300 uppercase tracking-wider">🛠 Khuyến nghị khắc phục</p>
-                  <p className="font-semibold text-purple-100 leading-relaxed">{selectedEntry.aiAnalysis?.recommendation || 'Kiểm tra lại cơ chế buồng tối máy ảnh và thực hiện scan lại frame.'}</p>
-                </div>
-              </div>
-            </div>
-          </div>
+                      </div>
         )}
 
         <div className="grid grid-cols-1 lg:grid-cols-12 gap-8 items-start">
@@ -475,7 +329,7 @@ export function MyEntriesList() {
             </div>
             <div className="space-y-2">
               <h3 className="text-xl font-black text-slate-900">Xác Nhận Xóa Bài Dự Thi</h3>
-              <p className="text-sm font-medium text-slate-500">Bài dự thi sẽ được chuyển vào mục Lịch sử xóa (Thùng rác).</p>
+              <p className="text-sm font-medium text-slate-500">Bài dự thi sẽ bị xóa khỏi cuộc thi và không thể khôi phục.</p>
             </div>
             <div className="flex gap-3">
               <button onClick={() => setDeleteId(null)} className="flex-1 py-3 bg-slate-100 text-slate-700 font-black text-xs rounded-xl cursor-pointer">
@@ -529,14 +383,6 @@ export function MyEntriesList() {
           }`}
         >
           Từ chối ({countRejected})
-        </button>
-        <button
-          onClick={() => setFilterTab('Lịch sử xóa')}
-          className={`px-6 py-3 rounded-2xl text-xs font-black transition whitespace-nowrap cursor-pointer flex items-center gap-2 ${
-            filterTab === 'Lịch sử xóa' ? 'bg-rose-600 text-white shadow-md' : 'bg-rose-50 hover:bg-rose-100 text-rose-700 border border-rose-200'
-          }`}
-        >
-          <Trash2 className="w-3.5 h-3.5" /> Lịch sử xóa ({countTrash})
         </button>
       </div>
 

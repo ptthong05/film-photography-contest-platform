@@ -1,4 +1,7 @@
 import React, { useState, useEffect, useRef } from 'react';
+import { useFetch } from '../../../hooks/useFetch';
+import { request } from '../../../services/apiClient';
+import { formatDate } from '../../../utils/formatDate';
 import { Trophy, CheckCircle2, FileText, ArrowRight, Sparkles, Bell, ArrowLeft, Star, Award } from 'lucide-react';
 
 export interface ResultItem {
@@ -14,94 +17,51 @@ export interface ResultItem {
   judgeName: string;
   judgeComment: string;
   category: string;
-  criteriaScores: {
-    composition: string;
-    lighting: string;
-    content: string;
-    technique: string;
-    creativity: string;
-  };
+  criteria: { name: string; score: string }[];
 }
 
-interface StoredEntryItem {
-  id?: string;
-  contestTitle?: string;
-  title?: string;
-  status?: string;
-  photoUrl?: string;
-  submittedAt?: string;
-  description?: string;
+interface ApiMyResult {
+  submissionId: string;
+  contestTitle: string;
+  title: string;
+  imageUrl: string | null;
+  category: string | null;
+  rank: number;
+  totalRanked: number;
+  score: number;
+  awardTitle: string | null;
+  publishedAt: string;
+  judgeFeedback: { judgeName: string; comment: string }[];
+  criteria: { name: string; averageScore: number; maxScore: number }[];
 }
 
-const INITIAL_RESULTS: ResultItem[] = [
-  {
-    id: 'res-01',
-    contestName: 'Analog Moments 2025',
-    artworkTitle: 'Hoàng Hôn Cầu Ba Son',
-    prize: 'Giải Nhì',
-    rankInfo: 'Hạng 2 / 25',
+const fetchResults = async (): Promise<ResultItem[]> => {
+  const results = await request<ApiMyResult[]>('/submissions/mine/results');
+  return results.map((item) => ({
+    id: item.submissionId,
+    contestName: item.contestTitle,
+    artworkTitle: item.title,
+    prize: item.awardTitle ?? 'Hoàn thành chấm điểm',
+    rankInfo: `Hạng ${item.rank} / ${item.totalRanked}`,
     status: 'Đã công bố chính thức',
-    score: '86.5',
-    imageUrl: 'https://images.unsplash.com/photo-1506744038136-46273834b3fb?auto=format&fit=crop&q=80',
-    date: '30/06/2025',
-    judgeName: 'Lê Minh Tuấn',
-    judgeComment: 'Bức ảnh có bố cục tốt, ánh sáng hài hòa và thể hiện được cảm xúc rất chân thực.',
-    category: 'Phong cảnh • Chân dung • Đời sống',
-    criteriaScores: {
-      composition: '18.5 / 20',
-      lighting: '17.5 / 20',
-      content: '17.0 / 20',
-      technique: '16.5 / 20',
-      creativity: '17.0 / 20'
-    }
-  }
-];
+    score: item.score.toFixed(1),
+    imageUrl: item.imageUrl ?? '',
+    date: formatDate(item.publishedAt),
+    judgeName: item.judgeFeedback.map((feedback) => feedback.judgeName).join(', ') || 'Hội đồng giám khảo',
+    judgeComment: item.judgeFeedback.map((feedback) => feedback.comment).join(' ') || 'Chưa có nhận xét.',
+    category: item.category ?? '',
+    criteria: item.criteria.map((criterion) => ({ name: criterion.name, score: `${criterion.averageScore} / ${criterion.maxScore}` })),
+  }));
+};
 
 export function ResultsTab() {
-  const [resultsList, setResultsList] = useState<ResultItem[]>(INITIAL_RESULTS);
+  const { data, isLoading, error } = useFetch(fetchResults);
+  const resultsList = data ?? [];
   const [selectedResult, setSelectedResult] = useState<ResultItem | null>(null);
   const [showCelebration, setShowCelebration] = useState(false);
   const [toastMessage, setToastMessage] = useState<string | null>(null);
   const canvasRef = useRef<HTMLCanvasElement | null>(null);
 
-  useEffect(() => {
-    try {
-      const savedEntries = localStorage.getItem('participant_entries');
-      if (savedEntries) {
-        const parsedEntries: StoredEntryItem[] = JSON.parse(savedEntries);
-        if (Array.isArray(parsedEntries)) {
-          const gradedEntries = parsedEntries.filter((item: StoredEntryItem) => item.status === 'Đã chấm');
-
-          const convertedGraded: ResultItem[] = gradedEntries.map((item: StoredEntryItem, idx: number) => ({
-            id: item.id || `res-graded-${idx}`,
-            contestName: item.contestTitle || 'Cuộc thi Phim Analog',
-            artworkTitle: item.title || 'Tác phẩm',
-            prize: 'Đã hoàn thành chấm điểm',
-            rankInfo: 'Top Đánh Giá Khảo Sát',
-            status: 'Đã chấm điểm chính thức',
-            score: '88.0',
-            imageUrl: item.photoUrl || '',
-            date: item.submittedAt || 'Mới cập nhật',
-            judgeName: 'Hội đồng Giám khảo',
-            judgeComment: item.description || 'Tác phẩm được đánh giá cao về mặt cảm xúc và kỹ thuật phim.',
-            category: 'Nhiếp ảnh Phim Truyền Thống',
-            criteriaScores: {
-              composition: '18.0 / 20',
-              lighting: '17.5 / 20',
-              content: '18.0 / 20',
-              technique: '17.0 / 20',
-              creativity: '17.5 / 20'
-            }
-          }));
-
-          const combined = [...convertedGraded, ...INITIAL_RESULTS.filter(res => !convertedGraded.some(g => g.artworkTitle === res.artworkTitle))];
-          setResultsList(combined);
-        }
-      }
-    } catch (e) {
-      console.error(e);
-    }
-  }, []);
 
   const showToast = (msg: string) => {
     setToastMessage(msg);
@@ -285,26 +245,12 @@ export function ResultsTab() {
               </div>
 
               <div className="divide-y divide-slate-100 text-xs font-bold">
-                <div className="grid grid-cols-2 px-6 py-4 hover:bg-slate-50/80 transition">
-                  <span className="text-slate-800">Bố cục</span>
-                  <span className="text-right font-black text-slate-900">{selectedResult.criteriaScores.composition}</span>
-                </div>
-                <div className="grid grid-cols-2 px-6 py-4 hover:bg-slate-50/80 transition">
-                  <span className="text-slate-800">Ánh sáng</span>
-                  <span className="text-right font-black text-slate-900">{selectedResult.criteriaScores.lighting}</span>
-                </div>
-                <div className="grid grid-cols-2 px-6 py-4 hover:bg-slate-50/80 transition">
-                  <span className="text-slate-800">Nội dung</span>
-                  <span className="text-right font-black text-slate-900">{selectedResult.criteriaScores.content}</span>
-                </div>
-                <div className="grid grid-cols-2 px-6 py-4 hover:bg-slate-50/80 transition">
-                  <span className="text-slate-800">Kỹ thuật (film & scan)</span>
-                  <span className="text-right font-black text-slate-900">{selectedResult.criteriaScores.technique}</span>
-                </div>
-                <div className="grid grid-cols-2 px-6 py-4 hover:bg-slate-50/80 transition">
-                  <span className="text-slate-800">Tính sáng tạo</span>
-                  <span className="text-right font-black text-slate-900">{selectedResult.criteriaScores.creativity}</span>
-                </div>
+                {selectedResult.criteria.map((criterion) => (
+                  <div key={criterion.name} className="grid grid-cols-2 px-6 py-4 hover:bg-slate-50/80 transition">
+                    <span className="text-slate-800">{criterion.name}</span>
+                    <span className="text-right font-black text-slate-900">{criterion.score}</span>
+                  </div>
+                ))}
               </div>
             </div>
           </div>
@@ -362,6 +308,11 @@ export function ResultsTab() {
       </div>
 
       <div className="grid grid-cols-1 md:grid-cols-2 gap-8">
+        {isLoading && <p className="text-sm text-slate-500">Đang tải kết quả...</p>}
+        {error && <p className="text-sm text-rose-600">{error}</p>}
+        {!isLoading && !error && resultsList.length === 0 && (
+          <p className="rounded-2xl border border-slate-200 bg-white p-8 text-center text-sm text-slate-500">Chưa có kết quả nào được công bố cho bài dự thi của bạn.</p>
+        )}
         {resultsList.map((res) => (
           <div
             key={res.id}
@@ -389,7 +340,7 @@ export function ResultsTab() {
                     <span>{res.status}</span>
                   </div>
                   <div className="font-black text-amber-600 bg-amber-50 px-3 py-1 rounded-xl border border-amber-200">
-                    ⭐ Điểm hội đồng: {res.score} / 100
+                    ⭐ Điểm hội đồng: {res.score} / 10
                   </div>
                 </div>
               </div>

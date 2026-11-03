@@ -1,4 +1,8 @@
 import React, { useState, useEffect } from 'react';
+import { uploadImage, request } from '../../../services/apiClient';
+import { participantService } from '../../../services/participantService';
+import { profileService } from '../../../services/profileService';
+import { formatDate } from '../../../utils/formatDate';
 import { User, Mail, Phone, MapPin, Calendar, Camera, Edit3, Plus, Sparkles, Trophy, CheckCircle2, ArrowRight, ExternalLink, Users, MessageSquare, X, Send, Award, Film, Image as ImageIcon, Trash2 } from 'lucide-react';
 
 interface ParticipantEntryItem {
@@ -61,192 +65,105 @@ export function ProfileTab() {
   const [chatHistory, setChatHistory] = useState<string[]>([]);
 
   const [profile, setProfile] = useState({
-    name: 'Hồ Thanh Bình',
+    name: '',
     role: 'Nhiếp ảnh gia phim',
-    email: 'hothanhbinh.film@gmail.com',
-    phone: '0348498595',
-    address: 'Quận 1, TP. Hồ Chí Minh',
-    joinDate: '15/05/2025',
-    equipment: 'Leica M6, Canon AE-1, Nikon FM2',
-    bio: 'Nhiếp ảnh gia phim nghiệp dư, đam mê hệ máy Leica và dòng phim màu Kodak Portra.',
+    email: '',
+    phone: '',
+    address: '',
+    joinDate: '',
+    equipment: '',
+    bio: '',
     avatarUrl: ''
   });
 
-  const [portfolioImages, setPortfolioImages] = useState<string[]>([
-    'https://images.unsplash.com/photo-1540555700478-4be289fbecef?auto=format&fit=crop&q=80',
-    'https://images.unsplash.com/photo-1507525428034-b723cf961d3e?auto=format&fit=crop&q=80',
-    'https://images.unsplash.com/photo-1514565131-fce0801e5785?auto=format&fit=crop&q=80'
-  ]);
+  const [portfolioImages, setPortfolioImages] = useState<string[]>([]);
 
   const [joinedContests, setJoinedContests] = useState<ContestDetail[]>([]);
   const [achievements, setAchievements] = useState<AchievementDetail[]>([]);
 
   useEffect(() => {
-    const loadProfileData = () => {
+    const loadProfileData = async () => {
       try {
-        const savedProfile = localStorage.getItem('participant_profile');
-        if (savedProfile) {
-          const parsed = JSON.parse(savedProfile);
-          setProfile(prev => ({ ...prev, ...parsed }));
-        }
-        const savedPortfolio = localStorage.getItem('participant_portfolio');
-        if (savedPortfolio) {
-          const parsedPortfolio = JSON.parse(savedPortfolio);
-          if (Array.isArray(parsedPortfolio)) {
-            setPortfolioImages(parsedPortfolio);
-          }
-        }
-
-        const savedEntries = localStorage.getItem('participant_entries');
-        if (savedEntries) {
-          const parsed: ParticipantEntryItem[] = JSON.parse(savedEntries);
-          if (Array.isArray(parsed)) {
-            const graded = parsed.filter((item: ParticipantEntryItem) => item.status === 'Đã chấm');
-
-            const mappedContests: ContestDetail[] = graded.map((item: ParticipantEntryItem, idx: number) => ({
-              id: item.id || `graded-${idx}`,
-              title: item.contestTitle || 'CUỘC THI PHIM ANALOG',
-              artworkTitle: item.title,
-              role: 'Thí sinh dự thi chính thức',
-              status: 'Đã hoàn thành',
-              date: item.submittedAt ? `Tháng ${item.submittedAt.slice(3)}` : 'Tháng 10/2026',
-              badge: 'Completed',
-              description: item.description || 'Tác phẩm đã hoàn thành quá trình chấm điểm từ hội đồng giám khảo.',
-              artisticConcept: 'Nhiếp ảnh phim truyền thống nguyên bản.',
-              rules: 'Tuân thủ quy chế kỹ thuật phòng tối.',
-              prizePool: 'Đã hoàn thành chấm điểm chính thức'
-            }));
-
-            const mappedAchievements: AchievementDetail[] = graded.map((item: ParticipantEntryItem, idx: number) => ({
-              id: `ach-${idx}`,
-              title: `Tác phẩm: ${item.title || 'Không tên'}`,
-              contest: item.contestTitle || 'CUỘC THI PHIM ANALOG',
-              prize: 'Đã hoàn thành chấm điểm • Top Đánh Giá',
-              date: '2026',
-              description: item.description || 'Được hội đồng giám khảo đánh giá cao về mặt cảm xúc.',
-              issuedBy: 'Hội đồng Giám khảo'
-            }));
-
-            const defaultBaSonContest: ContestDetail = {
-              id: 'res-01',
-              title: 'ANALOG MOMENTS 2025',
-              artworkTitle: 'Hoàng Hôn Cầu Ba Son',
-              role: 'Thí sinh dự thi chính thức',
-              status: 'Đã hoàn thành',
-              date: 'Tháng 06/2025',
-              badge: 'Completed',
-              description: 'Cuộc thi nhiếp ảnh phim nhựa quy mô lớn nhất năm 2025, tìm kiếm những khoảnh khắc chân thực và cảm xúc nhất.',
-              artisticConcept: 'Tôn vinh hạt film (grain), độ tương phản và nghệ thuật kể chuyện.',
-              rules: 'Sử dụng máy ảnh phim analog (35mm, Medium Format).',
-              prizePool: 'Giải Nhì • 15,000,000 VNĐ'
-            };
-
-            const defaultBaSonAchievement: AchievementDetail = {
-              id: 'a1',
-              title: 'Giải Nhì - Hoàng Hôn Cầu Ba Son',
-              contest: 'ANALOG MOMENTS 2025',
-              prize: 'Hạng 2 / 25 • Điểm: 86.5 / 100',
-              date: '2025',
-              description: 'Tác phẩm có bố cục tốt, ánh sáng hài hòa và thể hiện được cảm xúc rất chân thực.',
-              issuedBy: 'Ban Tổ Chức Analog Moments'
-            };
-
-            const finalContests = [defaultBaSonContest, ...mappedContests];
-            const finalAchievements = [defaultBaSonAchievement, ...mappedAchievements];
-
-            setJoinedContests(finalContests);
-            setAchievements(finalAchievements);
-          }
-        } else {
-          setJoinedContests([
-            {
-              id: 'res-01',
-              title: 'ANALOG MOMENTS 2025',
-              artworkTitle: 'Hoàng Hôn Cầu Ba Son',
-              role: 'Thí sinh dự thi chính thức',
-              status: 'Đã hoàn thành',
-              date: 'Tháng 06/2025',
-              badge: 'Completed',
-              description: 'Cuộc thi nhiếp ảnh phim nhựa quy mô lớn nhất năm 2025, tìm kiếm những khoảnh khắc chân thực và cảm xúc nhất.',
-              artisticConcept: 'Tôn vinh hạt film (grain), độ tương phản và nghệ thuật kể chuyện.',
-              rules: 'Sử dụng máy ảnh phim analog (35mm, Medium Format).',
-              prizePool: 'Giải Nhì • 15,000,000 VNĐ'
-            }
-          ]);
-          setAchievements([
-            {
-              id: 'a1',
-              title: 'Giải Nhì - Hoàng Hôn Cầu Ba Son',
-              contest: 'ANALOG MOMENTS 2025',
-              prize: 'Hạng 2 / 25 • Điểm: 86.5 / 100',
-              date: '2025',
-              description: 'Tác phẩm có bố cục tốt, ánh sáng hài hòa và thể hiện được cảm xúc rất chân thực.',
-              issuedBy: 'Ban Tổ Chức Analog Moments'
-            }
-          ]);
-        }
+        const [account, contests, registrations, entries, results] = await Promise.all([
+          profileService.getProfile(),
+          participantService.getContests(),
+          participantService.getRegistrations(),
+          participantService.getEntries(),
+          request<{ submissionId: string; contestTitle: string; title: string; rank: number; totalRanked: number; score: number; awardTitle: string | null; publishedAt: string; judgeFeedback: { comment: string }[] }[]>('/submissions/mine/results'),
+        ]);
+        setProfile((previous) => ({
+          ...previous,
+          name: account.name,
+          email: account.email,
+          phone: account.phone ?? '',
+          address: account.address ?? '',
+          joinDate: account.createdAt ? formatDate(account.createdAt) : '',
+          equipment: account.equipment ?? '',
+          bio: account.bio ?? '',
+          avatarUrl: account.avatarUrl ?? '',
+        }));
+        setPortfolioImages(account.portfolioImages ?? []);
+        setJoinedContests(registrations.map((registration) => {
+          const contest = contests.find((item) => item.id === registration.contestId);
+          const entry = entries.find((item) => item.contestId === registration.contestId);
+          return {
+            id: registration.id,
+            title: registration.contestTitle,
+            artworkTitle: entry?.title,
+            role: 'Thí sinh dự thi',
+            status: contest?.status ?? 'Đã đăng ký',
+            date: formatDate(registration.registeredAt),
+            badge: contest?.status === 'Đã kết thúc' ? 'Completed' : 'Active',
+            description: contest?.description ?? '',
+            artisticConcept: contest?.category ?? '',
+            rules: contest?.rules.join(' ') ?? '',
+            prizePool: contest?.prizes.first ?? '',
+          } as ContestDetail;
+        }));
+        setAchievements(results.filter((item) => item.awardTitle).map((item) => ({
+          id: item.submissionId,
+          title: `${item.awardTitle} - ${item.title}`,
+          contest: item.contestTitle,
+          prize: `Hạng ${item.rank} / ${item.totalRanked} • Điểm: ${item.score} / 10`,
+          date: formatDate(item.publishedAt).slice(-4),
+          description: item.judgeFeedback[0]?.comment ?? '',
+          issuedBy: 'Ban tổ chức',
+        })));
       } catch (e) {
         console.error(e);
       }
     };
 
-    loadProfileData();
-    window.addEventListener('storage', loadProfileData);
-    window.addEventListener('avatarChanged', loadProfileData);
-
-    return () => {
-      window.removeEventListener('storage', loadProfileData);
-      window.removeEventListener('avatarChanged', loadProfileData);
-    };
+    void loadProfileData();
   }, []);
 
-  const [friendsList] = useState<FriendItem[]>([
-    {
-      id: 'f1',
-      name: 'Nguyễn Minh Khôi',
-      role: 'Chuyên gia rửa phim B&W',
-      avatar: 'https://images.unsplash.com/photo-1535713875002-d1d0cf377fde?auto=format&fit=crop&q=80',
-      status: 'Đang hoạt động',
-      mutualContests: 2,
-      email: 'khoi.bw@gmail.com',
-      phone: '0901234567',
-      equipment: 'Leica M3, Hasselblad 500CM',
-      bio: 'Đam mê hoài cổ với nghệ thuật tráng phim thủ công đen trắng.',
-      recentPhotos: [
-        'https://images.unsplash.com/photo-1516035069371-29a1b244cc32?auto=format&fit=crop&q=80',
-        'https://images.unsplash.com/photo-1471341971476-ae15ff5dd4ea?auto=format&fit=crop&q=80'
-      ]
-    },
-    {
-      id: 'f2',
-      name: 'Trần Hải Nam',
-      role: 'Nhiếp ảnh gia Street Life',
-      avatar: 'https://images.unsplash.com/photo-1570295999919-56ceb5ecca61?auto=format&fit=crop&q=80',
-      status: 'Hoạt động 2 giờ trước',
-      mutualContests: 1,
-      email: 'hainam.street@gmail.com',
-      phone: '0918888999',
-      equipment: 'Contax T2, Leica MP',
-      bio: 'Săn tìm những khoảnh khắc đời thường qua ống kính rangefinder.',
-      recentPhotos: [
-        'https://images.unsplash.com/photo-1500648767791-00dcc994a43e?auto=format&fit=crop&q=80'
-      ]
-    }
-  ]);
+  // Tính năng bạn bè và nhắn tin chưa có backend nên danh sách luôn rỗng
+  const friendsList: FriendItem[] = [];
 
   const showToast = (msg: string) => {
     setToastMessage(msg);
     setTimeout(() => setToastMessage(null), 3000);
   };
 
-  const handleSave = (e: React.FormEvent) => {
+  const handleSave = async (e: React.FormEvent) => {
     e.preventDefault();
-    setIsEditing(false);
-    localStorage.setItem('participant_profile', JSON.stringify(profile));
-    localStorage.setItem('participant_user_name', profile.name);
-    window.dispatchEvent(new Event('userNameChanged'));
-    showToast('Đã cập nhật thông tin hồ sơ cá nhân thành công!');
+    try {
+      await profileService.saveProfile({
+        name: profile.name,
+        email: profile.email,
+        phone: profile.phone,
+        bio: profile.bio,
+        address: profile.address,
+        equipment: profile.equipment,
+      });
+      setIsEditing(false);
+      showToast('Đã cập nhật thông tin hồ sơ cá nhân thành công!');
+    } catch (err) {
+      showToast(err instanceof Error ? err.message : 'Không thể cập nhật hồ sơ');
+    }
   };
+
+  const toBlob = async (dataUrl: string) => (await fetch(dataUrl)).blob();
 
   const compressImage = (file: File, callback: (result: string) => void) => {
     const reader = new FileReader();
@@ -288,48 +205,51 @@ export function ProfileTab() {
     if (e.target.files && e.target.files[0]) {
       const file = e.target.files[0];
       compressImage(file, (compressedBase64) => {
-        const updatedProfile = { ...profile, avatarUrl: compressedBase64 };
-        setProfile(updatedProfile);
-
-        localStorage.setItem('participant_profile', JSON.stringify(updatedProfile));
-        localStorage.setItem('participant_avatar', compressedBase64);
-        localStorage.setItem('participant_user_name', profile.name);
-
-        window.dispatchEvent(new Event('avatarChanged'));
-        window.dispatchEvent(new Event('userNameChanged'));
-        showToast('Đã cập nhật và lưu vĩnh viễn ảnh đại diện!');
+        toBlob(compressedBase64)
+          .then((blob) => profileService.saveAvatar(blob))
+          .then((account) => {
+            setProfile((previous) => ({ ...previous, avatarUrl: account.avatarUrl ?? '' }));
+            showToast('Đã cập nhật ảnh đại diện!');
+          })
+          .catch((err: unknown) => showToast(err instanceof Error ? err.message : 'Không thể cập nhật ảnh đại diện'));
       });
     }
   };
 
   const handleRemoveAvatar = (e: React.MouseEvent) => {
     e.stopPropagation();
-    const updatedProfile = { ...profile, avatarUrl: '' };
-    setProfile(updatedProfile);
-    localStorage.setItem('participant_profile', JSON.stringify(updatedProfile));
-    localStorage.removeItem('participant_avatar');
-    window.dispatchEvent(new Event('avatarChanged'));
-    window.dispatchEvent(new Event('userNameChanged'));
-    showToast('Đã xóa ảnh đại diện!');
+    profileService.removeAvatar()
+      .then(() => {
+        setProfile((previous) => ({ ...previous, avatarUrl: '' }));
+        showToast('Đã xóa ảnh đại diện!');
+      })
+      .catch((err: unknown) => showToast(err instanceof Error ? err.message : 'Không thể xóa ảnh đại diện'));
   };
 
   const handleAddPortfolioImage = (e: React.ChangeEvent<HTMLInputElement>) => {
     if (e.target.files && e.target.files[0]) {
       const file = e.target.files[0];
       compressImage(file, (compressedBase64) => {
-        const updatedList = [compressedBase64, ...portfolioImages];
-        setPortfolioImages(updatedList);
-        localStorage.setItem('participant_portfolio', JSON.stringify(updatedList));
-        showToast('Đã thêm ảnh vào Portfolio và lưu thành công!');
+        toBlob(compressedBase64)
+          .then((blob) => uploadImage(blob, 'portfolio.jpg'))
+          .then((url) => {
+            const updatedList = [url, ...portfolioImages];
+            return profileService.savePortfolio(updatedList).then(() => setPortfolioImages(updatedList));
+          })
+          .then(() => showToast('Đã thêm ảnh vào Portfolio và lưu thành công!'))
+          .catch((err: unknown) => showToast(err instanceof Error ? err.message : 'Không thể thêm ảnh'));
       });
     }
   };
 
   const handleRemovePortfolioImage = (indexToRemove: number) => {
     const updatedList = portfolioImages.filter((_, idx) => idx !== indexToRemove);
-    setPortfolioImages(updatedList);
-    localStorage.setItem('participant_portfolio', JSON.stringify(updatedList));
-    showToast('Đã xóa ảnh khỏi Portfolio!');
+    profileService.savePortfolio(updatedList)
+      .then(() => {
+        setPortfolioImages(updatedList);
+        showToast('Đã xóa ảnh khỏi Portfolio!');
+      })
+      .catch((err: unknown) => showToast(err instanceof Error ? err.message : 'Không thể xóa ảnh'));
   };
 
   const handleSendChat = (e: React.FormEvent) => {

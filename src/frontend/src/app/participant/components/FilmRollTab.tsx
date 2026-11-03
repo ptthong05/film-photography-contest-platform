@@ -1,77 +1,29 @@
 import React, { useState, useEffect } from 'react';
+import { useFetch } from '../../../hooks/useFetch';
+import { participantService, type FilmRoll } from '../../../services/participantService';
 import { Plus, Disc, Camera, Sparkles, Edit3, Trash2 } from 'lucide-react';
 
-export interface FilmRollItem {
-  id: string;
-  code: string;
-  name: string;
-  brand: string;
-  iso: number;
-  format: string;
-  cameraBody: string;
-  totalFrames: number;
+export interface FilmRollItem extends FilmRoll {
   usedFrames: number;
   status: 'Đang sử dụng' | 'Chưa dùng' | 'Đã dùng hết';
-  usedFrameNumbers: number[];
 }
 
-const INITIAL_FILM_ROLLS: FilmRollItem[] = [
-  {
-    id: 'roll-001',
-    code: 'ROLL #001',
-    name: 'Kodak Portra 400',
-    brand: 'Kodak',
-    iso: 400,
-    format: '35mm',
-    cameraBody: 'Canon AE-1',
-    totalFrames: 36,
-    usedFrames: 12,
-    status: 'Đang sử dụng',
-    usedFrameNumbers: [1, 2, 3, 4, 5, 6, 7, 8, 11, 13, 14, 15]
-  },
-  {
-    id: 'roll-002',
-    code: 'ROLL #002',
-    name: 'Fuji Superia 400',
-    brand: 'Fujifilm',
-    iso: 400,
-    format: '35mm',
-    cameraBody: 'Nikon FM2',
-    totalFrames: 36,
-    usedFrames: 0,
-    status: 'Chưa dùng',
-    usedFrameNumbers: []
-  },
-  {
-    id: 'roll-003',
-    code: 'ROLL #003',
-    name: 'Ilford HP5 Plus',
-    brand: 'Ilford',
-    iso: 400,
-    format: '35mm',
-    cameraBody: 'Canon AE-1',
-    totalFrames: 36,
-    usedFrames: 36,
-    status: 'Đã dùng hết',
-    usedFrameNumbers: Array.from({ length: 36 }, (_, i) => i + 1)
-  }
-];
+function toRollItem(roll: FilmRoll): FilmRollItem {
+  const usedFrames = roll.usedFrameNumbers.length;
+  let status: FilmRollItem['status'] = 'Đang sử dụng';
+  if (usedFrames === 0) status = 'Chưa dùng';
+  else if (usedFrames >= roll.totalFrames) status = 'Đã dùng hết';
+  return { ...roll, usedFrames, status };
+}
+
+/** Hiển thị khi thí sinh chưa khai báo cuộn nào */
+const EMPTY_ROLL: FilmRollItem = toRollItem({ id: '', code: 'Chưa có cuộn phim', name: 'Hãy khai báo cuộn phim đầu tiên', brand: '', iso: 0, format: '', cameraBody: '', totalFrames: 0, usedFrameNumbers: [] });
 
 export function FilmRollTab() {
-  const [rolls, setRolls] = useState<FilmRollItem[]>(() => {
-    try {
-      const saved = localStorage.getItem('participant_film_rolls');
-      if (saved) {
-        const parsed = JSON.parse(saved);
-        if (Array.isArray(parsed) && parsed.length > 0) return parsed;
-      }
-    } catch (e) {
-      console.error(e);
-    }
-    return INITIAL_FILM_ROLLS;
-  });
+  const { data, refetch } = useFetch(participantService.getFilmRolls);
+  const rolls = (data ?? []).map(toRollItem);
 
-  const [selectedRollId, setSelectedRollId] = useState<string>(() => rolls[0]?.id || 'roll-001');
+  const [selectedRollId, setSelectedRollId] = useState<string>('');
   const [showAddModal, setShowAddModal] = useState(false);
   const [editingRoll, setEditingRoll] = useState<FilmRollItem | null>(null);
   const [deleteConfirmId, setDeleteConfirmId] = useState<string | null>(null);
@@ -85,15 +37,7 @@ export function FilmRollTab() {
   const [formCamera, setFormCamera] = useState('Minolta SRT 101');
   const [formTotalFrames, setFormTotalFrames] = useState(36);
 
-  const selectedRoll = rolls.find(r => r.id === selectedRollId) || rolls[0] || INITIAL_FILM_ROLLS[0];
-
-  useEffect(() => {
-    try {
-      localStorage.setItem('participant_film_rolls', JSON.stringify(rolls));
-    } catch (e) {
-      console.error(e);
-    }
-  }, [rolls]);
+  const selectedRoll = rolls.find(r => r.id === selectedRollId) || rolls[0] || EMPTY_ROLL;
 
   const showToast = (msg: string) => {
     setToastMessage(msg);
@@ -123,55 +67,30 @@ export function FilmRollTab() {
     setShowAddModal(true);
   };
 
-  const handleSaveRoll = (e: React.FormEvent) => {
+  const handleSaveRoll = async (e: React.FormEvent) => {
     e.preventDefault();
-    if (editingRoll) {
-      const updated = rolls.map(r => {
-        if (r.id === editingRoll.id) {
-          const usedCount = r.usedFrameNumbers.filter(n => n <= formTotalFrames).length;
-          let newStatus: FilmRollItem['status'] = r.status;
-          if (usedCount === 0) newStatus = 'Chưa dùng';
-          else if (usedCount >= formTotalFrames) newStatus = 'Đã dùng hết';
-          else newStatus = 'Đang sử dụng';
-
-          return {
-            ...r,
-            name: formName,
-            brand: formBrand,
-            iso: Number(formIso),
-            format: formFormat,
-            cameraBody: formCamera,
-            totalFrames: Number(formTotalFrames),
-            usedFrames: usedCount,
-            status: newStatus,
-            usedFrameNumbers: r.usedFrameNumbers.filter(n => n <= formTotalFrames)
-          };
-        }
-        return r;
-      });
-      setRolls(updated);
+    const input = {
+      name: formName,
+      brand: formBrand,
+      iso: Number(formIso),
+      format: formFormat,
+      cameraBody: formCamera,
+      totalFrames: Number(formTotalFrames),
+    };
+    try {
+      if (editingRoll) {
+        const usedFrameNumbers = editingRoll.usedFrameNumbers.filter(n => n <= formTotalFrames);
+        await participantService.updateFilmRoll(editingRoll.id, { ...input, usedFrameNumbers });
+        showToast(`Đã cập nhật thông tin cuộn phim ${editingRoll.code} thành công!`);
+      } else {
+        const created = await participantService.createFilmRoll({ ...input, usedFrameNumbers: [] });
+        setSelectedRollId(created.id);
+        showToast(`Đã khai báo thành công cuộn phim ${created.code} - ${created.name}!`);
+      }
+      await refetch();
       setShowAddModal(false);
-      showToast(`Đã cập nhật thông tin cuộn phim ${editingRoll.code} thành công!`);
-    } else {
-      const newRoll: FilmRollItem = {
-        id: `roll-${Date.now()}`,
-        code: `ROLL #${String(rolls.length + 1).padStart(3, '0')}`,
-        name: formName,
-        brand: formBrand,
-        iso: Number(formIso),
-        format: formFormat,
-        cameraBody: formCamera,
-        totalFrames: Number(formTotalFrames),
-        usedFrames: 0,
-        status: 'Chưa dùng',
-        usedFrameNumbers: []
-      };
-
-      const updatedRolls = [newRoll, ...rolls];
-      setRolls(updatedRolls);
-      setSelectedRollId(newRoll.id);
-      setShowAddModal(false);
-      showToast(`Đã khai báo thành công cuộn phim ${newRoll.code} - ${newRoll.name}!`);
+    } catch (err) {
+      showToast(err instanceof Error ? err.message : 'Không thể lưu cuộn phim');
     }
   };
 
@@ -180,47 +99,32 @@ export function FilmRollTab() {
     setDeleteConfirmId(id);
   };
 
-  const confirmDelete = () => {
+  const confirmDelete = async () => {
     if (!deleteConfirmId) return;
-    const remaining = rolls.filter(r => r.id !== deleteConfirmId);
-    if (remaining.length === 0) {
-      showToast('Cần giữ lại ít nhất một cuộn phim trong hệ thống!');
-      setDeleteConfirmId(null);
-      return;
-    }
-    setRolls(remaining);
-    if (selectedRollId === deleteConfirmId) {
-      setSelectedRollId(remaining[0].id);
+    try {
+      await participantService.deleteFilmRoll(deleteConfirmId);
+      await refetch();
+      if (selectedRollId === deleteConfirmId) setSelectedRollId('');
+      showToast('Đã xóa cuộn phim khỏi hệ thống!');
+    } catch (err) {
+      showToast(err instanceof Error ? err.message : 'Không thể xóa cuộn phim');
     }
     setDeleteConfirmId(null);
-    showToast('Đã xóa cuộn phim khỏi hệ thống!');
   };
 
-  const toggleFrameUsage = (frameNum: number) => {
-    setRolls(prevRolls => prevRolls.map(roll => {
-      if (roll.id !== selectedRoll.id) return roll;
-
-      const isUsed = roll.usedFrameNumbers.includes(frameNum);
-      let updatedFrames = [...roll.usedFrameNumbers];
-
-      if (isUsed) {
-        updatedFrames = updatedFrames.filter(n => n !== frameNum);
-      } else {
-        updatedFrames.push(frameNum);
-      }
-
-      const usedCount = updatedFrames.length;
-      let newStatus: FilmRollItem['status'] = 'Đang sử dụng';
-      if (usedCount === 0) newStatus = 'Chưa dùng';
-      if (usedCount >= roll.totalFrames) newStatus = 'Đã dùng hết';
-
-      return {
-        ...roll,
-        usedFrames: usedCount,
-        status: newStatus,
-        usedFrameNumbers: updatedFrames.sort((a, b) => a - b)
-      };
-    }));
+  const toggleFrameUsage = async (frameNum: number) => {
+    if (!selectedRoll.id) return;
+    const isUsed = selectedRoll.usedFrameNumbers.includes(frameNum);
+    const usedFrameNumbers = isUsed
+      ? selectedRoll.usedFrameNumbers.filter(n => n !== frameNum)
+      : [...selectedRoll.usedFrameNumbers, frameNum];
+    const { name, brand, iso, format, cameraBody, totalFrames } = selectedRoll;
+    try {
+      await participantService.updateFilmRoll(selectedRoll.id, { name, brand, iso, format, cameraBody, totalFrames, usedFrameNumbers });
+      await refetch();
+    } catch (err) {
+      showToast(err instanceof Error ? err.message : 'Không thể cập nhật khung hình');
+    }
   };
 
   return (

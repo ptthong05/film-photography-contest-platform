@@ -1,63 +1,54 @@
-import React, { useState, useEffect } from 'react';
+import React, { useEffect, useState } from 'react';
+import { useFetch } from '../../../hooks/useFetch';
+import { participantService } from '../../../services/participantService';
 import { Upload, Sparkles, CheckCircle2, Disc, Camera, MapPin, FileText, RefreshCw, AlertCircle } from 'lucide-react';
 
 interface SubmitEntryFormProps {
   onSubmitSuccess?: () => void;
   setActiveTab?: (tab: string) => void;
+  registeredIds?: string[];
 }
 
-export function SubmitEntryForm({ setActiveTab }: SubmitEntryFormProps) {
+export function SubmitEntryForm({ setActiveTab, registeredIds = [] }: SubmitEntryFormProps) {
   const [title, setTitle] = useState('');
   const [description, setDescription] = useState('');
 
-  const allContests = [
-    { id: 'contest-01', title: 'Analog Moments 2025', status: 'Đang diễn ra' },
-    { id: 'contest-02', title: 'Film & City', status: 'Đang diễn ra' },
-    { id: 'contest-03', title: 'The Vintage Look', status: 'Sắp diễn ra' },
-    { id: 'contest-04', title: 'Film Portrait 2025', status: 'Đang diễn ra' },
-    { id: 'contest-05', title: 'Góc Phố Film', status: 'Đang diễn ra' },
-    { id: 'contest-06', title: 'Nắng Cuối Ngày', status: 'Sắp diễn ra' },
-    { id: 'contest-07', title: 'Hơi Thở Analog 2024', status: 'Đã kết thúc' },
-    { id: 'contest-08', title: 'Sài Gòn Xưa & Nay', status: 'Đã kết thúc' },
-  ];
-
-  const [registeredContests, setRegisteredContests] = useState<{ id: string; title: string; status: string }[]>([]);
+  const contestsQuery = useFetch(participantService.getContests);
+  const rollsQuery = useFetch(participantService.getFilmRolls);
+  // Chỉ nộp được vào cuộc thi đã đăng ký và đang mở cổng nhận bài
+  const registeredContests = (contestsQuery.data ?? []).filter((item) => registeredIds.includes(item.id) && item.acceptingSubmissions);
   const [selectedContestId, setSelectedContestId] = useState<string>('');
+  const selectedContest = registeredContests.find((item) => item.id === selectedContestId) ?? registeredContests[0];
+  const [category, setCategory] = useState('');
 
   useEffect(() => {
-    try {
-      const savedIds = localStorage.getItem('participant_registered_contests');
-      const ids: string[] = savedIds ? JSON.parse(savedIds) : [];
-      const filtered = allContests.filter(c => ids.includes(c.id));
-      if (filtered.length > 0) {
-        setRegisteredContests(filtered);
-        setSelectedContestId(filtered[0].id);
-      } else {
-        setRegisteredContests(allContests.slice(0, 3));
-        setSelectedContestId(allContests[0].id);
-      }
-    } catch (e) {
-      console.error(e);
-      setRegisteredContests(allContests.slice(0, 3));
-      setSelectedContestId(allContests[0].id);
-    }
-  }, []);
+    if (!selectedContestId && registeredContests[0]) setSelectedContestId(registeredContests[0].id);
+  }, [registeredContests, selectedContestId]);
 
-  const [filmRoll, setFilmRoll] = useState('ROLL-2026-03 - Fujifilm C200 (ISO 400) - Minolta SRT 101');
-  const [filmBrand, setFilmBrand] = useState('Fujifilm C200');
-  const [iso, setIso] = useState('400');
-  const [cameraBody, setCameraBody] = useState('Minolta SRT 101');
-  const [lens, setLens] = useState('50mm f/1.8');
+  const [filmRoll, setFilmRoll] = useState('');
+  const applyFilmRoll = (rollId: string) => {
+    setFilmRoll(rollId);
+    const roll = (rollsQuery.data ?? []).find((item) => item.id === rollId);
+    if (!roll) return;
+    setFilmBrand(roll.name);
+    setIso(String(roll.iso));
+    setCameraBody(roll.cameraBody);
+    setFilmFormat(roll.format);
+  };
+  const [filmBrand, setFilmBrand] = useState('');
+  const [iso, setIso] = useState('');
+  const [cameraBody, setCameraBody] = useState('');
+  const [lens, setLens] = useState('');
   const [filmFormat, setFilmFormat] = useState('35mm');
-  const [frameNumber, setFrameNumber] = useState('1');
-  const [location, setLocation] = useState('Quận 1, TP. Hồ Chí Minh');
-  const [lab, setLab] = useState('Atomic Lab');
-  const [scanningSpecs, setScanningSpecs] = useState('Noritsu HS-1800 (2000x3000px)');
-  const [negativeSheet, setNegativeSheet] = useState('Có (Negative Scan chuẩn)');
+  const [frameNumber, setFrameNumber] = useState('');
+  const [location, setLocation] = useState('');
+  const [lab, setLab] = useState('');
+  const [scanningSpecs, setScanningSpecs] = useState('');
 
   // BỎ ẢNH MẶC ĐỊNH: Khởi tạo giá trị ban đầu là null
   const [uploadedImage, setUploadedImage] = useState<string | null>(null);
   const [imageFileName, setImageFileName] = useState<string>('');
+  const [imageFile, setImageFile] = useState<File | null>(null);
   const [successToast, setSuccessToast] = useState(false);
   const [isSubmitting, setIsSubmitting] = useState(false);
 
@@ -65,6 +56,7 @@ export function SubmitEntryForm({ setActiveTab }: SubmitEntryFormProps) {
     if (e.target.files && e.target.files[0]) {
       const file = e.target.files[0];
       setImageFileName(file.name);
+      setImageFile(file);
       const reader = new FileReader();
       reader.onload = (uploadEvent) => {
         if (uploadEvent.target?.result) {
@@ -103,13 +95,17 @@ export function SubmitEntryForm({ setActiveTab }: SubmitEntryFormProps) {
     }
   };
 
-  const handleSubmit = (e: React.FormEvent) => {
+  const handleSubmit = async (e: React.FormEvent) => {
     e.preventDefault();
     if (!title.trim()) {
       alert('Vui lòng nhập tên tác phẩm!');
       return;
     }
-    if (!uploadedImage) {
+    if (!selectedContest) {
+      alert('Bạn chưa đăng ký cuộc thi nào đang nhận bài.');
+      return;
+    }
+    if (!imageFile) {
       alert('Vui lòng tải lên file ảnh scan!');
       return;
     }
@@ -117,18 +113,13 @@ export function SubmitEntryForm({ setActiveTab }: SubmitEntryFormProps) {
     setIsSubmitting(true);
 
     try {
-      const selectedContestObj = registeredContests.find(c => c.id === selectedContestId) || registeredContests[0];
-
-      const newEntry = {
-        id: `sub-${Date.now().toString().slice(-4)}`,
-        contestId: selectedContestObj?.id || 'contest-01',
-        contestTitle: selectedContestObj?.title || 'Analog Moments 2025',
+      await participantService.submitEntry({
+        contestId: selectedContest.id,
         title,
-        description: description || 'Tác phẩm nhiếp ảnh phim lưu giữ khoảnh khắc độc bản.',
-        photoUrl: uploadedImage,
-        submittedAt: new Date().toLocaleDateString('vi-VN'),
-        status: 'Đang chờ duyệt',
+        description,
+        category: category || selectedContest.categories[0],
         filmBrand,
+        filmStock: filmBrand,
         iso,
         cameraBody,
         lens,
@@ -137,25 +128,7 @@ export function SubmitEntryForm({ setActiveTab }: SubmitEntryFormProps) {
         shootingLocation: location,
         developingLab: lab,
         scanningSpecs,
-        negativeContactSheet: negativeSheet,
-        aiFlag: 'Hợp lệ (Đang kiểm định AI)',
-        similarityScore: '0.9% (Độc bản cao)'
-      };
-
-      const existingEntries = localStorage.getItem('participant_entries');
-      let entryList = [];
-      if (existingEntries) {
-        try {
-          entryList = JSON.parse(existingEntries);
-        } catch (err) {
-          console.error(err);
-        }
-      }
-      entryList.unshift(newEntry);
-      localStorage.setItem('participant_entries', JSON.stringify(entryList));
-
-      window.dispatchEvent(new Event('entrySubmitted'));
-      window.dispatchEvent(new Event('storage'));
+      }, imageFile, imageFile.name);
 
       setSuccessToast(true);
 
@@ -167,12 +140,14 @@ export function SubmitEntryForm({ setActiveTab }: SubmitEntryFormProps) {
         setDescription('');
         setUploadedImage(null);
         setImageFileName('');
+        setImageFile(null);
+        setActiveTab?.('my-entries');
       }, 1200);
 
     } catch (err) {
       console.error(err);
       setIsSubmitting(false);
-      alert('Có lỗi xảy ra khi lưu bài nộp. Dung lượng ảnh có thể quá lớn.');
+      alert(err instanceof Error ? err.message : 'Có lỗi xảy ra khi lưu bài nộp.');
     }
   };
 
@@ -208,12 +183,23 @@ export function SubmitEntryForm({ setActiveTab }: SubmitEntryFormProps) {
             onChange={(e) => setSelectedContestId(e.target.value)}
             className="w-full px-5 py-4 bg-slate-50 border-2 border-slate-200 rounded-2xl text-base font-bold text-slate-900 focus:outline-none focus:ring-2 focus:ring-blue-500 focus:bg-white transition cursor-pointer"
           >
+            {registeredContests.length === 0 && <option value="">Chưa có cuộc thi đã đăng ký đang nhận bài</option>}
             {registeredContests.map((c) => (
               <option key={c.id} value={c.id}>
                 {c.title} ({c.status})
               </option>
             ))}
           </select>
+          {selectedContest && selectedContest.categories.length > 1 && (
+            <select
+              aria-label="Hạng mục dự thi"
+              value={category || selectedContest.categories[0]}
+              onChange={(e) => setCategory(e.target.value)}
+              className="mt-3 w-full px-5 py-4 bg-slate-50 border-2 border-slate-200 rounded-2xl text-base font-bold text-slate-900 focus:outline-none focus:ring-2 focus:ring-blue-500 focus:bg-white"
+            >
+              {selectedContest.categories.map((item) => <option key={item} value={item}>{item}</option>)}
+            </select>
+          )}
         </div>
 
         {/* 1. Thông tin tác phẩm */}
@@ -267,11 +253,13 @@ export function SubmitEntryForm({ setActiveTab }: SubmitEntryFormProps) {
             </label>
             <select
               value={filmRoll}
-              onChange={(e) => setFilmRoll(e.target.value)}
+              onChange={(e) => applyFilmRoll(e.target.value)}
               className="w-full px-5 py-4 bg-slate-50 border-2 border-slate-200 rounded-2xl text-base font-bold text-slate-900 focus:outline-none focus:ring-2 focus:ring-blue-500 focus:bg-white transition"
             >
-              <option>ROLL-2026-03 - Fujifilm C200 (ISO 400) - Minolta SRT 101</option>
-              <option>ROLL-2026-02 - Kodak Portra 400 (ISO 400) - Canon AE-1</option>
+              <option value="">Tự nhập thông tin phim</option>
+              {(rollsQuery.data ?? []).map((roll) => (
+                <option key={roll.id} value={roll.id}>{roll.code} - {roll.name} (ISO {roll.iso}) - {roll.cameraBody}</option>
+              ))}
             </select>
           </div>
 
@@ -311,10 +299,6 @@ export function SubmitEntryForm({ setActiveTab }: SubmitEntryFormProps) {
             <div className="space-y-2">
               <label className="block text-sm font-black text-slate-700 uppercase tracking-wider">Scanning specifications *</label>
               <input type="text" value={scanningSpecs} onChange={(e) => setScanningSpecs(e.target.value)} className="w-full px-4 py-3.5 bg-slate-50 border-2 border-slate-200 rounded-xl text-sm font-black text-slate-900 focus:outline-none focus:ring-2 focus:ring-blue-500" />
-            </div>
-            <div className="space-y-2">
-              <label className="block text-sm font-black text-slate-700 uppercase tracking-wider">Negative / Contact sheet *</label>
-              <input type="text" value={negativeSheet} onChange={(e) => setNegativeSheet(e.target.value)} className="w-full px-4 py-3.5 bg-slate-50 border-2 border-slate-200 rounded-xl text-sm font-black text-slate-900 focus:outline-none focus:ring-2 focus:ring-blue-500" />
             </div>
           </div>
         </div>

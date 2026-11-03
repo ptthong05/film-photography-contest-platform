@@ -1,4 +1,7 @@
-import React, { useState, useEffect } from 'react';
+import React, { useState } from 'react';
+import { useAuth } from '../../../hooks/useAuth';
+import { useFetch } from '../../../hooks/useFetch';
+import { participantService, type ContestItem } from '../../../services/participantService';
 import {
   Trophy,
   BookOpen,
@@ -15,123 +18,24 @@ import {
   Trash2
 } from 'lucide-react';
 
-export interface ContestItem {
-  id: string;
-  title: string;
-  category: string;
-  dateRange: string;
-  participantsCount: number;
-  bannerUrl: string;
-  status: 'Đang diễn ra' | 'Sắp diễn ra' | 'Đã kết thúc';
-  description: string;
-  rules: string[];
-  prizes: {
-    first: string;
-    second: string;
-    third: string;
-    consolation: string;
-  };
-  technicalRequirements: string;
-  judgingCriteria: string[];
-}
-
-interface StoredDashboardEntryItem {
-  status?: string;
-}
-
-const INITIAL_CONTESTS: ContestItem[] = [
-  {
-    id: 'contest-01',
-    title: 'Analog Moments 2025',
-    category: 'PHONG CẢNH • CHÂN DUNG • ĐỜI SỐNG',
-    dateRange: '01/06/2025 - 30/09/2025',
-    participantsCount: 342,
-    bannerUrl: 'https://images.unsplash.com/photo-1540555700478-4be289fbecef?q=85&w=1000&auto=format&fit=crop',
-    status: 'Đang diễn ra',
-    description: 'Cuộc thi nhiếp ảnh phim nhựa quy mô lớn nhất năm 2025, tìm kiếm những khoảnh khắc chân thực và cảm xúc nhất được lưu giữ qua cuộn film analog truyền thống. Sân chơi dành riêng cho các tay máy đam mê cơ chế cơ học, hạt grain tự nhiên và ánh sáng chân thực.',
-    rules: [
-      'Tác phẩm bắt buộc phải được chụp bằng máy ảnh phim analog (35mm, Medium Format, Large Format).',
-      'Không chấp nhận ảnh kỹ thuật số (Digital) hoặc ảnh giả lập phim qua phần mềm chỉnh sửa.',
-      'Mỗi thí sinh được gửi tối đa 05 tác phẩm dự thi kèm theo thông tin Metadata cuộn phim rõ ràng.',
-      'Ban tổ chức có quyền yêu cầu thí sinh gửi âm bản gốc (Negative/Slide) để xác thực nếu lọt vào vòng chung khảo.'
-    ],
-    prizes: {
-      first: '1x Máy ảnh Leica M6 Classic + 20 cuộn Kodak Portra 400 + Kỷ niệm chương vàng',
-      second: '1x Máy ảnh Nikon FM2 + 10 cuộn Fujifilm C200 + Kỷ niệm chương bạc',
-      third: '1x Máy Canon AE-1 + 5 cuộn Ilford HP5 + Kỷ niệm chương đồng',
-      consolation: '05 giải khuyến khích, mỗi giải 02 cuộn phim cao cấp và Giấy chứng nhận'
-    },
-    technicalRequirements: 'Ảnh scan độ phân giải tối thiểu 300 DPI, định dạng JPG/TIFF không đóng khung chữ ký, giữ nguyên hạt grain và thông số quang học gốc.',
-    judgingCriteria: [
-      'Bố cục và góc nhìn nghệ thuật (25%)',
-      'Xử lý ánh sáng và độ tương phản tự nhiên (25%)',
-      'Nội dung thông điệp truyền tải (25%)',
-      'Kỹ thuật tráng scan và độ tinh xảo của hạt film (25%)'
-    ]
-  },
-  {
-    id: 'contest-02',
-    title: 'Film & City',
-    category: 'ĐƯỜNG PHỐ • KIẾN TRÚC • ĐỜI SỐNG',
-    dateRange: '15/06/2025 - 30/11/2025',
-    participantsCount: 205,
-    bannerUrl: 'https://images.unsplash.com/photo-1514565131-fce0801e5785?q=85&w=1000&auto=format&fit=crop',
-    status: 'Đang diễn ra',
-    description: 'Khám phá nhịp sống đô thị hối hả, những góc khuất kiến trúc cổ kính và hơi thở con người qua lăng kính máy phim đen trắng hoặc màu sắc rực rỡ.',
-    rules: [
-      'Tác phẩm chụp trong khu vực đô thị, thành phố lớn bằng máy phim analog.',
-      'Khuyến khích phong cách street photography tự nhiên, không dàn dựng.',
-      'Bắt buộc cung cấp thông tin về loại film stock và địa điểm chụp cụ thể.'
-    ],
-    prizes: {
-      first: '01 Giải Đặc Biệt trị giá 25.000.000 VNĐ tiền mặt và bộ ống kính Leica cổ',
-      second: '01 Giải Nhì trị giá 15.000.000 VNĐ',
-      third: '01 Giải Ba trị giá 8.000.000 VNĐ',
-      consolation: 'Các phần quà hiện vật giá trị từ nhà tài trợ Lab Phim Sài Gòn'
-    },
-    technicalRequirements: 'Ảnh scan từ cuộn film âm bản hoặc dương bản, không chèn watermark.',
-    judgingCriteria: [
-      'Tính thời sự và khoảnh khắc đô thị (30%)',
-      'Bố cục đường phố (30%)',
-      'Kỹ thuật in rọi/scan (20%)',
-      'Sự sáng tạo góc máy (20%)'
-    ]
-  },
-  {
-    id: 'contest-03',
-    title: 'The Vintage Look',
-    category: 'CHÂN DUNG • NGHỆ THUẬT • TỰ DO',
-    dateRange: '10/07/2025 - 10/10/2025',
-    participantsCount: 158,
-    bannerUrl: 'https://images.unsplash.com/photo-1507525428034-b723cf961d3e?q=85&w=1000&auto=format&fit=crop',
-    status: 'Sắp diễn ra',
-    description: 'Sân chơi tôn vinh vẻ đẹp cổ điển vượt thời gian, nơi ánh sáng mềm mại hòa quyện cùng phong cách thời trang hoài cổ thập niên cũ.',
-    rules: [
-      'Chủ đề chân dung nghệ thuật mang phong cách vintage cổ điển.',
-      'Sử dụng 100% thiết bị máy ảnh phim.'
-    ],
-    prizes: {
-      first: '15.000.000 VNĐ + Huy chương vàng',
-      second: '10.000.000 VNĐ + Huy chương bạc',
-      third: '5.000.000 VNĐ + Huy chương đồng',
-      consolation: 'Phần quà từ nhà tài trợ'
-    },
-    technicalRequirements: 'Độ phân giải cao, file scan gốc từ lab uy tín.',
-    judgingCriteria: ['Thần thái nhân vật (40%)', 'Ánh sáng (30%)', 'Kỹ thuật phim (30%)']
-  }
-];
 
 export interface DashboardTabProps {
   registeredCount?: number;
   registeredIds?: string[];
   onNavigate?: (tab: string, filter?: string) => void;
-  onToggleRegister?: (contestId: string) => void;
+  onToggleRegister?: (contestId: string) => Promise<void>;
 }
 
 export function DashboardTab({ registeredCount = 0, registeredIds = [], onNavigate, onToggleRegister }: DashboardTabProps) {
-  const [userName, setUserName] = useState('Hồ Thanh Bình');
-  const [totalEntriesCount, setTotalEntriesCount] = useState(2);
-  const [pendingEntriesCount, setPendingEntriesCount] = useState(0);
+  const { user } = useAuth();
+  const userName = user?.name ?? '';
+  const contestsQuery = useFetch(participantService.getContests);
+  const entriesQuery = useFetch(participantService.getEntries);
+  const contests = contestsQuery.data ?? [];
+  const entries = entriesQuery.data ?? [];
+  const totalEntriesCount = entries.length;
+  const pendingEntriesCount = entries.filter((item) => item.status === 'Đang chờ duyệt').length;
+  const openContestsCount = contests.filter((item) => item.status === 'Đang diễn ra').length;
   const [selectedContest, setSelectedContest] = useState<ContestItem | null>(null);
   const [toastMessage, setToastMessage] = useState<string | null>(null);
 
@@ -140,56 +44,17 @@ export function DashboardTab({ registeredCount = 0, registeredIds = [], onNaviga
     setTimeout(() => setToastMessage(null), 3000);
   };
 
-  const handleRegisterClick = (contestId: string, contestTitle: string, isReg: boolean, e?: React.MouseEvent) => {
+  const handleRegisterClick = async (contestId: string, contestTitle: string, isReg: boolean, e?: React.MouseEvent) => {
     if (e) e.stopPropagation();
-    if (onToggleRegister) {
-      onToggleRegister(contestId);
+    if (!onToggleRegister) return;
+    try {
+      await onToggleRegister(contestId);
       showToast(isReg ? `❌ Đã hủy đăng ký cuộc thi "${contestTitle}".` : `✅ Đã đăng ký thành công cuộc thi "${contestTitle}"!`);
+    } catch (err) {
+      showToast(err instanceof Error ? err.message : 'Không thể cập nhật đăng ký');
     }
   };
 
-  useEffect(() => {
-    const updateDashboardData = () => {
-      try {
-        const savedName = localStorage.getItem('participant_user_name');
-        if (savedName) {
-          setUserName(savedName);
-        } else {
-          const savedProfile = localStorage.getItem('participant_profile');
-          if (savedProfile) {
-            const parsed = JSON.parse(savedProfile);
-            if (parsed.name) setUserName(parsed.name);
-          }
-        }
-
-        const savedCount = localStorage.getItem('participant_total_entries_count');
-        if (savedCount) {
-          setTotalEntriesCount(parseInt(savedCount, 10));
-        }
-
-        const savedEntries = localStorage.getItem('participant_entries');
-        if (savedEntries) {
-          const parsedEntries: StoredDashboardEntryItem[] = JSON.parse(savedEntries);
-          if (Array.isArray(parsedEntries)) {
-            setTotalEntriesCount(parsedEntries.length);
-            const pendingCount = parsedEntries.filter((item: StoredDashboardEntryItem) => item.status === 'Đang chờ duyệt').length;
-            setPendingEntriesCount(pendingCount);
-          }
-        }
-      } catch (e) {
-        console.error(e);
-      }
-    };
-
-    updateDashboardData();
-    window.addEventListener('userNameChanged', updateDashboardData);
-    window.addEventListener('storage', updateDashboardData);
-
-    return () => {
-      window.removeEventListener('userNameChanged', updateDashboardData);
-      window.removeEventListener('storage', updateDashboardData);
-    };
-  }, []);
 
   return (
     <div className="space-y-8 max-w-[1800px] mx-auto pb-20 font-sans text-slate-900 relative">
@@ -383,9 +248,9 @@ export function DashboardTab({ registeredCount = 0, registeredIds = [], onNaviga
             <p className="text-xs font-black text-slate-400 uppercase tracking-wider">CUỘC THI ĐANG MỞ</p>
             <div className="flex items-baseline gap-2">
               <span className="text-3xl font-black text-slate-900">4</span>
-              <span className="text-xs font-bold text-emerald-600 bg-emerald-50 px-2.5 py-1 rounded-full border border-emerald-200">/ 8 cuộc thi</span>
+              <span className="text-xs font-bold text-emerald-600 bg-emerald-50 px-2.5 py-1 rounded-full border border-emerald-200">/ {contests.length} cuộc thi</span>
             </div>
-            <p className="text-[11px] font-extrabold text-emerald-600">🔥 +1 Mới cập nhật tuần này</p>
+            <p className="text-[11px] font-extrabold text-emerald-600">🔥 Đang nhận bài và chấm điểm</p>
           </div>
           <div className="w-14 h-14 bg-emerald-50 text-emerald-600 rounded-2xl flex items-center justify-center border border-emerald-200 flex-shrink-0 group-hover:scale-105 transition">
             <Trophy className="w-7 h-7" />
@@ -461,7 +326,7 @@ export function DashboardTab({ registeredCount = 0, registeredIds = [], onNaviga
         </div>
 
         <div className="grid grid-cols-1 md:grid-cols-3 gap-6">
-          {INITIAL_CONTESTS.map((contest) => (
+          {contests.map((contest) => (
             <div key={contest.id} className="bg-white rounded-2xl border border-slate-200 overflow-hidden shadow-sm hover:border-blue-400 transition flex flex-col justify-between">
               <div className="space-y-4 p-5">
                 <div className="relative h-44 rounded-xl overflow-hidden bg-slate-100">

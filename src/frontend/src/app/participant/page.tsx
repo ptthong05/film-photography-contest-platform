@@ -1,4 +1,4 @@
-import React, { useState, useEffect } from 'react';
+import { useState } from 'react';
 import { Search, Bell } from 'lucide-react';
 import { Sidebar } from './components/Sidebar';
 import { DashboardTab } from './components/DashboardTab';
@@ -8,6 +8,11 @@ import { FilmRollTab } from './components/FilmRollTab';
 import { SubmitEntryForm } from './components/SubmitEntryForm';
 import { MyEntriesList } from './components/MyEntriesList';
 import { ResultsTab } from './components/ResultsTab';
+import { useAuth } from '../../hooks/useAuth';
+import { useFetch } from '../../hooks/useFetch';
+import { notificationService } from '../../services/notificationService';
+import { participantService } from '../../services/participantService';
+import { formatDate } from '../../utils/formatDate';
 
 interface ParticipantPageProps {
   onGoHome?: () => void;
@@ -18,77 +23,30 @@ export default function ParticipantPage({ onGoHome }: ParticipantPageProps) {
   const [searchQuery, setSearchQuery] = useState<string>('');
   const [isNotificationOpen, setIsNotificationOpen] = useState<boolean>(false);
 
-  const [registeredContestIds, setRegisteredContestIds] = useState<string[]>(() => {
-    try {
-      const saved = localStorage.getItem('participant_registered_contests');
-      if (saved) {
-        const parsed = JSON.parse(saved);
-        if (Array.isArray(parsed)) return parsed;
-      }
-      return [];
-    } catch {
-      return [];
-    }
-  });
+  const { user } = useAuth();
+  const userName = user?.name ?? '';
+  const registrations = useFetch(participantService.getRegistrations);
+  const notifications = useFetch(notificationService.getMine);
+  const registeredContestIds = (registrations.data ?? []).map((item) => item.contestId);
+  const unreadCount = (notifications.data ?? []).filter((item) => !item.isRead).length;
 
-  useEffect(() => {
-    const handleRegistrationChange = () => {
-      try {
-        const saved = localStorage.getItem('participant_registered_contests');
-        setRegisteredContestIds(saved ? JSON.parse(saved) : []);
-      } catch (e) {
-        console.error(e);
-      }
-    };
-    window.addEventListener('contestRegistrationChanged', handleRegistrationChange);
-    return () => window.removeEventListener('contestRegistrationChanged', handleRegistrationChange);
-  }, []);
-
-  const [userName, setUserName] = useState<string>(() => {
-    try {
-      const savedProfile = localStorage.getItem('participant_profile');
-      if (savedProfile) {
-        const parsed = JSON.parse(savedProfile);
-        if (parsed.name) return parsed.name;
-      }
-    } catch (e) {
-      console.error(e);
-    }
-    return localStorage.getItem('participant_user_name') || 'Hồ Thanh Bình';
-  });
-
-  useEffect(() => {
-    const handleNameChange = () => {
-      try {
-        const savedProfile = localStorage.getItem('participant_profile');
-        if (savedProfile) {
-          const parsed = JSON.parse(savedProfile);
-          if (parsed.name) {
-            setUserName(parsed.name);
-            return;
-          }
-        }
-        const savedName = localStorage.getItem('participant_user_name');
-        if (savedName) setUserName(savedName);
-      } catch (e) {
-        console.error(e);
-      }
-    };
-    window.addEventListener('userNameChanged', handleNameChange);
-    return () => window.removeEventListener('userNameChanged', handleNameChange);
-  }, []);
-
-  const handleToggleRegister = (contestId: string) => {
-    let updated: string[] = [];
+  // Lỗi (vd. đã nộp bài nên không được hủy) ném lên để tab hiển thị đúng thông báo của backend
+  const handleToggleRegister = async (contestId: string) => {
     if (registeredContestIds.includes(contestId)) {
-      updated = registeredContestIds.filter((id) => id !== contestId);
+      await participantService.cancelRegistration(contestId);
     } else {
-      updated = [...registeredContestIds, contestId];
+      await participantService.register(contestId);
     }
-    setRegisteredContestIds(updated);
-    localStorage.setItem('participant_registered_contests', JSON.stringify(updated));
-    localStorage.setItem('participant_registrations', JSON.stringify(updated));
-    window.dispatchEvent(new Event('contestRegistrationChanged'));
+    await registrations.refetch();
+  };
+
+  const toggleNotifications = async () => {
+    const willOpen = !isNotificationOpen;
+    setIsNotificationOpen(willOpen);
+    if (willOpen && unreadCount > 0) {
+      await notificationService.markAllRead();
+      await notifications.refetch();
+    }
   };
 
   return (
@@ -110,11 +68,11 @@ export default function ParticipantPage({ onGoHome }: ParticipantPageProps) {
 
           <div className="flex items-center space-x-4 relative">
             <button
-              onClick={() => setIsNotificationOpen(!isNotificationOpen)}
+              onClick={() => { void toggleNotifications(); }}
               className="relative p-2.5 bg-slate-100 hover:bg-slate-200 rounded-xl text-slate-700 transition-all cursor-pointer"
             >
               <Bell className="w-5 h-5" />
-              <span className="absolute top-1.5 right-1.5 w-2.5 h-2.5 bg-red-500 rounded-full"></span>
+              {unreadCount > 0 && <span className="absolute top-1.5 right-1.5 w-2.5 h-2.5 bg-red-500 rounded-full"></span>}
             </button>
 
             {isNotificationOpen && (
@@ -125,9 +83,15 @@ export default function ParticipantPage({ onGoHome }: ParticipantPageProps) {
                     Đóng
                   </button>
                 </div>
-                <p className="p-2.5 bg-blue-50 rounded-xl text-xs text-slate-600">
-                  🔹 Bài dự thi của bạn đã được kiểm duyệt thành công.
-                </p>
+                {(notifications.data ?? []).length === 0 && <p className="p-2.5 text-xs text-slate-500">Chưa có thông báo nào.</p>}
+              <div className="max-h-80 space-y-2 overflow-y-auto">
+                {(notifications.data ?? []).map((item) => (
+                  <p key={item.id} className="p-2.5 bg-blue-50 rounded-xl text-xs text-slate-600">
+                    {item.message}
+                    <span className="mt-1 block text-[10px] text-slate-400">{formatDate(item.createdAt)}</span>
+                  </p>
+                ))}
+              </div>
               </div>
             )}
 
@@ -143,6 +107,8 @@ export default function ParticipantPage({ onGoHome }: ParticipantPageProps) {
           {activeTab === 'dashboard' && (
             <DashboardTab
               registeredCount={registeredContestIds.length}
+              registeredIds={registeredContestIds}
+              onToggleRegister={handleToggleRegister}
               onNavigate={(tab) => setActiveTab(tab)}
             />
           )}
@@ -170,7 +136,8 @@ export default function ParticipantPage({ onGoHome }: ParticipantPageProps) {
 
           {activeTab === 'submit' && (
             <SubmitEntryForm
-              onSubmitSuccess={() => setActiveTab('my-entries')}
+              registeredIds={registeredContestIds}
+              setActiveTab={setActiveTab}
             />
           )}
 

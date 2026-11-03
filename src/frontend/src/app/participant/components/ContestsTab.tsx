@@ -1,190 +1,22 @@
 import React, { useState } from 'react';
+import { useFetch } from '../../../hooks/useFetch';
+import { participantService, type ContestItem } from '../../../services/participantService';
 import {
   Trophy, Calendar, Users, Eye, X, CheckCircle2, AlertTriangle,
   Sparkles, ShieldCheck, FileText, Award, Disc, MapPin, Trash2, Check
 } from 'lucide-react';
 
-export interface ContestItem {
-  id: string;
-  title: string;
-  category: string;
-  dateRange: string;
-  participantsCount: number;
-  bannerUrl: string;
-  status: 'Đang diễn ra' | 'Sắp diễn ra' | 'Đã kết thúc';
-  description: string;
-  rules: string[];
-  prizes: {
-    first: string;
-    second: string;
-    third: string;
-    consolation: string;
-  };
-  technicalRequirements: string;
-  judgingCriteria: string[];
-}
-
-const INITIAL_CONTESTS: ContestItem[] = [
-  {
-    id: 'contest-01',
-    title: 'Analog Moments 2025',
-    category: 'PHONG CẢNH • CHÂN DUNG • ĐỜI SỐNG',
-    dateRange: '01/06/2025 - 30/09/2025',
-    participantsCount: 342,
-    bannerUrl: 'https://images.unsplash.com/photo-1540555700478-4be289fbecef?q=85&w=1000&auto=format&fit=crop',
-    status: 'Đang diễn ra',
-    description: 'Cuộc thi nhiếp ảnh phim nhựa quy mô lớn nhất năm 2025, tìm kiếm những khoảnh khắc chân thực và cảm xúc nhất được lưu giữ qua cuộn film analog truyền thống. Sân chơi dành riêng cho các tay máy đam mê cơ chế cơ học, hạt grain tự nhiên và ánh sáng chân thực.',
-    rules: [
-      'Tác phẩm bắt buộc phải được chụp bằng máy ảnh phim analog (35mm, Medium Format, Large Format).',
-      'Không chấp nhận ảnh kỹ thuật số (Digital) hoặc ảnh giả lập phim qua phần mềm chỉnh sửa.',
-      'Mỗi thí sinh được gửi tối đa 05 tác phẩm dự thi kèm theo thông tin Metadata cuộn phim rõ ràng.',
-      'Ban tổ chức có quyền yêu cầu thí sinh gửi âm bản gốc (Negative/Slide) để xác thực nếu lọt vào vòng chung khảo.'
-    ],
-    prizes: {
-      first: '1x Máy ảnh Leica M6 Classic + 20 cuộn Kodak Portra 400 + Kỷ niệm chương vàng',
-      second: '1x Máy ảnh Nikon FM2 + 10 cuộn Fujifilm C200 + Kỷ niệm chương bạc',
-      third: '1x Máy Canon AE-1 + 5 cuộn Ilford HP5 + Kỷ niệm chương đồng',
-      consolation: '05 giải khuyến khích, mỗi giải 02 cuộn phim cao cấp và Giấy chứng nhận'
-    },
-    technicalRequirements: 'Ảnh scan độ phân giải tối thiểu 300 DPI, định dạng JPG/TIFF không đóng khung chữ ký, giữ nguyên hạt grain và thông số quang học gốc.',
-    judgingCriteria: [
-      'Bố cục và góc nhìn nghệ thuật (25%)',
-      'Xử lý ánh sáng và độ tương phản tự nhiên (25%)',
-      'Nội dung thông điệp truyền tải (25%)',
-      'Kỹ thuật tráng scan và độ tinh xảo của hạt film (25%)'
-    ]
-  },
-  {
-    id: 'contest-02',
-    title: 'Film & City',
-    category: 'ĐƯỜNG PHỐ • KIẾN TRÚC • ĐỜI SỐNG',
-    dateRange: '15/06/2025 - 30/11/2025',
-    participantsCount: 205,
-    bannerUrl: 'https://images.unsplash.com/photo-1514565131-fce0801e5785?q=85&w=1000&auto=format&fit=crop',
-    status: 'Đang diễn ra',
-    description: 'Khám phá nhịp sống đô thị hối hả, những góc khuất kiến trúc cổ kính và hơi thở con người qua lăng kính máy phim đen trắng hoặc màu sắc rực rỡ.',
-    rules: [
-      'Tác phẩm chụp trong khu vực đô thị, thành phố lớn bằng máy phim analog.',
-      'Khuyến khích phong cách street photography tự nhiên, không dàn dựng.',
-      'Bắt buộc cung cấp thông tin về loại film stock và địa điểm chụp cụ thể.'
-    ],
-    prizes: {
-      first: '01 Giải Đặc Biệt trị giá 25.000.000 VNĐ tiền mặt và bộ ống kính Leica cổ',
-      second: '01 Giải Nhì trị giá 15.000.000 VNĐ',
-      third: '01 Giải Ba trị giá 8.000.000 VNĐ',
-      consolation: 'Các phần quà hiện vật giá trị từ nhà tài trợ Lab Phim Sài Gòn'
-    },
-    technicalRequirements: 'Ảnh scan từ cuộn film âm bản hoặc dương bản, không chèn watermark.',
-    judgingCriteria: [
-      'Tính thời sự và khoảnh khắc đô thị (30%)',
-      'Bố cục đường phố (30%)',
-      'Kỹ thuật in rọi/scan (20%)',
-      'Sự sáng tạo góc máy (20%)'
-    ]
-  },
-  {
-    id: 'contest-03',
-    title: 'The Vintage Look',
-    category: 'CHÂN DUNG • NGHỆ THUẬT • TỰ DO',
-    dateRange: '10/07/2025 - 10/10/2025',
-    participantsCount: 158,
-    bannerUrl: 'https://images.unsplash.com/photo-1507525428034-b723cf961d3e?q=85&w=1000&auto=format&fit=crop',
-    status: 'Sắp diễn ra',
-    description: 'Sân chơi tôn vinh vẻ đẹp cổ điển vượt thời gian, nơi ánh sáng mềm mại hòa quyện cùng phong cách thời trang hoài cổ thập niên cũ.',
-    rules: [
-      'Chủ đề chân dung nghệ thuật mang phong cách vintage cổ điển.',
-      'Sử dụng 100% thiết bị máy ảnh phim.'
-    ],
-    prizes: {
-      first: '15.000.000 VNĐ + Huy chương vàng',
-      second: '10.000.000 VNĐ + Huy chương bạc',
-      third: '5.000.000 VNĐ + Huy chương đồng',
-      consolation: 'Phần quà từ nhà tài trợ'
-    },
-    technicalRequirements: 'Độ phân giải cao, file scan gốc từ lab uy tín.',
-    judgingCriteria: ['Thần thái nhân vật (40%)', 'Ánh sáng (30%)', 'Kỹ thuật phim (30%)']
-  },
-  {
-    id: 'contest-04',
-    title: 'Film Portrait 2025',
-    category: 'CHÂN DUNG • NGHỆ THUẬT • ÁNH SÁNG',
-    dateRange: '20/07/2025 - 20/10/2025',
-    participantsCount: 215,
-    bannerUrl: 'https://images.unsplash.com/photo-1534528741775-53994a69daeb?q=85&w=1000&auto=format&fit=crop',
-    status: 'Đang diễn ra',
-    description: 'Nghệ thuật chân dung qua lăng kính máy phim, bắt trọn chiều sâu cảm xúc và biểu cảm tự nhiên nhất của nhân vật.',
-    rules: ['Chủ đề chân dung con người', 'Bắt buộc dùng cuộn film màu hoặc đen trắng âm bản.'],
-    prizes: { first: '20.000.000 VNĐ', second: '10.000.000 VNĐ', third: '5.000.000 VNĐ', consolation: 'Quà tặng' },
-    technicalRequirements: 'File ảnh scan sắc nét.',
-    judgingCriteria: ['Cảm xúc nhân vật (50%)', 'Ánh sáng (50%)']
-  },
-  {
-    id: 'contest-05',
-    title: 'Góc Phố Film',
-    category: 'ĐƯỜNG PHỐ • ĐỜI THƯỜNG • THÁNG TƯ',
-    dateRange: '01/08/2025 - 15/11/2025',
-    participantsCount: 178,
-    bannerUrl: 'https://images.unsplash.com/photo-1519501025264-65ba15a82390?q=85&w=1000&auto=format&fit=crop',
-    status: 'Đang diễn ra',
-    description: 'Góc nhìn mộc mạc về nhịp sống thường ngày qua những cuộn phim khổ 35mm hoài niệm.',
-    rules: ['Ảnh chụp đường phố đời thường.'],
-    prizes: { first: '12.000.000 VNĐ', second: '7.000.000 VNĐ', third: '3.000.000 VNĐ', consolation: 'Quà tặng' },
-    technicalRequirements: 'Scan độ phân giải cao.',
-    judgingCriteria: ['Khoảnh khắc (50%)', 'Bố cục (50%)']
-  },
-  {
-    id: 'contest-06',
-    title: 'Nắng Cuối Ngày',
-    category: 'HOÀNG HÔN • PHONG CẢNH • TỰ NHIÊN',
-    dateRange: '01/10/2025 - 31/12/2025',
-    participantsCount: 145,
-    bannerUrl: 'https://images.unsplash.com/photo-1507525428034-b723cf961d3e?q=85&w=1000&auto=format&fit=crop',
-    status: 'Sắp diễn ra',
-    description: 'Tôn vinh vẻ đẹp của ánh chiều tà và thiên nhiên qua những khung hình analog đầy màu sắc.',
-    rules: ['Ảnh chụp hoàng hôn và thiên nhiên.'],
-    prizes: { first: '10.000.000 VNĐ', second: '5.000.000 VNĐ', third: '2.000.000 VNĐ', consolation: 'Quà tặng' },
-    technicalRequirements: 'Không chỉnh sửa số hóa quá mức.',
-    judgingCriteria: ['Màu sắc (50%)', 'Không gian (50%)']
-  },
-  {
-    id: 'contest-07',
-    title: 'Hơi Thở Analog 2024',
-    category: 'HOÀI NIỆM • TRUYỀN THỐNG • DI SẢN',
-    dateRange: '01/01/2024 - 30/06/2024',
-    participantsCount: 420,
-    bannerUrl: 'https://images.unsplash.com/photo-1514565131-fce0801e5785?q=85&w=1000&auto=format&fit=crop',
-    status: 'Đã kết thúc',
-    description: 'Cuộc thi nhìn lại di sản nhiếp ảnh phim nhựa lịch sử, tôn vinh các tác phẩm lưu giữ giá trị văn hóa và kiến trúc cổ xưa đã khép lại thành công rực rỡ.',
-    rules: ['Sử dụng thiết bị máy phim cổ điển.', 'Chủ đề di sản và ký ức.'],
-    prizes: { first: '30.000.000 VNĐ', second: '15.000.000 VNĐ', third: '8.000.000 VNĐ', consolation: 'Kỷ niệm chương' },
-    technicalRequirements: 'Lưu giữ âm bản gốc.',
-    judgingCriteria: ['Giá trị lịch sử (50%)', 'Kỹ thuật phim (50%)']
-  },
-  {
-    id: 'contest-08',
-    title: 'Sài Gòn Xưa & Nay',
-    category: 'ĐÔ THỊ • BIẾN ĐỔI • KỶ NIỆM',
-    dateRange: '15/03/2024 - 15/09/2024',
-    participantsCount: 389,
-    bannerUrl: 'https://images.unsplash.com/photo-1540555700478-4be289fbecef?q=85&w=1000&auto=format&fit=crop',
-    status: 'Đã kết thúc',
-    description: 'Hành trình ngược dòng thời gian khám phá sự thay đổi của Sài Gòn qua từng khung ảnh cuộn phim đen trắng và màu sắc.',
-    rules: ['Tác phẩm ghi lại sự chuyển mình đô thị.'],
-    prizes: { first: '25.000.000 VNĐ', second: '12.000.000 VNĐ', third: '6.000.000 VNĐ', consolation: 'Quà lưu niệm' },
-    technicalRequirements: 'Scan từ film gốc.',
-    judgingCriteria: ['Bố cục (50%)', 'Cảm xúc (50%)']
-  }
-];
 
 export interface ContestsTabProps {
   registeredIds?: string[];
-  onToggleRegister?: (contestId: string) => void;
+  onToggleRegister?: (contestId: string) => Promise<void>;
   onNavigateSubmit?: () => void;
   filterRegisteredOnly?: boolean;
 }
 
 export function ContestsTab({ registeredIds = [], onToggleRegister, filterRegisteredOnly = false }: ContestsTabProps) {
-  const [contests] = useState<ContestItem[]>(INITIAL_CONTESTS);
+  const { data, isLoading, error } = useFetch(participantService.getContests);
+  const contests = data ?? [];
   const [selectedContest, setSelectedContest] = useState<ContestItem | null>(null);
   const [filterTab, setFilterTab] = useState<'Tất cả' | 'Đang diễn ra' | 'Sắp diễn ra' | 'Đã kết thúc'>('Tất cả');
   const [toastMessage, setToastMessage] = useState<string | null>(null);
@@ -194,11 +26,14 @@ export function ContestsTab({ registeredIds = [], onToggleRegister, filterRegist
     setTimeout(() => setToastMessage(null), 3000);
   };
 
-  const handleRegisterClick = (contestId: string, contestTitle: string, isReg: boolean, e?: React.MouseEvent) => {
+  const handleRegisterClick = async (contestId: string, contestTitle: string, isReg: boolean, e?: React.MouseEvent) => {
     if (e) e.stopPropagation();
-    if (onToggleRegister) {
-      onToggleRegister(contestId);
+    if (!onToggleRegister) return;
+    try {
+      await onToggleRegister(contestId);
       showToast(isReg ? `❌ Đã hủy đăng ký cuộc thi "${contestTitle}".` : `✅ Đã đăng ký thành công cuộc thi "${contestTitle}"!`);
+    } catch (err) {
+      showToast(err instanceof Error ? err.message : 'Không thể cập nhật đăng ký');
     }
   };
 
@@ -210,6 +45,9 @@ export function ContestsTab({ registeredIds = [], onToggleRegister, filterRegist
     if (filterTab === 'Tất cả') return true;
     return item.status === filterTab;
   });
+
+  if (isLoading) return <p className="p-8 text-sm text-slate-500">Đang tải danh sách cuộc thi...</p>;
+  if (error) return <p className="p-8 text-sm text-rose-600">{error}</p>;
 
   return (
     <div className="space-y-8 max-w-[1800px] mx-auto pb-24 relative">

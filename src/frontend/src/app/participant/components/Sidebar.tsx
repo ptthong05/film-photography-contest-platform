@@ -1,4 +1,6 @@
-import React, { useState, useEffect, useRef } from 'react';
+import React, { useRef } from 'react';
+import { useAuth } from '../../../hooks/useAuth';
+import { profileService } from '../../../services/profileService';
 import {
   Home,
   Trophy,
@@ -18,78 +20,17 @@ interface SidebarProps {
 }
 
 export function Sidebar({ activeTab, setActiveTab, onGoHome }: SidebarProps) {
-  const [avatar, setAvatar] = useState<string>(() => {
-    return localStorage.getItem('participant_avatar') || '';
-  });
-
-  const [currentName, setCurrentName] = useState<string>(() => {
-    try {
-      const savedProfile = localStorage.getItem('participant_profile');
-      if (savedProfile) {
-        const parsed = JSON.parse(savedProfile);
-        if (parsed.name) return parsed.name;
-      }
-    } catch (e) {
-      console.error(e);
-    }
-    return localStorage.getItem('participant_user_name') || 'Hồ Thanh Bình';
-  });
-
+  const { user } = useAuth();
+  const avatar = user?.avatarUrl ?? '';
+  const currentName = user?.name ?? '';
   const fileInputRef = useRef<HTMLInputElement>(null);
-
-  useEffect(() => {
-    const handleAvatarChange = () => {
-      const savedAvatar = localStorage.getItem('participant_avatar');
-      if (savedAvatar) setAvatar(savedAvatar);
-    };
-
-    const handleNameChange = () => {
-      try {
-        const savedProfile = localStorage.getItem('participant_profile');
-        if (savedProfile) {
-          const parsed = JSON.parse(savedProfile);
-          if (parsed.name) {
-            setCurrentName(parsed.name);
-            return;
-          }
-        }
-        const savedName = localStorage.getItem('participant_user_name');
-        if (savedName) setCurrentName(savedName);
-      } catch (e) {
-        console.error(e);
-      }
-    };
-
-    window.addEventListener('avatarChanged', handleAvatarChange);
-    window.addEventListener('userNameChanged', handleNameChange);
-
-    return () => {
-      window.removeEventListener('avatarChanged', handleAvatarChange);
-      window.removeEventListener('userNameChanged', handleNameChange);
-    };
-  }, []);
 
   const handleFileChange = (e: React.ChangeEvent<HTMLInputElement>) => {
     const file = e.target.files?.[0];
     if (file) {
-      const reader = new FileReader();
-      reader.onloadend = () => {
-        const base64String = reader.result as string;
-        localStorage.setItem('participant_avatar', base64String);
-        try {
-          const savedProfile = localStorage.getItem('participant_profile');
-          if (savedProfile) {
-            const parsed = JSON.parse(savedProfile);
-            parsed.avatarUrl = base64String;
-            localStorage.setItem('participant_profile', JSON.stringify(parsed));
-          }
-        } catch (err) {
-          console.error(err);
-        }
-        setAvatar(base64String);
-        window.dispatchEvent(new Event('avatarChanged'));
-      };
-      reader.readAsDataURL(file);
+      profileService.saveAvatar(file).catch((err: unknown) => {
+        window.alert(err instanceof Error ? err.message : 'Không thể cập nhật ảnh đại diện');
+      });
     }
   };
 
