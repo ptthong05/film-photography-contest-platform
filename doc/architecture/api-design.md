@@ -129,3 +129,34 @@ Mọi API trong mục này yêu cầu role `JUDGE` (sai role → `403`). Đườ
 
 ## 7. Kho lưu trữ số (Digital Archive)
 - `GET /api/archive`: Truy xuất danh sách ảnh đoạt giải và dữ liệu lịch sử các cuộc thi cũ.
+
+## 8. API đã triển khai cho toàn bộ luồng cuộc thi
+Đường dẫn dưới đây đã có trong backend; mọi lỗi dùng chung định dạng `{ "message": "..." }`.
+
+**Công khai (không cần đăng nhập)**
+- `GET /api/contests`, `GET /api/contests/{id}`, `GET /api/contests/{id}/results` (chưa công bố → mảng rỗng)
+- `GET /api/archive?year=&contestId=`, `GET /api/public/stats`, `GET /api/public/leaderboard`, `GET /uploads/{file}`
+
+**Tài khoản (mọi role)**
+- `GET|PATCH /api/auth/me/profile`: hồ sơ mở rộng (thay cho `/api/judges/me` ở mục 6.1, dùng chung mọi role)
+- `PUT /api/auth/me/password`, `POST /api/files` (upload ảnh, trả `{ "url" }`)
+- `GET /api/notifications`, `PATCH /api/notifications/read-all`, `PATCH /api/notifications/{id}/read`
+
+**Participant**
+- `GET /api/registrations/mine`, `POST|DELETE /api/contests/{id}/registrations`
+- `POST /api/submissions` (multipart), `GET /api/submissions/mine`, `GET /api/submissions/mine/results`
+- `PUT|DELETE /api/submissions/{id}`: chỉ khi bài còn `PENDING` và cuộc thi còn nhận bài
+- `GET|POST /api/film-rolls`, `PUT|DELETE /api/film-rolls/{id}`
+
+**Organizer và Admin** (Organizer chỉ thao tác trên cuộc thi của mình)
+- `GET /api/contests/managed`, `GET /api/contests/managed/results`
+- `POST /api/contests` (chỉ Organizer), `PUT|DELETE /api/contests/{id}`, `PATCH /api/contests/{id}/status`
+- `PATCH /api/contests/{id}/archive?archived=`, `POST /api/contests/{id}/duplicate`
+- `POST|DELETE /api/contests/{id}/results/publish`: công bố / hủy công bố, ghi tác phẩm đoạt giải vào kho số
+- `GET /api/submissions?contestId=`, `GET /api/submissions/{id}`, `PATCH /api/submissions/{id}/status`
+- `GET|POST /api/assignments`, `PUT /api/assignments/{id}/judge`, `POST /api/assignments/{id}/remind`, `DELETE /api/assignments/{id}`
+- `GET /api/organizer/reports?contestId=`, `GET|POST /api/organizer/judges`, `PATCH /api/organizer/judges/{id}/default`
+- `GET /api/organizer/participants`, `PATCH /api/organizer/participants/{id}/status`
+
+**Admin**
+- `GET /api/admin/logs`, `GET|PUT /api/admin/settings/{key}`
