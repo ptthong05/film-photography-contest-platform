@@ -14,16 +14,6 @@ import { formatDate } from "../../../utils/formatDate";
 import { CONTEST_STATUS } from "../../../utils/statusBadges";
 import { ContestCover } from "./ContestCover";
 import { OrganizerPageHeader } from "./OrganizerPageHeader";
-import {
-  archiveOrganizerContest,
-  deleteOrganizerContest,
-  duplicateOrganizerContest,
-  getOrganizerContestCopies,
-  isOrganizerContestArchived,
-  isOrganizerContestDeleted,
-  restoreOrganizerContest,
-  withContestSettings,
-} from "./contestManagementStorage";
 
 type StatusFilter = ContestStatus | "ALL" | "ARCHIVED";
 
@@ -38,7 +28,7 @@ const PAGE_SIZE = 5;
 const NUMBER_FORMAT = new Intl.NumberFormat("vi-VN");
 
 export function ContestsView({ onNavigate }: OrganizerViewProps) {
-  const { data, isLoading, error } = useFetch(contestService.getContests);
+  const { data, isLoading, error, refetch } = useFetch(contestService.getContests);
   const [keyword, setKeyword] = useState("");
   const [statusFilter, setStatusFilter] = useState<StatusFilter>("ALL");
   const [categoryFilter, setCategoryFilter] = useState("ALL");
@@ -48,19 +38,15 @@ export function ContestsView({ onNavigate }: OrganizerViewProps) {
   const [selectedContest, setSelectedContest] = useState<Contest | null>(null);
   const [openMenuId, setOpenMenuId] = useState<string | null>(null);
   const [notice, setNotice] = useState("");
-  const [collectionVersion, setCollectionVersion] = useState(0);
 
-  const contests = useMemo(
-    () => [...(data ?? []), ...getOrganizerContestCopies()].map(withContestSettings).filter((contest) => !isOrganizerContestDeleted(contest.id)),
-    [data, collectionVersion],
-  );
+  const contests = useMemo(() => data ?? [], [data]);
   const availableYears = [...new Set(contests.map((contest) => contest.startDate.slice(0, 4)))].sort().reverse();
   const availableCategories = [...new Set(contests.flatMap((contest) => contest.tags ?? []))]
     .sort((a, b) => a.localeCompare(b, "vi"));
   const filteredContests = useMemo(() => {
     const term = keyword.trim().toLocaleLowerCase("vi-VN");
     return contests.filter((contest) =>
-      (statusFilter === "ARCHIVED" ? isOrganizerContestArchived(contest.id) : !isOrganizerContestArchived(contest.id) && (statusFilter === "ALL" || contest.status === statusFilter)) &&
+      (statusFilter === "ARCHIVED" ? contest.archived : !contest.archived && (statusFilter === "ALL" || contest.status === statusFilter)) &&
       (categoryFilter === "ALL" || (contest.tags ?? []).includes(categoryFilter)) &&
       (yearFilter === "ALL" || contest.startDate.startsWith(yearFilter)) &&
       (!term || [contest.name, contest.id, contest.description ?? "", ...(contest.tags ?? []), ...(contest.judgeNames ?? [])]
@@ -95,30 +81,34 @@ export function ContestsView({ onNavigate }: OrganizerViewProps) {
     setOpenMenuId(null);
     onNavigate({ view: "CONTEST_DETAIL", id: contest.id });
   };
-  const duplicateContest = (contest: Contest) => {
-    const copy = duplicateOrganizerContest(contest);
-    setCollectionVersion((version) => version + 1);
+  const runAction = async (action: () => Promise<unknown>, message: string) => {
     setOpenMenuId(null);
-    onNavigate({ view: "CONTEST_DETAIL", id: copy.id });
+    try {
+      await action();
+      await refetch();
+      setNotice(message);
+    } catch (err) {
+      setNotice(err instanceof Error ? err.message : "Không thể thực hiện thao tác");
+    }
+  };
+  const duplicateContest = async (contest: Contest) => {
+    setOpenMenuId(null);
+    try {
+      const copy = await contestService.duplicateContest(contest.id);
+      onNavigate({ view: "CONTEST_DETAIL", id: copy.id });
+    } catch (err) {
+      setNotice(err instanceof Error ? err.message : "Không thể nhân bản cuộc thi");
+    }
   };
   const archiveContest = (contest: Contest) => {
-    archiveOrganizerContest(contest.id);
-    setCollectionVersion((version) => version + 1);
-    setOpenMenuId(null);
-    setNotice(`Đã lưu trữ cuộc thi “${contest.name}”. Có thể mở lại trong tab Đã lưu trữ.`);
+    void runAction(() => contestService.setArchived(contest.id, true), `Đã lưu trữ cuộc thi “${contest.name}”. Có thể mở lại trong tab Đã lưu trữ.`);
   };
   const restoreContest = (contest: Contest) => {
-    restoreOrganizerContest(contest.id);
-    setCollectionVersion((version) => version + 1);
-    setOpenMenuId(null);
-    setNotice(`Đã khôi phục cuộc thi “${contest.name}”.`);
+    void runAction(() => contestService.setArchived(contest.id, false), `Đã khôi phục cuộc thi “${contest.name}”.`);
   };
   const removeContest = (contest: Contest) => {
-    if (!window.confirm(`Xóa cuộc thi “${contest.name}” khỏi danh sách Organizer?`)) return;
-    deleteOrganizerContest(contest.id);
-    setCollectionVersion((version) => version + 1);
-    setOpenMenuId(null);
-    setNotice(`Đã xóa cuộc thi “${contest.name}” khỏi danh sách Organizer.`);
+    if (!window.confirm(`Xóa cuộc thi “${contest.name}”?`)) return;
+    void runAction(() => contestService.deleteContest(contest.id), `Đã xóa cuộc thi “${contest.name}”.`);
   };
 
   return (
@@ -140,10 +130,10 @@ export function ContestsView({ onNavigate }: OrganizerViewProps) {
           <div className="flex gap-1 overflow-x-auto border-b border-slate-200 px-4 pt-3" role="tablist" aria-label="Lọc cuộc thi theo trạng thái">
             {FILTER_TABS.map((tab) => {
               const count = tab.value === "ALL"
-                ? contests.filter((contest) => !isOrganizerContestArchived(contest.id)).length
+                ? contests.filter((contest) => !contest.archived).length
                 : tab.value === "ARCHIVED"
-                  ? contests.filter((contest) => isOrganizerContestArchived(contest.id)).length
-                  : contests.filter((contest) => !isOrganizerContestArchived(contest.id) && contest.status === tab.value).length;
+                  ? contests.filter((contest) => contest.archived).length
+                  : contests.filter((contest) => !contest.archived && contest.status === tab.value).length;
               return (
                 <button key={tab.value} type="button" role="tab" aria-selected={statusFilter === tab.value}
                   onClick={() => { setStatusFilter(tab.value); resetPage(); }}
@@ -200,13 +190,13 @@ export function ContestsView({ onNavigate }: OrganizerViewProps) {
               </div>
             ) : pageItems.map((contest, index) => (
               <ContestRow key={contest.id} contest={contest} seed={(currentPage - 1) * PAGE_SIZE + index}
-                isArchived={isOrganizerContestArchived(contest.id)}
+                isArchived={contest.archived}
                 isMenuOpen={openMenuId === contest.id}
                 onToggleMenu={() => setOpenMenuId((current) => current === contest.id ? null : contest.id)}
                 onQuickView={() => showQuickView(contest)}
                 onManage={() => openContestManagement(contest)}
                 onCopyId={() => { void copyId(contest.id); }}
-                onDuplicate={() => duplicateContest(contest)}
+                onDuplicate={() => { void duplicateContest(contest); }}
                 onArchive={() => archiveContest(contest)}
                 onRestore={() => restoreContest(contest)}
                 onDelete={() => removeContest(contest)} />
@@ -252,7 +242,7 @@ function ContestRow({ contest, seed, isArchived, isMenuOpen, onToggleMenu, onQui
     <article className="flex flex-col gap-4 px-4 py-4 transition-colors hover:bg-slate-50/70 lg:flex-row lg:items-center">
       <div className="flex min-w-0 flex-1 gap-3 sm:gap-4">
         <div className="h-20 w-24 shrink-0 overflow-hidden rounded-lg bg-gradient-to-br from-slate-300 to-slate-600 sm:h-24 sm:w-32">
-          <ContestCover title={contest.name} seed={seed} className="h-full w-full object-cover" />
+          <ContestCover title={contest.name} seed={seed} imageUrl={contest.coverUrl} className="h-full w-full object-cover" />
         </div>
         <div className="min-w-0 flex-1 space-y-1.5">
           <div className="flex flex-wrap items-center gap-2">
@@ -320,7 +310,7 @@ function ContestDetailModal({ contest, onClose, onManage }: { contest: Contest; 
           <button type="button" onClick={onClose} aria-label="Đóng chi tiết cuộc thi" className="rounded-lg p-2 text-slate-500 hover:bg-slate-100"><X size={21} /></button>
         </div>
         <div className="space-y-5 p-5">
-          <div className="h-40 overflow-hidden rounded-xl bg-slate-100 sm:h-52"><ContestCover title={contest.name} seed={0} className="h-full w-full object-cover" /></div>
+          <div className="h-40 overflow-hidden rounded-xl bg-slate-100 sm:h-52"><ContestCover title={contest.name} seed={0} imageUrl={contest.coverUrl} className="h-full w-full object-cover" /></div>
           <div className="flex flex-wrap items-center gap-3"><StatusBadge {...CONTEST_STATUS[contest.status]} /><span className="text-sm text-slate-600">Giám khảo: <b>{contest.judgeNames?.join(", ") || "Chưa phân công"}</b></span></div>
           <p className="text-sm leading-relaxed text-slate-700">{contest.description || "Chưa có mô tả cuộc thi."}</p>
           <dl className="grid gap-3 sm:grid-cols-2">

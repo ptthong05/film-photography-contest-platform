@@ -1,6 +1,7 @@
-import { MOCK_TYPE_DISTRIBUTION } from "../mocks/organizerData";
-import { mockRequest } from "./mockClient";
+import type { Report } from "../types/report";
+import { request } from "./apiClient";
 
 export const reportService = {
-  getTypeDistribution: () => mockRequest(MOCK_TYPE_DISTRIBUTION),
+  getReport: (contestId?: string) =>
+    request<Report>(`/organizer/reports${contestId ? `?contestId=${contestId}` : ""}`),
 };

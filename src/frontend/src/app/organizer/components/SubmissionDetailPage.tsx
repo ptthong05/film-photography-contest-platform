@@ -45,7 +45,7 @@ export function SubmissionDetailPage({ submissionId, onBack }: SubmissionDetailP
       {submission && (
         <div className="space-y-5">
           <div className="overflow-hidden rounded-2xl border border-slate-200 bg-white shadow-sm">
-            <ContestCover title={submission.contestName} seed={Number(submission.code.slice(-1))} className="h-64 w-full" />
+            <ContestCover title={submission.contestName} seed={0} imageUrl={submission.imageUrl} className="h-64 w-full" />
             <div className="flex flex-col gap-4 p-4 sm:p-5">
               <div className="flex flex-wrap items-center gap-2">
                 <StatusBadge {...SUBMISSION_STATUS[submission.status]} />

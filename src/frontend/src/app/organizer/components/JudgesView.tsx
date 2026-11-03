@@ -1,4 +1,4 @@
-import { useCallback, useEffect, useMemo, useState } from "react";
+import { useEffect, useMemo, useState } from "react";
 import { ChevronLeft, ChevronRight, Eye, Filter, Mail, Search, ShieldCheck, Star, UserRoundCheck, Users } from "lucide-react";
 import { StateMessage } from "../../../components/StateMessage";
 import { StatusBadge } from "../../../components/StatusBadge";
@@ -12,8 +12,6 @@ import type { OrganizerViewProps } from "../../../types/organizer";
 import type { AccountStatus, Judge } from "../../../types/organizerUser";
 import { ACCOUNT_STATUS } from "../../../utils/statusBadges";
 import { JudgeFormModal } from "./JudgeFormModal";
-import { readManagedAssignments, type ManagedAssignment } from "./assignmentManagementStorage";
-import { readOrganizerOnlyJudges, saveOrganizerOnlyJudge, seedOrganizerJudgesOnce, updateOrganizerOnlyJudge } from "./organizerJudgeStorage";
 import { OrganizerAvatar } from "./OrganizerAvatar";
 import { OrganizerPageHeader } from "./OrganizerPageHeader";
 
@@ -29,7 +27,7 @@ function JudgeDetail({ judge, contests, assignments, managedAssignments, onClose
   judge: Judge;
   contests: Contest[];
   assignments: Assignment[];
-  managedAssignments: ManagedAssignment[];
+  managedAssignments: Assignment[];
   onClose: () => void;
   onOpenAssignments: () => void;
 }) {
@@ -62,7 +60,6 @@ function JudgeDetail({ judge, contests, assignments, managedAssignments, onClose
 }
 
 export function JudgesView({ onNavigate }: OrganizerViewProps) {
-  const [version, setVersion] = useState(0);
   const [statusFilter, setStatusFilter] = useState<StatusFilter>("ALL");
   const [expertiseFilter, setExpertiseFilter] = useState("ALL");
   const [keyword, setKeyword] = useState("");
@@ -70,14 +67,12 @@ export function JudgesView({ onNavigate }: OrganizerViewProps) {
   const [pageSize, setPageSize] = useState(10);
   const [selectedJudge, setSelectedJudge] = useState<Judge | null>(null);
   const [isFormOpen, setIsFormOpen] = useState(false);
-  const [localJudges, setLocalJudges] = useState(readOrganizerOnlyJudges);
-  const fetchJudges = useCallback(() => organizerUserService.getJudges(), [version]);
-  const judgesQuery = useFetch(fetchJudges);
+  const [notice, setNotice] = useState("");
+  const judgesQuery = useFetch(organizerUserService.getJudges);
   const contestsQuery = useFetch(contestService.getContests);
   const assignmentsQuery = useFetch(assignmentService.getAssignments);
-  const managedAssignments = readManagedAssignments();
-  useEffect(() => { setLocalJudges(seedOrganizerJudgesOnce()); }, []);
-  const judges = [...(judgesQuery.data ?? []), ...localJudges];
+  const managedAssignments = useMemo(() => assignmentsQuery.data ?? [], [assignmentsQuery.data]);
+  const judges = useMemo(() => judgesQuery.data ?? [], [judgesQuery.data]);
   const statusCounts = useMemo(() => ({
     ALL: judges.length,
     ACTIVE: judges.filter((judge) => judge.status === "ACTIVE").length,
@@ -101,14 +96,19 @@ export function JudgesView({ onNavigate }: OrganizerViewProps) {
 
   const resetFilters = () => { setKeyword(""); setStatusFilter("ALL"); setExpertiseFilter("ALL"); setPage(1); };
   const toggleDefault = async (judge: Judge) => {
-    if (localJudges.some((item) => item.id === judge.id)) setLocalJudges(updateOrganizerOnlyJudge(judge.id, { isDefault: !judge.isDefault }));
-    else await organizerUserService.setDefaultJudge(judge.id, !judge.isDefault);
-    setVersion((value) => value + 1);
+    try {
+      await organizerUserService.setDefaultJudge(judge.id, !judge.isDefault);
+      await judgesQuery.refetch();
+    } catch (err) {
+      setNotice(err instanceof Error ? err.message : "Không thể cập nhật giám khảo");
+    }
   };
+  /** Tạo tài khoản thật; mật khẩu tạm chỉ hiện đúng 1 lần để Organizer gửi cho giám khảo */
   const submitJudge = async (judge: Judge) => {
-    setLocalJudges(saveOrganizerOnlyJudge(judge));
+    const created = await organizerUserService.createJudge({ fullName: judge.fullName, email: judge.email, specialty: judge.specialty });
     setIsFormOpen(false);
-    setVersion((value) => value + 1);
+    setNotice(`Đã tạo tài khoản giám khảo ${created.email}. Mật khẩu tạm: ${created.temporaryPassword ?? ""} (chỉ hiện 1 lần, hãy gửi cho giám khảo).`);
+    await judgesQuery.refetch();
   };
   const openAssignments = () => { setSelectedJudge(null); onNavigate({ view: "ASSIGNMENTS" }); };
 
@@ -117,6 +117,7 @@ export function JudgesView({ onNavigate }: OrganizerViewProps) {
       <OrganizerPageHeader title="Quản lý giám khảo" description="Theo dõi chuyên môn, người chấm mặc định và phân công theo cuộc thi."
         action={<button type="button" onClick={() => setIsFormOpen(true)} className="inline-flex items-center gap-2 rounded-xl bg-blue-600 px-4 py-2.5 text-sm font-semibold text-white shadow-sm hover:bg-blue-700"><Users size={17} aria-hidden="true" />Thêm giám khảo</button>} />
 
+      {notice && <p role="status" className="rounded-xl border border-blue-100 bg-blue-50 px-4 py-3 text-sm text-blue-900">{notice}</p>}
       {(judgesQuery.isLoading || contestsQuery.isLoading || assignmentsQuery.isLoading) && <StateMessage message="Đang tải danh sách giám khảo..." />}
       {(judgesQuery.error || contestsQuery.error || assignmentsQuery.error) && <StateMessage message={judgesQuery.error ?? contestsQuery.error ?? assignmentsQuery.error ?? "Không tải được dữ liệu."} isError />}
 

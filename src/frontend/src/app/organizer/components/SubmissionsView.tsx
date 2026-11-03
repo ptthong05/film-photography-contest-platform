@@ -8,7 +8,6 @@ import type { OrganizerViewProps } from "../../../types/organizer";
 import type { Submission } from "../../../types/submission";
 import { formatDate } from "../../../utils/formatDate";
 import { ContestCover } from "./ContestCover";
-import { readContestSubmissionReview, saveContestSubmissionReview } from "./contestManagementStorage";
 import { OrganizerPageHeader } from "./OrganizerPageHeader";
 
 type ReviewFilter = "ALL" | "PENDING" | "APPROVED" | "REJECTED";
@@ -20,10 +19,9 @@ const REVIEW_TABS: { id: ReviewFilter; label: string }[] = [
   { id: "REJECTED", label: "Đã từ chối" },
 ];
 
-function reviewStatus(submission: Submission, contestId: string | undefined): Exclude<ReviewFilter, "ALL"> {
-  const saved = contestId ? readContestSubmissionReview(contestId, submission.id) : undefined;
-  if (saved) return saved;
-  return submission.status === "VALID" ? "APPROVED" : "PENDING";
+function reviewStatus(submission: Submission): Exclude<ReviewFilter, "ALL"> {
+  if (submission.status === "VALID") return "APPROVED";
+  return submission.status === "REJECTED" ? "REJECTED" : "PENDING";
 }
 
 const STATUS_STYLE: Record<Exclude<ReviewFilter, "ALL">, string> = {
@@ -44,22 +42,18 @@ export function SubmissionsView({ onNavigate }: OrganizerViewProps) {
   const [contestFilter, setContestFilter] = useState("ALL");
   const [statusFilter, setStatusFilter] = useState<ReviewFilter>("ALL");
   const [page, setPage] = useState(1);
-  const [reviewRevision, setReviewRevision] = useState(0);
+  const [actionError, setActionError] = useState("");
   const rows = submissions.data ?? [];
   const contestNames = [...new Set(rows.map((row) => row.contestName))].sort((a, b) => a.localeCompare(b, "vi"));
-  const contestIdOf = (submission: Submission) => contests.data?.find((contest) => contest.name === submission.contestName)?.id;
-  const statusOf = (submission: Submission) => reviewStatus(submission, contestIdOf(submission));
+  const statusOf = reviewStatus;
 
   const counts = useMemo(() => {
     const result: Record<ReviewFilter, number> = { ALL: rows.length, PENDING: 0, APPROVED: 0, REJECTED: 0 };
     for (const row of rows) {
-      const contestId = contests.data?.find((contest) => contest.name === row.contestName)?.id;
-      result[reviewStatus(row, contestId)] += 1;
+      result[reviewStatus(row)] += 1;
     }
     return result;
-  // reviewRevision refreshes persisted local review decisions.
-  // eslint-disable-next-line react-hooks/exhaustive-deps
-  }, [rows, contests.data, reviewRevision]);
+  }, [rows]);
 
   const filteredRows = useMemo(() => {
     const query = keyword.trim().toLocaleLowerCase("vi-VN");
@@ -69,19 +63,23 @@ export function SubmissionsView({ onNavigate }: OrganizerViewProps) {
       const matchesStatus = statusFilter === "ALL" || statusOf(row) === statusFilter;
       return matchesQuery && matchesContest && matchesStatus;
     }).sort((a, b) => b.submittedAt.localeCompare(a.submittedAt));
-  // reviewRevision refreshes persisted local review decisions.
-  // eslint-disable-next-line react-hooks/exhaustive-deps
-  }, [rows, keyword, contestFilter, statusFilter, contests.data, reviewRevision]);
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [rows, keyword, contestFilter, statusFilter]);
 
   const pageCount = Math.max(1, Math.ceil(filteredRows.length / PAGE_SIZE));
   const currentPage = Math.min(page, pageCount);
   const visibleRows = filteredRows.slice((currentPage - 1) * PAGE_SIZE, currentPage * PAGE_SIZE);
 
-  const setReview = (submission: Submission, status: "APPROVED" | "REJECTED" | null) => {
-    const contestId = contestIdOf(submission);
-    if (!contestId) return;
-    saveContestSubmissionReview(contestId, submission.id, status);
-    setReviewRevision((revision) => revision + 1);
+  const setReview = async (submission: Submission, status: "APPROVED" | "REJECTED" | null) => {
+    setActionError("");
+    const reason = status === "REJECTED" ? window.prompt("Lý do từ chối (thí sinh sẽ nhận được thông báo):") : undefined;
+    if (reason === null) return;
+    try {
+      await submissionService.review(submission.id, status === "APPROVED" ? "VERIFIED" : status ?? "PENDING", reason);
+      await submissions.refetch();
+    } catch (err) {
+      setActionError(err instanceof Error ? err.message : "Không thể cập nhật bài dự thi");
+    }
   };
 
   return (
@@ -91,6 +89,7 @@ export function SubmissionsView({ onNavigate }: OrganizerViewProps) {
       {(submissions.isLoading || contests.isLoading) && <StateMessage message="Đang tải danh sách bài dự thi..." />}
       {(submissions.error || contests.error) && <StateMessage message={submissions.error ?? contests.error ?? "Không tải được dữ liệu."} isError />}
 
+      {actionError && <StateMessage message={actionError} isError />}
       {submissions.data && <>
         <div className="overflow-hidden rounded-2xl border border-slate-200 bg-white shadow-sm">
           <div role="tablist" aria-label="Lọc bài theo trạng thái duyệt" className="flex gap-1 overflow-x-auto border-b border-slate-200 px-4 pt-2">
@@ -109,7 +108,7 @@ export function SubmissionsView({ onNavigate }: OrganizerViewProps) {
                 {visibleRows.map((submission) => {
                   const status = statusOf(submission);
                   return <tr key={submission.id} className="align-middle hover:bg-blue-50/30">
-                    <td className="px-4 py-3"><div className="flex items-center gap-3"><ContestCover title={submission.contestName} seed={Number(submission.code.replace(/\D/g, "").slice(-2)) || 0} className="h-[68px] w-20 shrink-0 rounded-lg shadow-sm" /><div className="min-w-0"><p className="max-w-60 truncate font-semibold text-[#0B356B]" title={submission.title}>{submission.title}</p><p className="mt-1 text-xs text-slate-500">{submission.code}</p><p className="mt-1 max-w-56 truncate text-xs text-blue-700">{submission.contestName}</p></div></div></td>
+                    <td className="px-4 py-3"><div className="flex items-center gap-3"><ContestCover title={submission.contestName} seed={0} imageUrl={submission.imageUrl} className="h-[68px] w-20 shrink-0 rounded-lg shadow-sm" /><div className="min-w-0"><p className="max-w-60 truncate font-semibold text-[#0B356B]" title={submission.title}>{submission.title}</p><p className="mt-1 text-xs text-slate-500">{submission.code}</p><p className="mt-1 max-w-56 truncate text-xs text-blue-700">{submission.contestName}</p></div></div></td>
                     <td className="px-4 py-3"><p className="font-semibold text-slate-700">{submission.authorName}</p><p className="mt-1 text-xs text-slate-500">Nộp ngày {formatDate(submission.submittedAt)}</p></td>
                     <td className="px-4 py-3 text-xs leading-5 text-slate-600"><p><span className="font-semibold text-slate-700">Phim:</span> {submission.metadata.filmStock}</p><p><span className="font-semibold text-slate-700">Máy ảnh:</span> {submission.metadata.camera}</p><p><span className="font-semibold text-slate-700">Định dạng:</span> {submission.metadata.format} · ISO {submission.metadata.iso}</p></td>
                     <td className="px-4 py-3"><span className={`inline-flex items-center gap-1.5 whitespace-nowrap rounded-full px-2.5 py-1 text-xs font-semibold ring-1 ring-inset ${STATUS_STYLE[status]}`}><span className="size-1.5 rounded-full bg-current" />{STATUS_LABEL[status]}</span></td>
@@ -124,7 +123,7 @@ export function SubmissionsView({ onNavigate }: OrganizerViewProps) {
           <footer className="flex flex-col gap-3 border-t border-slate-200 px-4 py-3 text-xs text-slate-600 sm:flex-row sm:items-center sm:justify-between"><p>Hiển thị {filteredRows.length === 0 ? 0 : (currentPage - 1) * PAGE_SIZE + 1}–{Math.min(currentPage * PAGE_SIZE, filteredRows.length)} trong {filteredRows.length} bài dự thi</p><div className="flex items-center gap-2"><span className="mr-1">Trang {currentPage} / {pageCount}</span><button type="button" onClick={() => setPage(Math.max(1, currentPage - 1))} disabled={currentPage <= 1} aria-label="Trang trước" className="rounded-lg border border-slate-200 p-2 hover:bg-blue-50 disabled:cursor-not-allowed disabled:opacity-40"><ChevronLeft size={16} /></button><button type="button" onClick={() => setPage(Math.min(pageCount, currentPage + 1))} disabled={currentPage >= pageCount} aria-label="Trang sau" className="rounded-lg border border-slate-200 p-2 hover:bg-blue-50 disabled:cursor-not-allowed disabled:opacity-40"><ChevronRight size={16} /></button></div></footer>
         </div>
 
-        <p className="flex items-start gap-2 text-xs leading-5 text-slate-500"><Clock3 size={15} className="mt-0.5 shrink-0" aria-hidden="true" />Quyết định duyệt được Organizer lưu lại trong phần quản lý cuộc thi; có thể đặt lại để đưa bài về trạng thái ban đầu.</p>
+        <p className="flex items-start gap-2 text-xs leading-5 text-slate-500"><Clock3 size={15} className="mt-0.5 shrink-0" aria-hidden="true" />Thí sinh nhận thông báo khi bài được duyệt hoặc từ chối; có thể đặt lại để đưa bài về trạng thái chờ duyệt.</p>
       </>}
     </section>
   );

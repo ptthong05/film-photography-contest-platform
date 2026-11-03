@@ -1,7 +1,12 @@
 export interface Assignment {
   id: string;
-  judgeName: string;
+  contestId: string;
   contestName: string;
-  assignedCount: number;
-  reviewedCount: number;
+  judgeId: string;
+  judgeName: string;
+  submissionIds: string[];
+  reviewedSubmissionIds: string[];
+  remindersSent: number;
+  deadline: string;
+  updatedAt: string;
 }

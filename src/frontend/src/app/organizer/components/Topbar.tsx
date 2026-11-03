@@ -1,6 +1,6 @@
 import { Bell, Search } from "lucide-react";
 
-export function Topbar({ organizerName = "Nguyễn Văn A" }: { organizerName?: string }) {
+export function Topbar({ organizerName = "" }: { organizerName?: string }) {
   return (
     <header className="flex items-center justify-between gap-3 border-b border-slate-200 bg-white px-4 py-3 sm:gap-4 sm:px-8">
       <label className="flex w-[34rem] max-w-full items-center gap-3 rounded-xl border border-slate-200 bg-slate-50 px-4 py-2.5 text-sm text-slate-500">

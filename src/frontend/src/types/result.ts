@@ -6,5 +6,14 @@ export interface ContestResult {
   title: string;
   authorName: string;
   score: number;
-  award: AwardLevel;
+  /** null khi tác phẩm không đoạt giải */
+  award: AwardLevel | null;
+  awardTitle: string;
+  reward: string;
+  submissionId: string;
+  contestId: string;
+  contestName: string;
+  isPublished: boolean;
+  imageUrl: string;
+  category: string;
 }

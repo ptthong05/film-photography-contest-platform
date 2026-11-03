@@ -1,4 +1,4 @@
-export type SubmissionStatus = "VALID" | "PENDING";
+export type SubmissionStatus = "VALID" | "PENDING" | "REJECTED";
 
 export interface FilmMetadata {
   filmStock: string;
@@ -19,8 +19,15 @@ export interface Submission {
   code: string;
   title: string;
   authorName: string;
+  authorEmail: string;
+  participantId: string;
+  contestId: string;
   contestName: string;
   submittedAt: string;
   status: SubmissionStatus;
+  rejectionReason: string;
+  imageUrl: string;
+  category: string;
+  description: string;
   metadata: FilmMetadata;
 }

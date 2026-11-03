@@ -7,7 +7,7 @@ const FIELD_CLASS = "w-full rounded-xl border border-slate-200 bg-white px-3.5 p
 
 interface JudgeFormModalProps {
   onClose: () => void;
-  onSubmit: (judge: Judge) => void;
+  onSubmit: (judge: Judge) => Promise<void>;
 }
 
 export function JudgeFormModal({ onClose, onSubmit }: JudgeFormModalProps) {
@@ -22,7 +22,7 @@ export function JudgeFormModal({ onClose, onSubmit }: JudgeFormModalProps) {
     { label: "Chuyên môn", value: specialty, onChange: setSpecialty },
   ];
 
-  const handleSubmit = () => {
+  const handleSubmit = async () => {
     if (!fullName.trim() || !specialty.trim()) {
       setError("Vui lòng nhập họ tên và chuyên môn.");
       return;
@@ -31,15 +31,19 @@ export function JudgeFormModal({ onClose, onSubmit }: JudgeFormModalProps) {
       setError("Email không hợp lệ.");
       return;
     }
-    onSubmit({
-      id: `j-${Date.now()}`,
-      fullName: fullName.trim(),
-      email: email.trim(),
-      specialty: specialty.trim(),
-      contestCount: 0,
-      status: "ACTIVE",
-      isDefault: false,
-    });
+    try {
+      await onSubmit({
+        id: "",
+        fullName: fullName.trim(),
+        email: email.trim(),
+        specialty: specialty.trim(),
+        contestCount: 0,
+        status: "ACTIVE",
+        isDefault: false,
+      });
+    } catch (err) {
+      setError(err instanceof Error ? err.message : "Không thể tạo giám khảo.");
+    }
   };
 
   return (

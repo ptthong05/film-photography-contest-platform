@@ -25,22 +25,12 @@ type ParticipantEntry = {
   source?: Submission;
 };
 
-const STATUS_STORAGE_KEY = "filmcontest.organizer.participant-status.v1";
 const PAGE_SIZE_OPTIONS = [10, 20, 50];
 const TAB_ITEMS: { id: DetailTab; label: string }[] = [
   { id: "submissions", label: "Bài dự thi" },
   { id: "contests", label: "Cuộc thi" },
   { id: "history", label: "Lịch sử" },
 ];
-
-function readStatusOverrides(): Record<string, Participant["status"]> {
-  try {
-    const parsed: unknown = JSON.parse(localStorage.getItem(STATUS_STORAGE_KEY) ?? "{}");
-    return parsed && typeof parsed === "object" && !Array.isArray(parsed) ? parsed as Record<string, Participant["status"]> : {};
-  } catch {
-    return {};
-  }
-}
 
 function ParticipantAvatar({ name, size = "size-10" }: { name: string; size?: string }) {
   const colors = ["bg-sky-100 text-sky-800", "bg-violet-100 text-violet-800", "bg-rose-100 text-rose-800", "bg-amber-100 text-amber-800", "bg-emerald-100 text-emerald-800"];
@@ -55,10 +45,7 @@ function ParticipantStatus({ status }: { status: Participant["status"] }) {
 }
 
 function makeParticipantEntries(participant: Participant, submissions: Submission[]): ParticipantEntry[] {
-  const name = participant.fullName.toLocaleLowerCase("vi-VN");
-  const matches = submissions.filter((submission) => submission.authorName.toLocaleLowerCase("vi-VN") === name);
-  if (matches.length) return matches.map((submission) => ({ id: submission.id, title: submission.title, contestName: submission.contestName, submittedAt: submission.submittedAt, status: submission.status, source: submission }));
-  return (participant.recentSubmissions ?? []).map((submission) => ({ ...submission }));
+  return submissions.filter((submission) => submission.participantId === participant.id).map((submission) => ({ id: submission.id, title: submission.title, contestName: submission.contestName, submittedAt: submission.submittedAt, status: submission.status, source: submission }));
 }
 
 export function ParticipantsView({ onNavigate }: OrganizerViewProps) {
@@ -76,15 +63,14 @@ export function ParticipantsView({ onNavigate }: OrganizerViewProps) {
   const [page, setPage] = useState(1);
   const [selectedParticipant, setSelectedParticipant] = useState<Participant | null>(null);
   const [fallbackSubmission, setFallbackSubmission] = useState<{ entry: ParticipantEntry; participant: Participant } | null>(null);
-  const [statusOverrides, setStatusOverrides] = useState(readStatusOverrides);
+  const [actionError, setActionError] = useState("");
 
   const participants = participantsQuery.data ?? [];
   const allSubmissions = submissionsQuery.data ?? [];
   const contestNames = [...new Set([
     ...(contestsQuery.data ?? []).map((contest) => contest.name),
-    ...participants.flatMap((participant) => (participant.recentSubmissions ?? []).map((submission) => submission.contestName)),
   ])].sort((a, b) => a.localeCompare(b, "vi"));
-  const statusOf = (participant: Participant) => statusOverrides[participant.id] ?? participant.status;
+  const statusOf = (participant: Participant) => participants.find((item) => item.id === participant.id)?.status ?? participant.status;
   const entriesOf = (participant: Participant) => makeParticipantEntries(participant, allSubmissions);
   const activeCount = participants.filter((participant) => statusOf(participant) === "ACTIVE").length;
   const lockedCount = participants.filter((participant) => statusOf(participant) === "LOCKED").length;
@@ -97,7 +83,7 @@ export function ParticipantsView({ onNavigate }: OrganizerViewProps) {
   const filteredParticipants = useMemo(() => {
     const query = keyword.trim().toLocaleLowerCase("vi-VN");
     return [...participants].filter((participant) => {
-      const status = statusOverrides[participant.id] ?? participant.status;
+      const status = participant.status;
       const entries = makeParticipantEntries(participant, allSubmissions);
       const matchesSearch = !query || `${participant.fullName} ${participant.email}`.toLocaleLowerCase("vi-VN").includes(query);
       const matchesStatus = statusFilter === "ALL" || status === statusFilter;
@@ -107,18 +93,22 @@ export function ParticipantsView({ onNavigate }: OrganizerViewProps) {
       const matchesSubmissionCount = submissionFilter === "ALL" || (submissionFilter === "0" ? count === 0 : submissionFilter === "1-2" ? count >= 1 && count <= 2 : count >= 3);
       return matchesSearch && matchesStatus && matchesContest && matchesDate && matchesSubmissionCount;
     }).sort((left, right) => sortBy === "MOST_SUBMISSIONS" ? right.submissionCount - left.submissionCount : right.registeredAt.localeCompare(left.registeredAt));
-  }, [participants, allSubmissions, keyword, statusOverrides, statusFilter, contestFilter, registeredFrom, registeredTo, submissionFilter, sortBy]);
+  }, [participants, allSubmissions, keyword, statusFilter, contestFilter, registeredFrom, registeredTo, submissionFilter, sortBy]);
 
   const pageCount = Math.max(1, Math.ceil(filteredParticipants.length / pageSize));
   const currentPage = Math.min(page, pageCount);
   const visibleParticipants = filteredParticipants.slice((currentPage - 1) * pageSize, currentPage * pageSize);
   const setFilter = <T,>(setter: (value: T) => void, value: T) => { setter(value); setPage(1); };
 
-  const toggleStatus = (participant: Participant) => {
+  const toggleStatus = async (participant: Participant) => {
     const nextStatus: Participant["status"] = statusOf(participant) === "LOCKED" ? "ACTIVE" : "LOCKED";
-    const next = { ...statusOverrides, [participant.id]: nextStatus };
-    setStatusOverrides(next);
-    localStorage.setItem(STATUS_STORAGE_KEY, JSON.stringify(next));
+    setActionError("");
+    try {
+      await organizerUserService.setParticipantStatus(participant.id, nextStatus);
+      await participantsQuery.refetch();
+    } catch (err) {
+      setActionError(err instanceof Error ? err.message : "Không thể cập nhật tài khoản thí sinh");
+    }
   };
 
   if (fallbackSubmission) return <RecentSubmissionDetail entry={fallbackSubmission.entry} participant={fallbackSubmission.participant} onBack={() => setFallbackSubmission(null)} />;
@@ -129,7 +119,7 @@ export function ParticipantsView({ onNavigate }: OrganizerViewProps) {
       entries={entriesOf(selectedParticipant)}
       contests={contestsQuery.data ?? []}
       onBack={() => setSelectedParticipant(null)}
-      onToggleStatus={() => toggleStatus(selectedParticipant)}
+      onToggleStatus={() => { void toggleStatus(selectedParticipant); }}
       onOpenFallback={(entry) => setFallbackSubmission({ entry, participant: selectedParticipant })}
       onNavigate={onNavigate}
     />;
@@ -139,6 +129,7 @@ export function ParticipantsView({ onNavigate }: OrganizerViewProps) {
     <section aria-label="Quản lý thí sinh" className="space-y-5">
       <OrganizerPageHeader title="Quản lý thí sinh" description="Theo dõi hồ sơ, hoạt động và bài dự thi của thí sinh." />
 
+      {actionError && <StateMessage message={actionError} isError />}
       {participantsQuery.isLoading && <StateMessage message="Đang tải danh sách thí sinh..." />}
       {participantsQuery.error && <StateMessage message={participantsQuery.error} isError />}
       {participantsQuery.data && <>

@@ -16,7 +16,8 @@ import { Modal } from "../../../components/Modal";
 import { OrganizerPageHeader } from "./OrganizerPageHeader";
 
 type PrizeFilter = "ALL" | AwardLevel;
-type ArchiveItem = { result: ContestResult; contest: Contest; submission?: Submission; year: number };
+type AwardedResult = ContestResult & { award: AwardLevel };
+type ArchiveItem = { result: AwardedResult; contest: Contest; submission?: Submission; year: number };
 const PAGE_SIZE = 10;
 const PRIZE_TABS: { value: PrizeFilter; label: string }[] = [
   { value: "ALL", label: "Tất cả" },
@@ -40,13 +41,12 @@ function escapeCsv(value: string | number): string { return `"${String(value).re
 
 function makeArchive(results: ContestResult[], contests: Contest[], submissions: Submission[]): ArchiveItem[] {
   return results.flatMap((result) => {
-    const submission = submissions.find((item) => normalize(item.title) === normalize(result.title))
-      ?? submissions.find((item) => normalize(item.authorName) === normalize(result.authorName));
-    if (!submission) return [];
-    const contest = contests.find((item) => item.name === submission.contestName);
+    // Kho lưu trữ chỉ gồm tác phẩm đoạt giải của cuộc thi đã công bố kết quả
+    if (!result.award || !result.isPublished) return [];
+    const contest = contests.find((item) => item.id === result.contestId);
     if (!contest) return [];
-    const year = Number(contest.startDate.slice(0, 4));
-    return [{ result, contest, submission, year: Number.isFinite(year) ? year : 0 }];
+    const year = Number((contest.resultsDate || contest.startDate).slice(0, 4));
+    return [{ result: { ...result, award: result.award }, contest, submission: submissions.find((item) => item.id === result.submissionId), year: Number.isFinite(year) ? year : 0 }];
   });
 }
 

@@ -17,6 +17,33 @@ export interface User {
   lastLoginAt: string | null;
 }
 
+/** Khớp với GearItem của backend */
+export interface GearItem {
+  type: 'CAMERA' | 'LENS' | 'FILM_STOCK';
+  name: string;
+}
+
+/** Khớp với ProfileResponse của backend */
+export interface UserProfile {
+  id: string;
+  name: string;
+  email: string;
+  phone: string | null;
+  role: Role;
+  status: UserStatus;
+  avatarUrl: string | null;
+  bio: string | null;
+  portfolioUrl: string | null;
+  specialty: string | null;
+  yearsOfExperience: number | null;
+  organizationName: string | null;
+  gear: GearItem[];
+  address: string | null;
+  equipment: string | null;
+  portfolioImages: string[];
+  createdAt: string | null;
+}
+
 /** Khớp với UserRequest của backend. password để trống khi sửa = giữ mật khẩu cũ. */
 export interface UserRequest {
   name: string;

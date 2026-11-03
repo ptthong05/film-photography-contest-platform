@@ -7,7 +7,7 @@ export interface Participant {
   submissionCount: number;
   registeredAt: string;
   status: AccountStatus;
-  recentSubmissions?: { id: string; title: string; contestName: string; submittedAt: string; status: "VALID" | "PENDING" }[];
+  contestIds: string[];
 }
 
 export interface Judge {
@@ -18,6 +18,8 @@ export interface Judge {
   contestCount: number;
   status: AccountStatus;
   isDefault: boolean;
+  /** Chỉ có ngay sau khi tạo tài khoản, để Organizer gửi cho giám khảo */
+  temporaryPassword?: string;
 }
 
 export interface OrganizerProfile {

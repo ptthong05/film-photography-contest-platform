@@ -1,4 +1,5 @@
 import { useRef, useState, type ChangeEvent, type FormEvent } from "react";
+import { authService } from "../../../services/authService";
 import { Bell, Camera, CheckCircle2, Eye, EyeOff, Info, KeyRound, RotateCcw, Save, ShieldCheck, UserRound, X } from "lucide-react";
 import { StateMessage } from "../../../components/StateMessage";
 import { useFetch } from "../../../hooks/useFetch";
@@ -55,8 +56,13 @@ function validateProfile(profile: OrganizerProfile): Partial<Record<ProfileField
 
 interface ProfileViewProps { onNameSaved?: (name: string) => void }
 
+const fetchProfile = async (): Promise<OrganizerProfile> => {
+  const profile = await profileService.getProfile();
+  return { fullName: profile.name, email: profile.email, phone: profile.phone ?? "", role: "Organizer", bio: profile.bio ?? "", avatarDataUrl: profile.avatarUrl || null };
+};
+
 export function ProfileView({ onNameSaved }: ProfileViewProps) {
-  const { data, isLoading, error } = useFetch(profileService.getProfile);
+  const { data, isLoading, error } = useFetch(fetchProfile);
   const [activeTab, setActiveTab] = useState<ProfileTab>("personal");
   const [savedProfile, setSavedProfile] = useState<OrganizerProfile | null>(null);
   const [draftProfile, setDraftProfile] = useState<OrganizerProfile | null>(null);
@@ -89,7 +95,7 @@ export function ProfileView({ onNameSaved }: ProfileViewProps) {
     event.target.value = "";
     if (!file) return;
     if (!["image/jpeg", "image/png", "image/webp"].includes(file.type)) { setNotice("Ảnh đại diện chỉ hỗ trợ JPG, PNG hoặc WebP."); return; }
-    if (file.size > MAX_AVATAR_BYTES) { setNotice("Ảnh cần nhỏ hơn hoặc bằng 700 KB để lưu trên trình duyệt."); return; }
+    if (file.size > MAX_AVATAR_BYTES) { setNotice("Ảnh cần nhỏ hơn hoặc bằng 700 KB."); return; }
     const reader = new FileReader();
     reader.onload = () => {
       if (typeof reader.result !== "string" || !/^data:image\/(?:jpeg|png|webp);base64,/i.test(reader.result)) { setNotice("Không thể đọc định dạng ảnh này."); return; }
@@ -97,7 +103,7 @@ export function ProfileView({ onNameSaved }: ProfileViewProps) {
         const base = previous ?? profile;
         return base ? { ...base, avatarDataUrl: reader.result as string } : previous;
       });
-      setNotice("Đã cập nhật ảnh xem trước. Nhấn Lưu thay đổi để lưu trên trình duyệt.");
+      setNotice("Đã cập nhật ảnh xem trước. Nhấn Lưu thay đổi để lưu.");
     };
     reader.onerror = () => setNotice("Không đọc được ảnh. Vui lòng thử lại.");
     reader.readAsDataURL(file);
@@ -112,12 +118,21 @@ export function ProfileView({ onNameSaved }: ProfileViewProps) {
     if (Object.keys(errors).length) { setNotice("Vui lòng kiểm tra các trường được đánh dấu."); return; }
     const normalized = { ...candidate, fullName: candidate.fullName.trim(), email: candidate.email.trim().toLowerCase(), phone: candidate.phone.trim(), bio: candidate.bio.trim() };
     try {
-      await profileService.saveProfile(normalized);
-      setSavedProfile(normalized);
-      setDraftProfile(normalized);
-      onNameSaved?.(normalized.fullName);
-      setNotice("Đã lưu hồ sơ mẫu trên trình duyệt này; chưa đồng bộ với máy chủ.");
-    } catch { setNotice("Không thể lưu hồ sơ trên trình duyệt. Hãy thử ảnh nhỏ hơn hoặc kiểm tra quyền lưu trữ."); }
+      await profileService.saveProfile({ name: normalized.fullName, email: normalized.email, phone: normalized.phone, bio: normalized.bio });
+      // Ảnh mới đang ở dạng data URL xem trước: tải lên máy chủ rồi lưu URL thật
+      let avatarDataUrl = normalized.avatarDataUrl ?? null;
+      if (avatarDataUrl?.startsWith("data:")) {
+        const blob = await (await fetch(avatarDataUrl)).blob();
+        avatarDataUrl = (await profileService.saveAvatar(blob)).avatarUrl;
+      } else if (!avatarDataUrl && profile?.avatarDataUrl) {
+        await profileService.removeAvatar();
+      }
+      const saved = { ...normalized, avatarDataUrl };
+      setSavedProfile(saved);
+      setDraftProfile(saved);
+      onNameSaved?.(saved.fullName);
+      setNotice("Đã lưu hồ sơ.");
+    } catch (err) { setNotice(err instanceof Error ? err.message : "Không thể lưu hồ sơ."); }
   };
 
   const cancelProfile = () => {
@@ -131,17 +146,24 @@ export function ProfileView({ onNameSaved }: ProfileViewProps) {
     setPassword({ current: "", next: "", confirm: "" }); setShowPassword(false);
   };
 
-  const checkPassword = (event: FormEvent<HTMLFormElement>) => {
+  const checkPassword = async (event: FormEvent<HTMLFormElement>) => {
     event.preventDefault(); setPasswordNotice("");
-    if (!password.current) setPasswordError("Vui lòng nhập mật khẩu hiện tại để kiểm tra biểu mẫu.");
+    if (!password.current) setPasswordError("Vui lòng nhập mật khẩu hiện tại.");
     else if (password.next.length < 8 || !/[0-9]/.test(password.next)) setPasswordError("Mật khẩu mới cần từ 8 ký tự và có ít nhất một chữ số.");
     else if (password.next === password.current) setPasswordError("Mật khẩu mới cần khác mật khẩu hiện tại.");
     else if (password.next !== password.confirm) setPasswordError("Hai lần nhập mật khẩu mới không trùng nhau.");
-    else { setPasswordError(""); setPasswordNotice("Biểu mẫu hợp lệ. Chưa đổi mật khẩu vì cần API xác thực từ máy chủ."); setPassword({ current: "", next: "", confirm: "" }); }
+    else {
+      try {
+        await authService.changePassword(password.current, password.next);
+        setPasswordError("");
+        setPasswordNotice("Đã đổi mật khẩu.");
+        setPassword({ current: "", next: "", confirm: "" });
+      } catch (err) { setPasswordError(err instanceof Error ? err.message : "Không thể đổi mật khẩu."); }
+    }
   };
 
   const saveNotifications = () => {
-    try { window.localStorage.setItem(NOTIFICATION_STORAGE_KEY, JSON.stringify(draftNotifications)); setSavedNotifications({ ...draftNotifications }); setNotice("Đã lưu tùy chọn thông báo demo trên trình duyệt."); }
+    try { window.localStorage.setItem(NOTIFICATION_STORAGE_KEY, JSON.stringify(draftNotifications)); setSavedNotifications({ ...draftNotifications }); setNotice("Đã lưu tùy chọn thông báo trên trình duyệt này."); }
     catch { setNotice("Không thể lưu tùy chọn thông báo trên trình duyệt."); }
   };
   const cancelNotifications = () => { setDraftNotifications({ ...savedNotifications }); setNotice("Đã khôi phục các tùy chọn thông báo đã lưu."); };
@@ -151,7 +173,7 @@ export function ProfileView({ onNameSaved }: ProfileViewProps) {
       <OrganizerPageHeader title="Hồ sơ cá nhân" description="Cập nhật thông tin và tùy chọn tài khoản Organizer." />
       <div className="flex items-start gap-3 rounded-xl border border-amber-200 bg-amber-50 p-4 text-sm text-amber-900" role="note">
         <Info size={19} className="mt-0.5 shrink-0" aria-hidden="true" />
-        <p><strong>Giao diện mẫu:</strong> Hồ sơ và tùy chọn thông báo được lưu trên trình duyệt. Mật khẩu không được lưu hoặc gửi đi; đổi mật khẩu thật cần API máy chủ.</p>
+        <p className="text-sm leading-6 text-blue-900">Hồ sơ và mật khẩu được lưu trên máy chủ. Tùy chọn thông báo chỉ áp dụng trên trình duyệt này.</p>
       </div>
       {isLoading && <StateMessage message="Đang tải dữ liệu..." />}
       {error && <StateMessage message={error} isError />}
@@ -204,7 +226,7 @@ export function ProfileView({ onNameSaved }: ProfileViewProps) {
                 <div className="space-y-1.5"><label htmlFor="organizer-password-current" className="text-sm font-semibold text-slate-700">Mật khẩu hiện tại (giả lập)</label><input id="organizer-password-current" type="password" autoComplete="off" value={password.current} onChange={(event) => { setPassword((previous) => ({ ...previous, current: event.target.value })); setPasswordError(""); }} className="w-full rounded-lg border border-slate-300 px-3.5 py-2.5 text-sm outline-none focus:border-blue-500 focus:ring-2 focus:ring-blue-100" /></div>
                 <div className="space-y-1.5"><label htmlFor="organizer-password-new" className="text-sm font-semibold text-slate-700">Mật khẩu mới (giả lập)</label><div className="relative"><input id="organizer-password-new" type={showPassword ? "text" : "password"} autoComplete="off" value={password.next} onChange={(event) => { setPassword((previous) => ({ ...previous, next: event.target.value })); setPasswordError(""); }} className="w-full rounded-lg border border-slate-300 px-3.5 py-2.5 pr-12 text-sm outline-none focus:border-blue-500 focus:ring-2 focus:ring-blue-100" /><button type="button" onClick={() => setShowPassword((previous) => !previous)} aria-label={showPassword ? "Ẩn mật khẩu mới" : "Hiện mật khẩu mới"} className="absolute inset-y-0 right-0 flex w-11 items-center justify-center text-slate-500 hover:text-blue-700">{showPassword ? <EyeOff size={19} /> : <Eye size={19} />}</button></div></div>
                 <div className="space-y-1.5"><label htmlFor="organizer-password-confirm" className="text-sm font-semibold text-slate-700">Xác nhận mật khẩu mới</label><input id="organizer-password-confirm" type={showPassword ? "text" : "password"} autoComplete="off" value={password.confirm} onChange={(event) => { setPassword((previous) => ({ ...previous, confirm: event.target.value })); setPasswordError(""); }} className="w-full rounded-lg border border-slate-300 px-3.5 py-2.5 text-sm outline-none focus:border-blue-500 focus:ring-2 focus:ring-blue-100" /></div>
-                <p className="text-xs text-slate-500">Quy tắc demo: tối thiểu 8 ký tự và có ít nhất 1 chữ số.</p>
+                <p className="text-xs text-slate-500">Tối thiểu 8 ký tự và có ít nhất 1 chữ số.</p>
                 {passwordError && <p role="alert" className="rounded-lg bg-red-50 p-3 text-sm text-red-700">{passwordError}</p>}{passwordNotice && <p role="status" className="rounded-lg bg-emerald-50 p-3 text-sm text-emerald-800">{passwordNotice}</p>}
                 <div className="flex justify-end gap-3 border-t border-slate-100 pt-5"><button type="button" onClick={() => { setPassword({ current: "", next: "", confirm: "" }); setPasswordError(""); setPasswordNotice(""); }} className="rounded-lg border border-slate-300 px-5 py-2.5 text-sm font-semibold text-slate-700 hover:bg-slate-50">Xóa biểu mẫu</button><button type="submit" className="rounded-lg bg-blue-600 px-5 py-2.5 text-sm font-semibold text-white hover:bg-blue-700">Kiểm tra biểu mẫu</button></div>
               </form>

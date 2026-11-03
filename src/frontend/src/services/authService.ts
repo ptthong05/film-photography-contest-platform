@@ -11,6 +11,9 @@ export const authService = {
 
   getCurrentUser: () => request<User>('/auth/me'),
 
+  changePassword: (currentPassword: string, newPassword: string) =>
+    request<void>('/auth/me/password', { method: 'PUT', body: JSON.stringify({ currentPassword, newPassword }) }),
+
   updateCurrentUser: (body: UpdateAccountRequest) =>
     request<User>('/auth/me', { method: 'PUT', body: JSON.stringify(body) }),
 };

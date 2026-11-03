@@ -16,7 +16,7 @@ import { Sidebar } from "./components/Sidebar";
 import { SubmissionDetailPage } from "./components/SubmissionDetailPage";
 import { SubmissionsView } from "./components/SubmissionsView";
 import { Topbar } from "./components/Topbar";
-import { readOrganizerProfile } from "../../services/profileService";
+import { useAuth } from "../../hooks/useAuth";
 
 interface OrganizerPageProps {
   onGoHome?: () => void;
@@ -72,7 +72,9 @@ function renderView(route: OrganizerRoute, onNavigate: (next: OrganizerRoute) =>
 
 export default function OrganizerPage({ onGoHome }: OrganizerPageProps) {
   const [route, setRoute] = useState<OrganizerRoute>({ view: "OVERVIEW" });
-  const [organizerName, setOrganizerName] = useState(() => readOrganizerProfile().fullName);
+  const { user } = useAuth();
+  const [savedName, setOrganizerName] = useState<string | null>(null);
+  const organizerName = savedName ?? user?.name ?? "";
   const [isMobileMenuOpen, setIsMobileMenuOpen] = useState(false);
   const mobileCloseButtonRef = useRef<HTMLButtonElement>(null);
   const navigate = (next: OrganizerRoute) => {

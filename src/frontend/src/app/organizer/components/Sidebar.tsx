@@ -41,7 +41,7 @@ interface SidebarProps {
   organizerName?: string;
 }
 
-export function Sidebar({ activeView, onNavigate, onGoHome, organizerName = "Nguyễn Văn A" }: SidebarProps) {
+export function Sidebar({ activeView, onNavigate, onGoHome, organizerName = "" }: SidebarProps) {
   return (
     <aside className="sticky top-0 flex h-screen w-60 shrink-0 flex-col bg-[#0B356B] text-white">
       <button
