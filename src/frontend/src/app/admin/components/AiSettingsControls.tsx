@@ -106,7 +106,7 @@ export function AiSettingsControls({ tab, settings, onToggle, onThresholdChange 
             ))}
           </div>
           <p className="mt-4 text-xs leading-relaxed text-slate-500">
-            Các giá trị là tham số minh họa từ giao diện, chưa phải ngưỡng đã được kiểm chứng của AI.
+            Module AI chưa hoạt động nên các ngưỡng này chưa có hiệu lực với bài dự thi.
           </p>
         </Panel>
       )}

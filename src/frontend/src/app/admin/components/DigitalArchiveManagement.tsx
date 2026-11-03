@@ -44,7 +44,7 @@ function ArchiveThumbnail({ src, title }: { src: string; title: string }) {
       ) : (
         <img
           src={src}
-          alt={`Ảnh minh họa: ${title}`}
+          alt={`Ảnh đoạt giải: ${title}`}
           loading="lazy"
           className="h-full w-full object-cover transition-transform duration-300 group-hover:scale-105"
           onError={() => setFailed(true)}

@@ -12,23 +12,18 @@ import {
   X,
 } from 'lucide-react';
 import type { AdminView } from '../components/AdminSidebar';
+import { useFetch } from '../../../hooks/useFetch';
+import { request } from '../../../services/apiClient';
 
 /**
  * Admin > Giám khảo.
  * Màn hình GIÁM SÁT tài khoản giám khảo theo SRS: quản lý quyền/tài khoản
  * thuộc Admin, việc phân công chấm và vận hành vòng chấm thuộc Organizer.
- * Chỉ dùng dữ liệu MẪU, chưa có API / kết nối MongoDB.
  */
 type JudgeStatus = 'ACTIVE' | 'SUSPENDED' | 'DISABLED';
 type JudgeFilter = 'ALL' | JudgeStatus;
 
-type Expertise =
-  | 'Nhiếp ảnh phim'
-  | 'Nghệ thuật thị giác'
-  | 'Nhiếp ảnh tài liệu'
-  | 'Nhiếp ảnh chân dung'
-  | 'Nhiếp ảnh phong cảnh'
-  | 'Lịch sử nhiếp ảnh';
+type Expertise = string;
 
 interface Judge {
   id: string;
@@ -41,36 +36,28 @@ interface Judge {
   joinedAt: string;
 }
 
-const DEMO_NAMES = [
-  'Lê Minh Cường', 'Đỗ Thị Hương', 'Trần Văn H', 'Phạm Thị Dung',
-  'Nguyễn Văn E', 'Hoàng Minh K', 'Nguyễn Thị F', 'Võ Quốc Anh',
-  'Bùi Thanh Mai', 'Phan Đức Minh', 'Trương Thu Hà', 'Đặng Quốc Bảo',
-  'Ngô Thị Lan', 'Trịnh Hoài Nam', 'Đinh Minh Quân', 'Lý Thảo Vy',
-  'Hồ Thanh Tùng', 'Đoàn Bảo Ngọc', 'Mai Đức Long', 'Vũ Khánh Linh',
-  'Tạ Quốc Huy', 'Nguyễn Bích Ngọc', 'Trần Hải Yến', 'Lương Gia Hân',
-  'Lê Quang Phúc', 'Đào Mỹ Linh', 'Cao Anh Tuấn', 'Phùng Ngọc Hà',
-] as const;
+interface ApiJudge {
+  id: string;
+  fullName: string;
+  email: string;
+  specialty: string | null;
+  contestCount: number;
+  evaluationCount: number;
+  status: 'ACTIVE' | 'SUSPENDED' | 'LOCKED';
+  joinedAt: string;
+}
 
-const EXPERTISE: Expertise[] = [
-  'Nhiếp ảnh phim',
-  'Nghệ thuật thị giác',
-  'Nhiếp ảnh tài liệu',
-  'Nhiếp ảnh chân dung',
-  'Nhiếp ảnh phong cảnh',
-  'Lịch sử nhiếp ảnh',
-];
+const STATUS_FROM_API: Record<ApiJudge['status'], JudgeStatus> = { ACTIVE: 'ACTIVE', SUSPENDED: 'SUSPENDED', LOCKED: 'DISABLED' };
 
-// 28 bản ghi minh họa, phân bố trạng thái: 24 hoạt động, 3 tạm khóa, 1 vô hiệu.
-// example.com là miền dành riêng cho dữ liệu ví dụ, KHÔNG phải email thực tế.
-const DEMO_JUDGES: Judge[] = DEMO_NAMES.map((name, index) => ({
-  id: `JDG-${String(index + 1).padStart(4, '0')}`,
-  name,
-  email: `judge${String(index + 1).padStart(2, '0')}@example.com`,
-  expertise: EXPERTISE[index % EXPERTISE.length],
-  contestCount: (index * 3 + 1) % 7 + 1,
-  evaluationCount: (index * 13 + 17) % 120 + 8,
-  status: index < 24 ? 'ACTIVE' : index < 27 ? 'SUSPENDED' : 'DISABLED',
-  joinedAt: `2025-${String(index % 12 + 1).padStart(2, '0')}-${String(index % 25 + 1).padStart(2, '0')}`,
+const fetchJudges = async (): Promise<Judge[]> => (await request<ApiJudge[]>('/organizer/judges')).map((judge) => ({
+  id: judge.id,
+  name: judge.fullName,
+  email: judge.email,
+  expertise: judge.specialty ?? 'Chưa cập nhật',
+  contestCount: judge.contestCount,
+  evaluationCount: judge.evaluationCount,
+  status: STATUS_FROM_API[judge.status],
+  joinedAt: judge.joinedAt?.slice(0, 10) ?? '',
 }));
 
 const STATUS: Record<JudgeStatus, { label: string; style: string }> = {
@@ -124,7 +111,7 @@ function JudgeDetailModal({ judge, onClose }: { judge: Judge; onClose: () => voi
         className="max-h-[92vh] w-full max-w-xl overflow-y-auto rounded-2xl bg-white shadow-2xl">
         <header className="flex items-start justify-between gap-4 border-b border-slate-200 p-5">
           <div>
-            <p className="text-xs font-semibold uppercase tracking-wide text-blue-600">Hồ sơ giám khảo · Dữ liệu mẫu</p>
+            <p className="text-xs font-semibold uppercase tracking-wide text-blue-600">Hồ sơ giám khảo</p>
             <h2 id="admin-judge-detail-title" className="mt-1 text-xl font-bold text-[#0B356B]">{judge.name}</h2>
             <p className="mt-1 text-xs text-slate-500">Mã tài khoản: {judge.id}</p>
           </div>
@@ -151,7 +138,7 @@ function JudgeDetailModal({ judge, onClose }: { judge: Judge; onClose: () => voi
               ['Chuyên môn', judge.expertise],
               ['Vai trò', 'Judge (Giám khảo)'],
               ['Số cuộc thi tham gia', String(judge.contestCount)],
-              ['Lượt đánh giá (mẫu)', String(judge.evaluationCount)],
+              ['Lượt đánh giá', String(judge.evaluationCount)],
               ['Ngày tạo tài khoản', formatDate(judge.joinedAt)],
               ['Mã giám khảo', judge.id],
             ] as [string, string][]).map(([label, value]) => (
@@ -162,7 +149,7 @@ function JudgeDetailModal({ judge, onClose }: { judge: Judge; onClose: () => voi
             ))}
           </dl>
           <p className="rounded-lg border border-blue-100 bg-blue-50 p-3 text-xs leading-5 text-blue-800">
-            Đây là thông tin minh họa. Admin theo dõi và quản lý tài khoản; việc phân công bài thi, vòng chấm và xác nhận đánh giá thuộc quy trình của Ban tổ chức và Giám khảo.
+            Admin theo dõi và quản lý tài khoản; việc phân công bài thi, vòng chấm và xác nhận đánh giá thuộc quy trình của Ban tổ chức và Giám khảo.
           </p>
         </div>
         <footer className="flex justify-end border-t border-slate-200 px-5 py-4">
@@ -181,6 +168,9 @@ interface JudgesViewProps {
 }
 
 export function JudgesView({ onNavigate }: JudgesViewProps) {
+  const { data, isLoading, error } = useFetch(fetchJudges);
+  const judges = useMemo(() => data ?? [], [data]);
+  const expertiseOptions = useMemo(() => [...new Set(judges.map((judge) => judge.expertise))].sort((a, b) => a.localeCompare(b, 'vi')), [judges]);
   const [statusFilter, setStatusFilter] = useState<JudgeFilter>('ALL');
   const [search, setSearch] = useState('');
   const [expertiseFilter, setExpertiseFilter] = useState<Expertise | 'ALL'>('ALL');
@@ -188,22 +178,22 @@ export function JudgesView({ onNavigate }: JudgesViewProps) {
   const [selectedJudge, setSelectedJudge] = useState<Judge | null>(null);
 
   const statusCounts = useMemo(() => ({
-    ALL: DEMO_JUDGES.length,
-    ACTIVE: DEMO_JUDGES.filter((judge) => judge.status === 'ACTIVE').length,
-    SUSPENDED: DEMO_JUDGES.filter((judge) => judge.status === 'SUSPENDED').length,
-    DISABLED: DEMO_JUDGES.filter((judge) => judge.status === 'DISABLED').length,
-  }), []);
+    ALL: judges.length,
+    ACTIVE: judges.filter((judge) => judge.status === 'ACTIVE').length,
+    SUSPENDED: judges.filter((judge) => judge.status === 'SUSPENDED').length,
+    DISABLED: judges.filter((judge) => judge.status === 'DISABLED').length,
+  }), [judges]);
 
   const filteredJudges = useMemo(() => {
     const normalizedSearch = search.trim().toLocaleLowerCase('vi-VN');
-    return DEMO_JUDGES.filter((judge) => {
+    return judges.filter((judge) => {
       if (statusFilter !== 'ALL' && judge.status !== statusFilter) return false;
       if (expertiseFilter !== 'ALL' && judge.expertise !== expertiseFilter) return false;
       if (!normalizedSearch) return true;
       return [judge.name, judge.email, judge.id, judge.expertise]
         .some((value) => value.toLocaleLowerCase('vi-VN').includes(normalizedSearch));
     });
-  }, [statusFilter, search, expertiseFilter]);
+  }, [statusFilter, search, expertiseFilter, judges]);
 
   const totalPages = Math.max(1, Math.ceil(filteredJudges.length / PAGE_SIZE));
   const currentPage = Math.min(page, totalPages);
@@ -228,7 +218,9 @@ export function JudgesView({ onNavigate }: JudgesViewProps) {
             </span>
             <div>
               <h2 className="text-base font-bold text-[#0B356B]">Danh sách giám khảo</h2>
-              <p className="text-xs text-slate-500">Dữ liệu mẫu — chưa kết nối Backend Java</p>
+              <p className="text-xs text-slate-500">Dữ liệu từ hệ thống</p>
+              {isLoading && <p className="text-xs text-slate-500">Đang tải dữ liệu...</p>}
+              {error && <p className="text-xs text-rose-600">{error}</p>}
             </div>
           </div>
           <button type="button" onClick={() => onNavigate('users')}
@@ -264,7 +256,7 @@ export function JudgesView({ onNavigate }: JudgesViewProps) {
               onChange={(event) => { setExpertiseFilter(event.target.value as Expertise | 'ALL'); setPage(1); }}
               className="w-full rounded-lg border border-slate-300 bg-white px-3 py-2.5 text-sm text-slate-800 outline-none focus:border-blue-500 focus:ring-2 focus:ring-blue-100">
               <option value="ALL">Tất cả chuyên môn</option>
-              {EXPERTISE.map((value) => <option key={value} value={value}>{value}</option>)}
+              {expertiseOptions.map((value) => <option key={value} value={value}>{value}</option>)}
             </select>
           </label>
           <button type="button" onClick={resetFilters}
@@ -331,7 +323,7 @@ export function JudgesView({ onNavigate }: JudgesViewProps) {
         </div>
 
         <footer className="flex flex-col gap-3 border-t border-slate-200 px-5 py-4 text-sm text-slate-500 sm:flex-row sm:items-center sm:justify-between">
-          <p>Hiển thị {firstRow} – {lastRow} của {filteredJudges.length} giám khảo <span className="text-xs">(mẫu)</span></p>
+          <p>Hiển thị {firstRow} – {lastRow} của {filteredJudges.length} giám khảo</p>
           <nav aria-label="Phân trang giám khảo" className="flex items-center gap-1">
             <button type="button" aria-label="Trang trước" disabled={currentPage <= 1}
               onClick={() => setPage((value) => Math.max(1, value - 1))}

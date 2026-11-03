@@ -9,71 +9,58 @@ import {
   type ArchiveItem,
   type ArchivePrize,
 } from '../components/DigitalArchiveManagement';
+import { useFetch } from '../../../hooks/useFetch';
+import { request } from '../../../services/apiClient';
 
 /**
  * Admin > Kho dữ liệu (Digital Archive).
- * Chỉ tra cứu tác phẩm đã đoạt giải; dữ liệu bên dưới hoàn toàn là MẪU.
- * Không có API, tải ảnh gốc, chức năng bình chọn hay sửa kết quả cuộc thi.
+ * Chỉ tra cứu tác phẩm đã đoạt giải, được ghi vào kho khi Organizer công bố kết quả.
+ * Không có tải ảnh gốc, chức năng bình chọn hay sửa kết quả cuộc thi.
  */
-const IMAGE_URLS = [
-  'https://images.unsplash.com/photo-1519608487953-e999c86e7455?auto=format&fit=crop&w=650&q=80',
-  'https://images.unsplash.com/photo-1500534623283-312aade485b7?auto=format&fit=crop&w=650&q=80',
-  'https://images.unsplash.com/photo-1470770841072-f978cf4d019e?auto=format&fit=crop&w=650&q=80',
-  'https://images.unsplash.com/photo-1514565131-fce0801e5785?auto=format&fit=crop&w=650&q=80',
-  'https://images.unsplash.com/photo-1441974231531-c6227db76b6e?auto=format&fit=crop&w=650&q=80',
-  'https://images.unsplash.com/photo-1500530855697-b586d89ba3ee?auto=format&fit=crop&w=650&q=80',
-  'https://images.unsplash.com/photo-1482192596544-9eb780fc7f66?auto=format&fit=crop&w=650&q=80',
-  'https://images.unsplash.com/photo-1500534314209-a25ddb2bd429?auto=format&fit=crop&w=650&q=80',
-];
+const NOT_DECLARED = 'Chưa khai báo';
 
-type DemoRow = {
-  title: string;
-  author: string;
-  contest: string;
+interface ApiArchiveEntry {
+  id: string;
+  contestTitle: string;
   year: number;
-  prize: ArchivePrize;
-  filmStock: string;
-};
-
-const DEMO_ROWS: DemoRow[] = [
-  { title: 'Sài Gòn chiều mưa', author: 'Nguyễn Văn A', contest: 'Analog Moments 2025', year: 2025, prize: 'FIRST', filmStock: 'Kodak Portra 400' },
-  { title: 'Nắng cuối ngày', author: 'Trần Thị B', contest: 'Film & City', year: 2025, prize: 'SECOND', filmStock: 'Kodak Gold 200' },
-  { title: 'Đường về', author: 'Lê Thu D', contest: 'The Vintage Look', year: 2025, prize: 'THIRD', filmStock: 'Ilford HP5 Plus' },
-  { title: 'Bình yên', author: 'Phạm Văn E', contest: 'Nature on Film', year: 2025, prize: 'HONORABLE', filmStock: 'Fujifilm Superia 400' },
-  { title: 'Góc phố cũ', author: 'Hồ Thị Lan', contest: 'Black & White Stories', year: 2025, prize: 'FIRST', filmStock: 'Ilford Delta 100' },
-  { title: 'Nhịp sống', author: 'Đỗ Minh G', contest: 'Film & City', year: 2025, prize: 'SECOND', filmStock: 'Cinestill 800T' },
-  { title: 'Dòng sông', author: 'Vũ Thanh Mai', contest: 'Nature on Film', year: 2024, prize: 'THIRD', filmStock: 'Kodak Ektar 100' },
-  { title: 'Chân dung', author: 'Nguyễn Phú H', contest: 'The Vintage Look', year: 2025, prize: 'HONORABLE', filmStock: 'Kodak Tri-X 400' },
-  { title: 'Thành phố đêm', author: 'Trịnh Gia K', contest: 'Analog Moments 2025', year: 2025, prize: 'THIRD', filmStock: 'Cinestill 800T' },
-  { title: 'Ánh sáng', author: 'Trần Mỹ Linh', contest: 'Film & City', year: 2025, prize: 'HONORABLE', filmStock: 'Kodak Portra 160' },
-  { title: 'Phố cổ', author: 'Lâm Minh P', contest: 'Black & White Stories', year: 2024, prize: 'HONORABLE', filmStock: 'Ilford HP5 Plus' },
-  { title: 'Biển chiều', author: 'Đinh Văn Q', contest: 'Nature on Film', year: 2025, prize: 'SECOND', filmStock: 'Kodak Ektar 100' },
-  { title: 'Ngõ nhỏ', author: 'Lê Minh T', contest: 'The Vintage Look', year: 2024, prize: 'THIRD', filmStock: 'Kodak Gold 200' },
-  { title: 'Sương sớm', author: 'Bùi Ngọc Anh', contest: 'Analog Moments 2025', year: 2025, prize: 'HONORABLE', filmStock: 'Ilford Delta 100' },
-  { title: 'Cầu cũ', author: 'Phan Thanh Bình', contest: 'Film & City', year: 2025, prize: 'THIRD', filmStock: 'Fujicolor C200' },
-  { title: 'Về nhà', author: 'Mai Đức Long', contest: 'Black & White Stories', year: 2024, prize: 'HONORABLE', filmStock: 'Kodak Tri-X 400' },
-  { title: 'Mùa hoa', author: 'Ngô Thị Hương', contest: 'Nature on Film', year: 2025, prize: 'SECOND', filmStock: 'Fujifilm Superia 400' },
-  { title: 'Qua ô cửa', author: 'Võ Quốc Minh', contest: 'The Vintage Look', year: 2025, prize: 'THIRD', filmStock: 'Kodak Portra 400' },
-  { title: 'Chiều trên đồi', author: 'Tạ Quang Vinh', contest: 'Analog Moments 2025', year: 2025, prize: 'HONORABLE', filmStock: 'Kodak Ektar 100' },
-  { title: 'Lối rẽ', author: 'Hoàng Thị Ngọc', contest: 'Film & City', year: 2025, prize: 'HONORABLE', filmStock: 'Ilford HP5 Plus' },
-];
-
-const DEMO_ARCHIVE: ArchiveItem[] = DEMO_ROWS.map((row, index) => ({
-  id: `ARC-${String(index + 1).padStart(4, '0')}`,
-  ...row,
-  imageUrl: IMAGE_URLS[index % IMAGE_URLS.length],
-  awardedAt: `${row.year}-12-15`,
+  authorName: string;
+  title: string;
+  imageUrl: string | null;
+  prizeRank: ArchivePrize;
+  awardedAt: string;
   metadata: {
-    filmStock: row.filmStock,
-    iso: [100, 200, 400, 800][index % 4],
-    camera: ['Nikon FM2', 'Canon AE-1', 'Pentax K1000', 'Olympus OM-1'][index % 4],
-    lens: index % 2 ? '35mm f/2.8' : '50mm f/1.8',
-    filmFormat: index % 5 === 0 ? '120' : '35mm',
-    frameNumber: String((index * 3) % 36 + 1).padStart(2, '0'),
-    developingLab: index % 2 ? 'Lab B (mẫu)' : 'Lab A (mẫu)',
-    scanDetails: 'JPEG · 3000 × 2000 px · 24-bit (mẫu)',
+    filmStock: string | null;
+    iso: number | null;
+    camera: string | null;
+    lens: string | null;
+    filmFormat: string | null;
+    frameNumber: string | null;
+    developingLab: string | null;
+    scanSpec: string | null;
+  } | null;
+  judgeComments: { judgeName: string; comment: string }[];
+}
+
+const fetchArchive = async (): Promise<ArchiveItem[]> => (await request<ApiArchiveEntry[]>('/archive')).map((entry) => ({
+  id: entry.id,
+  title: entry.title,
+  author: entry.authorName,
+  contest: entry.contestTitle,
+  year: entry.year,
+  prize: entry.prizeRank,
+  imageUrl: entry.imageUrl ?? '',
+  awardedAt: entry.awardedAt.slice(0, 10),
+  metadata: {
+    filmStock: entry.metadata?.filmStock ?? NOT_DECLARED,
+    iso: entry.metadata?.iso ?? 0,
+    camera: entry.metadata?.camera ?? NOT_DECLARED,
+    lens: entry.metadata?.lens ?? NOT_DECLARED,
+    filmFormat: entry.metadata?.filmFormat ?? NOT_DECLARED,
+    frameNumber: entry.metadata?.frameNumber ?? NOT_DECLARED,
+    developingLab: entry.metadata?.developingLab ?? NOT_DECLARED,
+    scanDetails: entry.metadata?.scanSpec ?? NOT_DECLARED,
   },
-  judgeComment: 'Nhận xét minh họa. Chưa có dữ liệu đánh giá thực tế từ giám khảo.',
+  judgeComment: entry.judgeComments.map((item) => item.comment).join(' ') || 'Chưa có nhận xét.',
 }));
 
 const PAGE_SIZE = 10;
@@ -121,7 +108,7 @@ function ArchiveDetail({ item, onClose }: { item: ArchiveItem; onClose: () => vo
   const meta = item.metadata;
   const details: [string, string][] = [
     ['Mã lưu trữ', item.id], ['Cuộc thi', item.contest], ['Năm', String(item.year)],
-    ['Ngày trao giải (mẫu)', formatDate(item.awardedAt)],
+    ['Ngày trao giải', formatDate(item.awardedAt)],
     ['Film stock', meta.filmStock], ['ISO', String(meta.iso)],
     ['Máy ảnh', meta.camera], ['Ống kính', meta.lens],
     ['Film format', meta.filmFormat], ['Frame number', meta.frameNumber],
@@ -135,7 +122,7 @@ function ArchiveDetail({ item, onClose }: { item: ArchiveItem; onClose: () => vo
         className="max-h-[92vh] w-full max-w-2xl overflow-y-auto rounded-2xl bg-white shadow-2xl">
         <header className="flex items-start justify-between gap-4 border-b border-slate-200 p-5">
           <div>
-            <p className="text-xs font-semibold uppercase tracking-wide text-blue-700">Digital Archive · Dữ liệu mẫu</p>
+            <p className="text-xs font-semibold uppercase tracking-wide text-blue-700">Digital Archive</p>
             <h2 id="archive-detail-title" className="mt-1 text-xl font-bold text-[#0B356B]">{item.title}</h2>
             <p className="mt-1 text-sm text-slate-500">{item.author} · {ARCHIVE_PRIZES[item.prize].label}</p>
           </div>
@@ -146,7 +133,7 @@ function ArchiveDetail({ item, onClose }: { item: ArchiveItem; onClose: () => vo
         </header>
         <div className="space-y-5 p-5">
           <div className="rounded-lg border border-blue-100 bg-blue-50 px-4 py-3 text-sm text-blue-800">
-            Tác phẩm, giải thưởng và metadata bên dưới đều là dữ liệu minh họa, chưa được xác nhận bởi hệ thống thật.
+            Tác phẩm được lưu vào kho khi Organizer công bố kết quả cuộc thi.
           </div>
           <dl className="grid grid-cols-1 gap-3 sm:grid-cols-2">
             {details.map(([label, value]) => (
@@ -171,6 +158,8 @@ function ArchiveDetail({ item, onClose }: { item: ArchiveItem; onClose: () => vo
 }
 
 export function ArchiveView() {
+  const { data, isLoading, error } = useFetch(fetchArchive);
+  const archive = useMemo(() => data ?? [], [data]);
   const [search, setSearch] = useState('');
   const [prize, setPrize] = useState<PrizeFilter>('ALL');
   const [contest, setContest] = useState('ALL');
@@ -178,19 +167,19 @@ export function ArchiveView() {
   const [page, setPage] = useState(1);
   const [selected, setSelected] = useState<ArchiveItem | null>(null);
 
-  const contests = useMemo(() => Array.from(new Set(DEMO_ARCHIVE.map((item) => item.contest))).sort(), []);
-  const years = useMemo(() => Array.from(new Set(DEMO_ARCHIVE.map((item) => item.year))).sort((a, b) => b - a), []);
+  const contests = useMemo(() => Array.from(new Set(archive.map((item) => item.contest))).sort(), [archive]);
+  const years = useMemo(() => Array.from(new Set(archive.map((item) => item.year))).sort((a, b) => b - a), [archive]);
   const counts = useMemo(() => ({
-    ALL: DEMO_ARCHIVE.length,
-    FIRST: DEMO_ARCHIVE.filter((item) => item.prize === 'FIRST').length,
-    SECOND: DEMO_ARCHIVE.filter((item) => item.prize === 'SECOND').length,
-    THIRD: DEMO_ARCHIVE.filter((item) => item.prize === 'THIRD').length,
-    HONORABLE: DEMO_ARCHIVE.filter((item) => item.prize === 'HONORABLE').length,
-  }), []);
+    ALL: archive.length,
+    FIRST: archive.filter((item) => item.prize === 'FIRST').length,
+    SECOND: archive.filter((item) => item.prize === 'SECOND').length,
+    THIRD: archive.filter((item) => item.prize === 'THIRD').length,
+    HONORABLE: archive.filter((item) => item.prize === 'HONORABLE').length,
+  }), [archive]);
 
   const filtered = useMemo(() => {
     const term = normalizeSearch(search);
-    return DEMO_ARCHIVE.filter((item) => {
+    return archive.filter((item) => {
       if (prize !== 'ALL' && item.prize !== prize) return false;
       if (contest !== 'ALL' && item.contest !== contest) return false;
       if (year !== 'ALL' && item.year !== Number(year)) return false;
@@ -198,7 +187,7 @@ export function ArchiveView() {
       return [item.id, item.title, item.author, item.contest, item.metadata.filmStock]
         .some((value) => normalizeSearch(value).includes(term));
     });
-  }, [search, prize, contest, year]);
+  }, [search, prize, contest, year, archive]);
   const pageCount = Math.max(1, Math.ceil(filtered.length / PAGE_SIZE));
   const currentPage = Math.min(page, pageCount);
   const visible = filtered.slice((currentPage - 1) * PAGE_SIZE, currentPage * PAGE_SIZE);
@@ -230,12 +219,14 @@ export function ArchiveView() {
             <span className="flex h-10 w-10 items-center justify-center rounded-xl bg-blue-100 text-blue-700"><Archive size={21} aria-hidden="true" /></span>
             <div>
               <h2 className="font-bold text-[#0B356B]">Thư viện tác phẩm đạt giải</h2>
-              <p className="text-xs text-slate-500">{DEMO_ARCHIVE.length} tác phẩm minh họa — chưa kết nối MongoDB hoặc Cloud Storage</p>
+              <p className="text-xs text-slate-500">{archive.length} tác phẩm đoạt giải</p>
+              {isLoading && <p className="text-xs text-slate-500">Đang tải dữ liệu...</p>}
+              {error && <p className="text-xs text-rose-600">{error}</p>}
             </div>
           </div>
           <button type="button" onClick={exportCsv} disabled={filtered.length === 0}
             className="inline-flex items-center justify-center gap-2 rounded-lg border border-blue-200 px-3 py-2.5 text-sm font-semibold text-blue-700 hover:bg-blue-50 focus-visible:outline-2 focus-visible:outline-blue-600 disabled:cursor-not-allowed disabled:opacity-40">
-            <Download size={17} aria-hidden="true" />Tải danh sách CSV (mẫu)
+            <Download size={17} aria-hidden="true" />Tải danh sách CSV
           </button>
         </div>
 

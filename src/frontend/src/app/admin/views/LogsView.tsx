@@ -4,40 +4,61 @@ import {
   ActivityLogs, CATEGORY_LABELS, ROLE_LABELS, formatLogDate,
   type AdminActivityLog, type LogCategory, type LogResult, type LogRole,
 } from '../components/ActivityLogs';
+import { useFetch } from '../../../hooks/useFetch';
+import { adminService } from '../../../services/adminService';
+import type { Role } from '../../../types/user';
 
 type CategoryFilter = 'ALL' | LogCategory;
 type ResultFilter = 'ALL' | LogResult;
 type RoleFilter = 'ALL' | LogRole;
 
-// Những sự kiện sau chỉ để MINH HỌA giao diện; không phải nhật ký được máy chủ ghi nhận.
-const DEMO_EVENTS: Array<Pick<AdminActivityLog,
-  'actorName' | 'actorRole' | 'category' | 'action' | 'description' | 'result' | 'targetId'
->> = [
-  { actorName: 'Nguyễn Văn A', actorRole: 'Administrator', category: 'ACCOUNT', action: 'Cập nhật tài khoản', description: 'Cập nhật trạng thái tài khoản người tham gia.', result: 'SUCCESS', targetId: 'USR-0008' },
-  { actorName: 'Trần Thị B', actorRole: 'Participant', category: 'SECURITY', action: 'Đăng nhập', description: 'Đăng nhập thành công vào hệ thống.', result: 'SUCCESS', targetId: 'AUTH-0002' },
-  { actorName: 'Hệ thống', actorRole: 'System', category: 'SECURITY', action: 'Đăng nhập thất bại', description: 'Từ chối yêu cầu vì thông tin xác thực không hợp lệ.', result: 'FAILURE', targetId: 'AUTH-0003' },
-  { actorName: 'Lê Minh Cường', actorRole: 'Judge', category: 'JUDGING', action: 'Lưu đánh giá', description: 'Lưu điểm và nhận xét của một bài được phân công.', result: 'SUCCESS', targetId: 'EVA-0012' },
-  { actorName: 'Phạm Thị Dung', actorRole: 'Contest Organizer', category: 'CONTEST', action: 'Cập nhật cuộc thi', description: 'Thay đổi lịch nhận bài dự thi.', result: 'SUCCESS', targetId: 'CNT-0003' },
-  { actorName: 'Nguyễn Văn A', actorRole: 'Administrator', category: 'SYSTEM', action: 'Thay đổi cấu hình', description: 'Cập nhật ngôn ngữ và múi giờ hệ thống.', result: 'SUCCESS', targetId: 'CFG-0001' },
-  { actorName: 'Đỗ Văn E', actorRole: 'Participant', category: 'SUBMISSION', action: 'Nộp bài dự thi', description: 'Tải ảnh scan kèm metadata lên cuộc thi.', result: 'SUCCESS', targetId: 'SUB-0019' },
-  { actorName: 'Hệ thống', actorRole: 'System', category: 'SUBMISSION', action: 'Kiểm tra bài nộp', description: 'Từ chối tệp vì thiếu thông tin kỹ thuật bắt buộc.', result: 'FAILURE', targetId: 'SUB-0020' },
-  { actorName: 'Nguyễn Văn A', actorRole: 'Administrator', category: 'ACCOUNT', action: 'Phân quyền', description: 'Cập nhật vai trò cho tài khoản nhân sự.', result: 'SUCCESS', targetId: 'USR-0015' },
-  { actorName: 'Phạm Thị Dung', actorRole: 'Contest Organizer', category: 'CONTEST', action: 'Công bố kết quả', description: 'Xác nhận công bố danh sách tác phẩm đạt giải.', result: 'SUCCESS', targetId: 'CNT-0002' },
-  { actorName: 'Hệ thống', actorRole: 'System', category: 'SYSTEM', action: 'Đồng bộ dữ liệu', description: 'Thao tác đồng bộ bị gián đoạn và cần thử lại.', result: 'FAILURE', targetId: 'JOB-0004' },
-  { actorName: 'Trần Thị B', actorRole: 'Participant', category: 'ACCOUNT', action: 'Cập nhật hồ sơ', description: 'Thay đổi thông tin cá nhân.', result: 'SUCCESS', targetId: 'USR-0002' },
-];
+const ROLE_FROM_API: Record<Role, LogRole> = {
+  ADMIN: 'Administrator',
+  ORGANIZER: 'Contest Organizer',
+  JUDGE: 'Judge',
+  PARTICIPANT: 'Participant',
+};
 
-const DEMO_LOGS: AdminActivityLog[] = Array.from({ length: 48 }, (_, index) => {
-  const event = DEMO_EVENTS[index % DEMO_EVENTS.length];
-  const month = 12 - Math.floor(index / 4);
-  const day = 24 - (index % 4) * 5;
-  const hour = 9 + (index % 9);
-  const minute = (index * 7) % 60;
+/** Nhãn hiển thị của mã hành động do backend ghi */
+export const ACTION_INFO: Record<string, { label: string; category: LogCategory }> = {
+  LOGIN: { label: 'Đăng nhập', category: 'SECURITY' },
+  PASSWORD_CHANGE: { label: 'Đổi mật khẩu', category: 'SECURITY' },
+  CONTEST_CREATE: { label: 'Tạo cuộc thi', category: 'CONTEST' },
+  CONTEST_UPDATE: { label: 'Cập nhật cuộc thi', category: 'CONTEST' },
+  CONTEST_STATUS: { label: 'Đổi trạng thái cuộc thi', category: 'CONTEST' },
+  CONTEST_ARCHIVE: { label: 'Lưu trữ cuộc thi', category: 'CONTEST' },
+  CONTEST_RESTORE: { label: 'Khôi phục cuộc thi', category: 'CONTEST' },
+  CONTEST_DUPLICATE: { label: 'Nhân bản cuộc thi', category: 'CONTEST' },
+  CONTEST_DELETE: { label: 'Xóa cuộc thi', category: 'CONTEST' },
+  CONTEST_REGISTER: { label: 'Đăng ký cuộc thi', category: 'CONTEST' },
+  CONTEST_UNREGISTER: { label: 'Hủy đăng ký cuộc thi', category: 'CONTEST' },
+  RESULT_PUBLISH: { label: 'Công bố kết quả', category: 'CONTEST' },
+  RESULT_UNPUBLISH: { label: 'Hủy công bố kết quả', category: 'CONTEST' },
+  SUBMISSION_CREATE: { label: 'Nộp bài dự thi', category: 'SUBMISSION' },
+  SUBMISSION_DELETE: { label: 'Xóa bài dự thi', category: 'SUBMISSION' },
+  SUBMISSION_REVIEW: { label: 'Duyệt bài dự thi', category: 'SUBMISSION' },
+  ASSIGNMENT_CREATE: { label: 'Phân công giám khảo', category: 'JUDGING' },
+  ASSIGNMENT_REASSIGN: { label: 'Đổi giám khảo', category: 'JUDGING' },
+  ASSIGNMENT_REVOKE: { label: 'Thu hồi phân công', category: 'JUDGING' },
+  JUDGE_CREATE: { label: 'Tạo tài khoản giám khảo', category: 'ACCOUNT' },
+  PARTICIPANT_STATUS: { label: 'Đổi trạng thái thí sinh', category: 'ACCOUNT' },
+  SETTING_UPDATE: { label: 'Thay đổi cấu hình', category: 'SYSTEM' },
+};
+
+const fetchLogs = async (): Promise<AdminActivityLog[]> => (await adminService.getLogs()).map((log) => {
+  const info = ACTION_INFO[log.action] ?? { label: log.action, category: 'SYSTEM' as LogCategory };
   return {
-    ...event,
-    id: `LOG-${String(index + 1).padStart(5, '0')}`,
-    occurredAt: `2025-${String(month).padStart(2, '0')}-${String(day).padStart(2, '0')}T${String(hour).padStart(2, '0')}:${String(minute).padStart(2, '0')}:00+07:00`,
-    ipAddress: event.actorRole === 'System' ? '—' : `192.0.2.${10 + (index % 180)}`,
+    id: log.id,
+    occurredAt: log.createdAt,
+    actorName: log.actorName ?? 'Hệ thống',
+    actorRole: log.actorRole ? ROLE_FROM_API[log.actorRole] : 'System',
+    action: info.label,
+    description: log.details ?? info.label,
+    category: info.category,
+    // Backend chỉ ghi các thao tác đã thực hiện thành công và chưa lưu địa chỉ IP
+    result: 'SUCCESS',
+    ipAddress: '—',
+    targetId: log.targetId ?? '—',
   };
 });
 
@@ -56,8 +77,8 @@ function normalizeSearch(text: string) {
   return text.normalize('NFD').replace(/[\u0300-\u036f]/g, '').replace(/đ/g, 'd').replace(/Đ/g, 'D').toLowerCase().trim();
 }
 function localDate(iso: string) {
-  // ISO đã có offset +07:00; trích phần ngày nghiệp vụ cho bộ lọc ngày Việt Nam.
-  return iso.slice(0, 10);
+  // API trả giờ UTC; đổi sang ngày Việt Nam cho bộ lọc
+  return new Date(iso).toLocaleDateString('sv-SE', { timeZone: 'Asia/Ho_Chi_Minh' });
 }
 function csvCell(value: string) {
   // Tránh công thức bị kích hoạt nếu CSV được mở bằng phần mềm bảng tính.
@@ -145,6 +166,8 @@ function LogDetails({ log, onClose }: { log: AdminActivityLog; onClose: () => vo
 
 /** Admin > Nhật ký log. Chỉ tra cứu dữ liệu giả; không tự nhận là audit log từ hệ thống thật. */
 export function LogsView() {
+  const { data, error } = useFetch(fetchLogs);
+  const logs = useMemo(() => data ?? [], [data]);
   const [category, setCategory] = useState<CategoryFilter>('ALL');
   const [role, setRole] = useState<RoleFilter>('ALL');
   const [result, setResult] = useState<ResultFilter>('ALL');
@@ -157,7 +180,7 @@ export function LogsView() {
 
   const filtered = useMemo(() => {
     const query = normalizeSearch(search);
-    return DEMO_LOGS.filter((log) => {
+    return logs.filter((log) => {
       if (category !== 'ALL' && log.category !== category) return false;
       if (role !== 'ALL' && log.actorRole !== role) return false;
       if (result !== 'ALL' && log.result !== result) return false;
@@ -170,7 +193,7 @@ export function LogsView() {
         CATEGORY_LABELS[log.category], log.ipAddress, log.targetId,
       ].join(' ')).includes(query);
     }).sort((a, b) => b.occurredAt.localeCompare(a.occurredAt));
-  }, [category, role, result, search, startDate, endDate]);
+  }, [category, role, result, search, startDate, endDate, logs]);
 
   const totalPages = Math.max(1, Math.ceil(filtered.length / PAGE_SIZE));
   const safePage = Math.min(page, totalPages);
@@ -199,22 +222,23 @@ export function LogsView() {
   };
 
   const stats = {
-    success: DEMO_LOGS.filter((log) => log.result === 'SUCCESS').length,
-    failure: DEMO_LOGS.filter((log) => log.result === 'FAILURE').length,
-    security: DEMO_LOGS.filter((log) => log.category === 'SECURITY').length,
+    success: logs.filter((log) => log.result === 'SUCCESS').length,
+    failure: logs.filter((log) => log.result === 'FAILURE').length,
+    security: logs.filter((log) => log.category === 'SECURITY').length,
   };
 
   return (
     <section className="space-y-4" aria-label="Nhật ký hoạt động Admin">
       <div className="flex flex-wrap items-center justify-between gap-3 rounded-xl border border-blue-200 bg-blue-50 px-4 py-3 text-sm text-blue-900">
         <span className="flex items-start gap-2"><Info className="mt-0.5 shrink-0" size={18} aria-hidden="true" />
-          <span><strong>Dữ liệu minh họa.</strong> Các bản ghi, địa chỉ IP và hoạt động trên trang không phải audit log thật. Admin chỉ được xem và xuất danh sách mẫu.</span>
+          <span>Hiển thị 100 thao tác gần nhất được máy chủ ghi nhận.</span>
+          {error && <span className="text-rose-600">{error}</span>}
         </span>
       </div>
 
       <div className="grid grid-cols-2 gap-3 md:grid-cols-4">
         {[
-          { label: 'Tổng số log mẫu', value: DEMO_LOGS.length, color: 'text-blue-700' },
+          { label: 'Tổng số log', value: logs.length, color: 'text-blue-700' },
           { label: 'Thành công', value: stats.success, color: 'text-emerald-700' },
           { label: 'Thất bại', value: stats.failure, color: 'text-rose-700' },
           { label: 'Sự kiện bảo mật', value: stats.security, color: 'text-amber-700' },

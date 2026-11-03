@@ -1,11 +1,11 @@
-import { useRef, useState, type ChangeEvent, type FormEvent } from 'react';
+import { useEffect, useRef, useState, type ChangeEvent, type FormEvent } from 'react';
+import { authService } from '../../../services/authService';
+import { profileService } from '../../../services/profileService';
 import {
   Bell, Camera, CheckCircle2, Eye, EyeOff, Info, KeyRound,
   RotateCcw, Save, ShieldCheck, UserRound, X,
 } from 'lucide-react';
 
-// Dữ liệu phục vụ dựng giao diện. Chưa đồng bộ với phiên đăng nhập hoặc cơ sở dữ liệu.
-const PROFILE_STORAGE_KEY = 'filmcontest-admin-profile-demo-v1';
 const NOTIFICATION_STORAGE_KEY = 'filmcontest-admin-profile-notifications-demo-v1';
 const MAX_AVATAR_BYTES = 700 * 1024;
 
@@ -27,13 +27,7 @@ interface NotificationPreferences {
   systemReports: boolean;
 }
 
-const DEFAULT_PROFILE: DemoAdminProfile = {
-  fullName: 'Nguyễn Văn A',
-  email: 'nguyenvana@example.com',
-  phone: '0901 235 567',
-  bio: 'Quản trị hệ thống FilmContest, đam mê nhiếp ảnh phim và cộng đồng.',
-  avatarDataUrl: null,
-};
+const DEFAULT_PROFILE: DemoAdminProfile = { fullName: '', email: '', phone: '', bio: '', avatarDataUrl: null };
 
 const DEFAULT_NOTIFICATIONS: NotificationPreferences = {
   newUser: true,
@@ -58,29 +52,6 @@ const NOTIFICATION_ITEMS: {
   { id: 'securityAlerts', label: 'Cảnh báo bảo mật', description: 'Hiển thị tùy chọn nhận thông tin về sự kiện bảo mật.' },
   { id: 'systemReports', label: 'Báo cáo hệ thống', description: 'Hiển thị tùy chọn nhận báo cáo tổng hợp định kỳ.' },
 ];
-
-/** Đọc tên và thông tin profile DEMO, chỉ dùng trong vùng Admin. */
-export function readAdminDemoProfile(): DemoAdminProfile {
-  try {
-    if (typeof window === 'undefined') return { ...DEFAULT_PROFILE };
-    const raw = window.localStorage.getItem(PROFILE_STORAGE_KEY);
-    if (!raw) return { ...DEFAULT_PROFILE };
-    const parsed: unknown = JSON.parse(raw);
-    if (!parsed || typeof parsed !== 'object' || Array.isArray(parsed)) return { ...DEFAULT_PROFILE };
-    const source = parsed as Record<string, unknown>;
-    const avatar = source.avatarDataUrl;
-    return {
-      fullName: typeof source.fullName === 'string' ? source.fullName.slice(0, 80) : DEFAULT_PROFILE.fullName,
-      email: typeof source.email === 'string' ? source.email.slice(0, 120) : DEFAULT_PROFILE.email,
-      phone: typeof source.phone === 'string' ? source.phone.slice(0, 24) : DEFAULT_PROFILE.phone,
-      bio: typeof source.bio === 'string' ? source.bio.slice(0, 500) : DEFAULT_PROFILE.bio,
-      avatarDataUrl: typeof avatar === 'string' && avatar.length < 1_500_000 &&
-        /^data:image\/(?:jpeg|png|webp);base64,/i.test(avatar) ? avatar : null,
-    };
-  } catch {
-    return { ...DEFAULT_PROFILE };
-  }
-}
 
 function readDemoNotifications(): NotificationPreferences {
   try {
@@ -121,10 +92,17 @@ interface ProfileViewProps {
   onNameSaved?: (name: string) => void;
 }
 
-/** Màn hình 10: Hồ sơ Admin. Không có thao tác xác thực hoặc gửi mật khẩu đến backend. */
+/** Màn hình 10: Hồ sơ Admin. */
 export function ProfileView({ onNameSaved }: ProfileViewProps) {
   const [activeTab, setActiveTab] = useState<ProfileTab>('personal');
-  const [savedProfile, setSavedProfile] = useState<DemoAdminProfile>(readAdminDemoProfile);
+  const [savedProfile, setSavedProfile] = useState<DemoAdminProfile>({ ...DEFAULT_PROFILE });
+  useEffect(() => {
+    profileService.getProfile().then((account) => {
+      const loaded: DemoAdminProfile = { fullName: account.name, email: account.email, phone: account.phone ?? '', bio: account.bio ?? '', avatarDataUrl: account.avatarUrl || null };
+      setSavedProfile(loaded);
+      setDraftProfile(loaded);
+    }).catch(() => undefined);
+  }, []);
   const [draftProfile, setDraftProfile] = useState<DemoAdminProfile>(savedProfile);
   const [savedNotifications, setSavedNotifications] = useState<NotificationPreferences>(readDemoNotifications);
   const [draftNotifications, setDraftNotifications] = useState<NotificationPreferences>(savedNotifications);
@@ -171,7 +149,7 @@ export function ProfileView({ onNameSaved }: ProfileViewProps) {
     reader.readAsDataURL(file);
   };
 
-  const saveProfile = (event: FormEvent<HTMLFormElement>) => {
+  const saveProfile = async (event: FormEvent<HTMLFormElement>) => {
     event.preventDefault();
     const errors = validateProfile(draftProfile);
     setFieldErrors(errors);
@@ -187,13 +165,22 @@ export function ProfileView({ onNameSaved }: ProfileViewProps) {
       bio: draftProfile.bio.trim(),
     };
     try {
-      window.localStorage.setItem(PROFILE_STORAGE_KEY, JSON.stringify(normalized));
-      setSavedProfile(normalized);
-      setDraftProfile(normalized);
-      onNameSaved?.(normalized.fullName);
-      setNotice('Đã lưu hồ sơ DEMO trên trình duyệt này; chưa cập nhật tài khoản trên máy chủ.');
-    } catch {
-      setNotice('Không thể lưu hồ sơ trên trình duyệt. Hãy thử ảnh nhỏ hơn hoặc kiểm tra quyền lưu trữ.');
+      await profileService.saveProfile({ name: normalized.fullName, email: normalized.email, phone: normalized.phone, bio: normalized.bio });
+      // Ảnh mới đang ở dạng data URL xem trước: tải lên máy chủ rồi lưu URL thật
+      let avatarDataUrl = normalized.avatarDataUrl;
+      if (avatarDataUrl?.startsWith('data:')) {
+        const blob = await (await fetch(avatarDataUrl)).blob();
+        avatarDataUrl = (await profileService.saveAvatar(blob)).avatarUrl;
+      } else if (!avatarDataUrl && savedProfile.avatarDataUrl) {
+        await profileService.removeAvatar();
+      }
+      const saved = { ...normalized, avatarDataUrl };
+      setSavedProfile(saved);
+      setDraftProfile(saved);
+      onNameSaved?.(saved.fullName);
+      setNotice('Đã lưu hồ sơ.');
+    } catch (err) {
+      setNotice(err instanceof Error ? err.message : 'Không thể lưu hồ sơ.');
     }
   };
 
@@ -213,21 +200,26 @@ export function ProfileView({ onNameSaved }: ProfileViewProps) {
     setShowPassword(false);
   };
 
-  const checkPasswordForm = (event: FormEvent<HTMLFormElement>) => {
+  const checkPasswordForm = async (event: FormEvent<HTMLFormElement>) => {
     event.preventDefault();
     setPasswordNotice('');
     if (!password.current) {
-      setPasswordError('Vui lòng nhập mật khẩu hiện tại để kiểm tra biểu mẫu.');
+      setPasswordError('Vui lòng nhập mật khẩu hiện tại.');
     } else if (password.next.length < 8 || !/[0-9]/.test(password.next)) {
-      setPasswordError('Mật khẩu mới cần từ 8 ký tự và có ít nhất một chữ số (quy tắc giao diện demo).');
+      setPasswordError('Mật khẩu mới cần từ 8 ký tự và có ít nhất một chữ số.');
     } else if (password.next === password.current) {
       setPasswordError('Mật khẩu mới cần khác mật khẩu đang nhập ở ô hiện tại.');
     } else if (password.next !== password.confirm) {
       setPasswordError('Hai lần nhập mật khẩu mới không trùng nhau.');
     } else {
-      setPasswordError('');
-      setPasswordNotice('Biểu mẫu đáp ứng kiểm tra phía giao diện. Chưa đổi mật khẩu: cần API xác thực trên Java Backend.');
-      setPassword({ current: '', next: '', confirm: '' });
+      try {
+        await authService.changePassword(password.current, password.next);
+        setPasswordError('');
+        setPasswordNotice('Đã đổi mật khẩu.');
+        setPassword({ current: '', next: '', confirm: '' });
+      } catch (err) {
+        setPasswordError(err instanceof Error ? err.message : 'Không thể đổi mật khẩu.');
+      }
     }
   };
 
@@ -235,7 +227,7 @@ export function ProfileView({ onNameSaved }: ProfileViewProps) {
     try {
       window.localStorage.setItem(NOTIFICATION_STORAGE_KEY, JSON.stringify(draftNotifications));
       setSavedNotifications({ ...draftNotifications });
-      setNotice('Đã lưu TÙY CHỌN thông báo demo trên trình duyệt. Hệ thống chưa gửi thông báo thực tế.');
+      setNotice('Đã lưu tùy chọn thông báo trên trình duyệt này.');
     } catch {
       setNotice('Không thể lưu tùy chọn thông báo trên trình duyệt.');
     }

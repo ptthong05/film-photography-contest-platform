@@ -4,11 +4,13 @@ import {
   Eye, Filter, ImageOff, MoreVertical, Search, Trophy, Users,
   UserRoundCheck, X,
 } from 'lucide-react';
+import { useFetch } from '../../../hooks/useFetch';
+import { contestService } from '../../../services/contestService';
+import type { Contest } from '../../../types/contest';
 
 /**
  * Admin > Quản lý cuộc thi.
  * Chỉ xem và giám sát: việc tạo/sửa/công bố cuộc thi thuộc Organizer theo SRS.
- * Tất cả dữ liệu dưới đây là dữ liệu minh họa, CHƯA kết nối Java API.
  */
 type ContestStatus = 'ACTIVE' | 'UPCOMING' | 'COMPLETED';
 type ContestFilter = 'ALL' | ContestStatus;
@@ -28,31 +30,26 @@ interface AdminContest {
   image: string;
 }
 
-const PHOTO = {
-  mountains: 'https://images.unsplash.com/photo-1464822759023-fed622ff2c3b?auto=format&fit=crop&w=600&q=80',
-  city: 'https://images.unsplash.com/photo-1514565131-fce0801e5785?auto=format&fit=crop&w=600&q=80',
-  coast: 'https://images.unsplash.com/photo-1507525428034-b723cf961d3e?auto=format&fit=crop&w=600&q=80',
-  streets: 'https://images.unsplash.com/photo-1519501025264-65ba15a82390?auto=format&fit=crop&w=600&q=80',
-  nature: 'https://images.unsplash.com/photo-1506744038136-46273834b3fb?auto=format&fit=crop&w=600&q=80',
-  forest: 'https://images.unsplash.com/photo-1448375240586-882707db888b?auto=format&fit=crop&w=600&q=80',
+const STATUS_FROM_API: Record<Contest['status'], ContestStatus> = {
+  ONGOING: 'ACTIVE',
+  UPCOMING: 'UPCOMING',
+  ENDED: 'COMPLETED',
 };
 
-// Dữ liệu minh họa được đặt theo những mốc thời gian hợp lý trong 2025–2027.
-// Trạng thái là GIẢ LẬP, không phải trạng thái tự tính từ đồng hồ hệ thống.
-const DEMO_CONTESTS: AdminContest[] = [
-  { id: 'CT-2026-001', title: 'Analog Moments 2026', organizer: 'FilmContest Studio', description: 'Lưu giữ những khoảnh khắc chân thật qua nhiếp ảnh phim.', startDate: '2026-09-01', endDate: '2026-11-30', status: 'ACTIVE', participants: 342, judges: 8, submissions: 568, categories: ['Đời sống', 'Chân dung'], image: PHOTO.mountains },
-  { id: 'CT-2026-002', title: 'Film & City 2026', organizer: 'Urban Film Club', description: 'Nhịp sống thành phố nhìn từ máy ảnh phim.', startDate: '2026-08-15', endDate: '2026-10-31', status: 'ACTIVE', participants: 285, judges: 6, submissions: 371, categories: ['Đường phố', 'Kiến trúc'], image: PHOTO.city },
-  { id: 'CT-2026-003', title: 'The Vintage Look', organizer: 'Retro Lab', description: 'Tôn vinh phong cách ảnh cổ điển và sắc màu analog.', startDate: '2026-10-01', endDate: '2026-12-15', status: 'ACTIVE', participants: 198, judges: 5, submissions: 294, categories: ['Chân dung', 'Nghệ thuật'], image: PHOTO.streets },
-  { id: 'CT-2026-004', title: 'Nature on Film', organizer: 'Green Frames', description: 'Ghi lại vẻ đẹp thiên nhiên trên chất liệu phim.', startDate: '2026-11-01', endDate: '2026-12-31', status: 'UPCOMING', participants: 120, judges: 4, submissions: 0, categories: ['Thiên nhiên', 'Phong cảnh'], image: PHOTO.nature },
-  { id: 'CT-2026-005', title: 'Black & White Stories', organizer: 'Analog Collective', description: 'Những câu chuyện giàu cảm xúc qua phim đen trắng.', startDate: '2026-04-01', endDate: '2026-06-30', status: 'COMPLETED', participants: 430, judges: 10, submissions: 612, categories: ['Đen trắng', 'Đời sống'], image: PHOTO.coast },
-  { id: 'CT-2026-006', title: 'Golden Hour Film', organizer: 'Golden Photo Club', description: 'Khám phá ánh sáng lúc bình minh và hoàng hôn.', startDate: '2026-09-10', endDate: '2026-11-20', status: 'ACTIVE', participants: 156, judges: 4, submissions: 220, categories: ['Phong cảnh'], image: PHOTO.coast },
-  { id: 'CT-2026-007', title: 'Frames of Everyday Life', organizer: 'FilmContest Studio', description: 'Những khoảnh khắc đời thường được kể bằng ảnh phim.', startDate: '2026-10-05', endDate: '2026-12-05', status: 'ACTIVE', participants: 212, judges: 5, submissions: 187, categories: ['Đời sống'], image: PHOTO.city },
-  { id: 'CT-2026-008', title: 'Portraits in Grain', organizer: 'Retro Lab', description: 'Cuộc thi ảnh chân dung nhấn mạnh ngôn ngữ hạt phim.', startDate: '2026-11-15', endDate: '2027-01-15', status: 'UPCOMING', participants: 64, judges: 3, submissions: 0, categories: ['Chân dung'], image: PHOTO.streets },
-  { id: 'CT-2027-001', title: 'New Year on Film', organizer: 'Urban Film Club', description: 'Ghi lại những khoảnh khắc đầu năm bằng máy phim.', startDate: '2027-01-01', endDate: '2027-03-31', status: 'UPCOMING', participants: 0, judges: 4, submissions: 0, categories: ['Đời sống', 'Đường phố'], image: PHOTO.mountains },
-  { id: 'CT-2026-009', title: 'Spring Film Diary', organizer: 'Green Frames', description: 'Nhật ký mùa xuân qua từng khung hình analog.', startDate: '2026-02-01', endDate: '2026-04-30', status: 'COMPLETED', participants: 275, judges: 6, submissions: 390, categories: ['Thiên nhiên'], image: PHOTO.forest },
-  { id: 'CT-2025-001', title: 'Classic Street Photography', organizer: 'Urban Film Club', description: 'Khám phá đường phố qua cảm quan nhiếp ảnh phim.', startDate: '2025-08-01', endDate: '2025-10-31', status: 'COMPLETED', participants: 389, judges: 8, submissions: 520, categories: ['Đường phố'], image: PHOTO.city },
-  { id: 'CT-2025-002', title: 'Stories in 35mm', organizer: 'Analog Collective', description: 'Tác phẩm kể chuyện qua định dạng phim 35mm.', startDate: '2025-05-01', endDate: '2025-07-30', status: 'COMPLETED', participants: 201, judges: 5, submissions: 296, categories: ['Đời sống', 'Nghệ thuật'], image: PHOTO.coast },
-];
+const fetchContests = async (): Promise<AdminContest[]> => (await contestService.getContests()).map((contest) => ({
+  id: contest.id,
+  title: contest.name,
+  organizer: contest.organizerName,
+  description: contest.description ?? '',
+  startDate: contest.startDate,
+  endDate: contest.endDate,
+  status: STATUS_FROM_API[contest.status],
+  participants: contest.participantCount,
+  judges: contest.judgeNames?.length ?? 0,
+  submissions: contest.submissionCount,
+  categories: contest.tags ?? [],
+  image: contest.coverUrl ?? '',
+}));
 
 const FILTER_TABS: { id: ContestFilter; label: string }[] = [
   { id: 'ALL', label: 'Tất cả' },
@@ -81,9 +78,9 @@ function ContestImage({ contest }: { contest: AdminContest }) {
   return (
     <div className="flex h-20 w-24 shrink-0 items-center justify-center overflow-hidden rounded-lg bg-gradient-to-br from-slate-300 to-slate-600 sm:h-24 sm:w-32">
       {imageFailed ? (
-        <ImageOff size={25} className="text-white" aria-label="Chưa thể tải ảnh minh họa" />
+        <ImageOff size={25} className="text-white" aria-label="Chưa có ảnh bìa" />
       ) : (
-        <img src={contest.image} alt={`Ảnh minh họa ${contest.title}`} loading="lazy"
+        <img src={contest.image} alt={`Ảnh bìa ${contest.title}`} loading="lazy"
           onError={() => setImageFailed(true)} className="h-full w-full object-cover" />
       )}
     </div>
@@ -104,7 +101,7 @@ function ContestDetail({ contest, onClose }: { contest: AdminContest; onClose: (
         className="max-h-[90vh] w-full max-w-2xl overflow-y-auto rounded-2xl bg-white shadow-2xl">
         <div className="flex items-start justify-between gap-4 border-b border-slate-200 p-5">
           <div>
-            <p className="text-xs font-semibold uppercase tracking-wide text-slate-400">Chi tiết cuộc thi · Dữ liệu mẫu</p>
+            <p className="text-xs font-semibold uppercase tracking-wide text-slate-400">Chi tiết cuộc thi</p>
             <h2 id="admin-contest-detail-title" className="mt-1 text-xl font-bold text-[#0B356B]">{contest.title}</h2>
             <p className="mt-1 text-xs text-slate-500">Mã: {contest.id}</p>
           </div>
@@ -147,6 +144,8 @@ function ContestDetail({ contest, onClose }: { contest: AdminContest; onClose: (
 
 /** Màn hình số 3 trong giao diện Admin: chỉ xem, lọc và tra cứu cuộc thi. */
 export function ContestsView() {
+  const { data, isLoading, error } = useFetch(fetchContests);
+  const contests = useMemo(() => data ?? [], [data]);
   const [activeTab, setActiveTab] = useState<ContestFilter>('ALL');
   const [categoryFilter, setCategoryFilter] = useState('ALL');
   const [yearFilter, setYearFilter] = useState('ALL');
@@ -157,18 +156,18 @@ export function ContestsView() {
   const [openMenuId, setOpenMenuId] = useState<string | null>(null);
   const [notice, setNotice] = useState('');
 
-  const availableYears = [...new Set(DEMO_CONTESTS.map((contest) => contest.startDate.slice(0, 4)))].sort().reverse();
-  const availableCategories = [...new Set(DEMO_CONTESTS.flatMap((contest) => contest.categories))].sort((a, b) => a.localeCompare(b, 'vi'));
+  const availableYears = [...new Set(contests.map((contest) => contest.startDate.slice(0, 4)))].sort().reverse();
+  const availableCategories = [...new Set(contests.flatMap((contest) => contest.categories))].sort((a, b) => a.localeCompare(b, 'vi'));
   const filteredContests = useMemo(() => {
     const term = search.trim().toLocaleLowerCase('vi');
-    return DEMO_CONTESTS.filter((contest) =>
+    return contests.filter((contest) =>
       (activeTab === 'ALL' || contest.status === activeTab) &&
       (categoryFilter === 'ALL' || contest.categories.includes(categoryFilter)) &&
       (yearFilter === 'ALL' || contest.startDate.startsWith(yearFilter)) &&
       (!term || [contest.title, contest.organizer, contest.id, ...contest.categories]
         .some((value) => value.toLocaleLowerCase('vi').includes(term)))
     ).sort((a, b) => b.startDate.localeCompare(a.startDate));
-  }, [activeTab, categoryFilter, yearFilter, search]);
+  }, [activeTab, categoryFilter, yearFilter, search, contests]);
 
   const pageCount = Math.max(1, Math.ceil(filteredContests.length / PAGE_SIZE));
   const currentPage = Math.min(page, pageCount);
@@ -188,9 +187,11 @@ export function ContestsView() {
 
   return (
     <section aria-label="Quản lý cuộc thi" className="space-y-4">
+      {isLoading && <p className="text-sm text-slate-500">Đang tải dữ liệu...</p>}
+      {error && <p className="text-sm text-rose-600">{error}</p>}
       <div className="flex flex-wrap items-center justify-between gap-3">
         <span className="rounded-md bg-amber-50 px-3 py-2 text-xs font-semibold text-amber-800">
-          Dữ liệu minh họa — chưa kết nối API Java / MongoDB
+          Dữ liệu từ hệ thống
         </span>
         <span className="rounded-md border border-slate-200 bg-white px-3 py-2 text-xs text-slate-600">
           Admin: chế độ xem và giám sát
@@ -207,7 +208,7 @@ export function ContestsView() {
       <div className="overflow-hidden rounded-xl border border-slate-200 bg-white shadow-sm">
         <div className="flex gap-1 overflow-x-auto border-b border-slate-200 px-4 pt-3" role="tablist" aria-label="Lọc cuộc thi theo trạng thái">
           {FILTER_TABS.map((tab) => {
-            const count = tab.id === 'ALL' ? DEMO_CONTESTS.length : DEMO_CONTESTS.filter((contest) => contest.status === tab.id).length;
+            const count = tab.id === 'ALL' ? contests.length : contests.filter((contest) => contest.status === tab.id).length;
             return (
               <button key={tab.id} type="button" role="tab" aria-selected={activeTab === tab.id}
                 onClick={() => { setActiveTab(tab.id); resetPage(); }}

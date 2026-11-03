@@ -1,4 +1,5 @@
 import { useEffect, useRef, useState, type ChangeEvent } from 'react';
+import { adminService } from '../../../services/adminService';
 import {
   AlertTriangle, Bell, CheckCircle2, Download, Info, KeyRound,
   PlugZap, RotateCcw, Save, ShieldCheck, Upload, Users,
@@ -12,7 +13,7 @@ import {
 } from '../components/SystemSettings';
 import type { AdminView } from '../components/AdminSidebar';
 
-const STORAGE_KEY = 'filmcontest-admin-system-settings-demo-v1';
+const SETTING_KEY = 'system';
 const TAB_ITEMS = [
   { id: 'general', label: 'Thông tin chung' },
   { id: 'permissions', label: 'Quản lý phân quyền' },
@@ -21,17 +22,6 @@ const TAB_ITEMS = [
   { id: 'backup', label: 'Sao lưu & khôi phục' },
 ] as const;
 type SettingsTab = (typeof TAB_ITEMS)[number]['id'];
-
-function readDemoSettings(): SystemSettingsData {
-  try {
-    if (typeof window === 'undefined') return { ...DEFAULT_SYSTEM_SETTINGS };
-    const raw = window.localStorage.getItem(STORAGE_KEY);
-    if (!raw) return { ...DEFAULT_SYSTEM_SETTINGS };
-    return parseSystemSettings(JSON.parse(raw) as unknown) ?? { ...DEFAULT_SYSTEM_SETTINGS };
-  } catch {
-    return { ...DEFAULT_SYSTEM_SETTINGS };
-  }
-}
 
 function validate(values: SystemSettingsData) {
   const errors: Partial<Record<'platformName' | 'supportEmail', string>> = {};
@@ -53,11 +43,21 @@ const ROLE_PERMISSIONS = [
   { role: 'Participant', users: 'Hồ sơ cá nhân', contests: 'Đăng ký tham gia', submissions: 'Nộp và theo dõi' },
 ];
 
-/** Trang Admin số 8. Lưu trữ bản demo trên trình duyệt, không sửa cấu hình máy chủ. */
+/** Trang Admin số 8. Thiết lập lưu trên máy chủ. */
 export function SettingsView({ onNavigate }: SettingsViewProps) {
   const [activeTab, setActiveTab] = useState<SettingsTab>('general');
-  const [saved, setSaved] = useState<SystemSettingsData>(readDemoSettings);
+  const [saved, setSaved] = useState<SystemSettingsData>({ ...DEFAULT_SYSTEM_SETTINGS });
   const [draft, setDraft] = useState<SystemSettingsData>(saved);
+
+  useEffect(() => {
+    adminService.getSetting<unknown>(SETTING_KEY)
+      .then((stored) => {
+        const settings = parseSystemSettings(stored) ?? { ...DEFAULT_SYSTEM_SETTINGS };
+        setSaved(settings);
+        setDraft(settings);
+      })
+      .catch(() => undefined);
+  }, []);
   const [notice, setNotice] = useState('');
   const [errors, setErrors] = useState<Partial<Record<'platformName' | 'supportEmail', string>>>({});
   const [logoPreview, setLogoPreview] = useState<string | null>(null);
@@ -97,7 +97,7 @@ export function SettingsView({ onNavigate }: SettingsViewProps) {
     setNotice('Đã chọn logo để xem trước. Ảnh này chưa được tải lên máy chủ và không được lưu khi tải lại trang.');
   };
 
-  const saveDraft = () => {
+  const saveDraft = async () => {
     const issues = validate(draft);
     setErrors(issues);
     if (Object.keys(issues).length) {
@@ -112,12 +112,12 @@ export function SettingsView({ onNavigate }: SettingsViewProps) {
         supportEmail: draft.supportEmail.trim(),
         description: draft.description.trim(),
       };
-      window.localStorage.setItem(STORAGE_KEY, JSON.stringify(normalized));
+      await adminService.saveSetting(SETTING_KEY, normalized);
       setSaved(normalized);
       setDraft(normalized);
-      setNotice('Đã lưu thiết lập DEMO trên trình duyệt này. Không có thay đổi nào được gửi lên backend.');
-    } catch {
-      setNotice('Không thể lưu thiết lập demo vào trình duyệt. Hãy kiểm tra quyền lưu trữ.');
+      setNotice('Đã lưu thiết lập hệ thống.');
+    } catch (err) {
+      setNotice(err instanceof Error ? err.message : 'Không thể lưu thiết lập.');
     }
   };
 

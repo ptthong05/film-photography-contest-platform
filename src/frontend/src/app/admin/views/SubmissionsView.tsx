@@ -4,15 +4,19 @@ import {
   ClipboardCopy, Eye, FileImage, Filter, ImageOff, Info, Search,
   ShieldAlert, X, XCircle,
 } from 'lucide-react';
+import { useFetch } from '../../../hooks/useFetch';
+import { request } from '../../../services/apiClient';
+import type { ApiContest } from '../../../services/contestService';
+import type { ApiSubmission } from '../../../services/submissionService';
 
 /**
  * Admin > Bài dự thi (màn hình 04).
  * Chế độ xem và giám sát, KHÔNG duyệt/từ chối bài dự thi.
- * Mọi bản ghi và kết quả kiểm tra đều là DEMO, không đến từ API hay mô hình AI.
+ * Module AI chưa chạy nên kiểm tra trùng lặp và ảnh AI hiển thị "Chưa kiểm tra".
  * Theo SRS: việc xác minh/quyết định duyệt thuộc Organizer; AI chỉ hỗ trợ.
  */
 type SubmissionStatus = 'PENDING' | 'APPROVED' | 'REJECTED' | 'JUDGING';
-type VerificationResult = 'PASS' | 'REVIEW' | 'FLAGGED';
+type VerificationResult = 'PASS' | 'REVIEW' | 'FLAGGED' | 'NOT_RUN';
 type FilterStatus = 'ALL' | SubmissionStatus;
 
 type FilmMetadata = {
@@ -44,58 +48,46 @@ type Submission = {
   reviewNote: string;
 };
 
-type DemoSubmission = Omit<Submission, 'metadata'> & {
-  filmStock: string;
-  iso: number;
-  camera: string;
-  format: string;
-  roll: string;
-  frame: string;
+const NOT_DECLARED = 'Chưa khai báo';
+
+const fetchSubmissions = async (): Promise<Submission[]> => {
+  const [submissions, contests] = await Promise.all([
+    request<ApiSubmission[]>('/submissions'),
+    request<ApiContest[]>('/contests/managed'),
+  ]);
+  const stageById = new Map(contests.map((contest) => [contest.id, contest.status]));
+  return submissions.map((item) => {
+    const metadata = item.metadata;
+    const isJudging = item.status === 'VERIFIED' && stageById.get(item.contestId) === 'JUDGING';
+    const hasMetadata = Boolean(metadata?.filmStock && metadata.camera && metadata.filmFormat);
+    return {
+      id: item.code,
+      title: item.title,
+      author: item.authorName ?? NOT_DECLARED,
+      contest: item.contestTitle ?? NOT_DECLARED,
+      submittedAt: item.submittedAt.slice(0, 10),
+      image: item.imageUrls[0] ?? '',
+      status: isJudging ? 'JUDGING' : item.status === 'VERIFIED' ? 'APPROVED' : item.status,
+      duplicateCheck: item.aiVerification ? (item.aiVerification.duplicate ? 'FLAGGED' : 'PASS') : 'NOT_RUN',
+      aiImageCheck: item.aiVerification ? (item.aiVerification.aiGenerated ? 'FLAGGED' : 'PASS') : 'NOT_RUN',
+      metadataCheck: hasMetadata ? 'PASS' : 'REVIEW',
+      reviewNote: item.rejectionReason ?? '',
+      metadata: {
+        filmStock: metadata?.filmStock ?? NOT_DECLARED,
+        iso: metadata?.iso ?? 0,
+        camera: metadata?.camera ?? NOT_DECLARED,
+        lens: metadata?.lens ?? NOT_DECLARED,
+        format: metadata?.filmFormat ?? NOT_DECLARED,
+        roll: metadata?.filmBrand ?? NOT_DECLARED,
+        frame: metadata?.frameNumber ?? NOT_DECLARED,
+        location: metadata?.shootingLocation ?? NOT_DECLARED,
+        lab: metadata?.developingLab ?? NOT_DECLARED,
+        scan: metadata?.scanSpec ?? NOT_DECLARED,
+        negativeReference: item.negativeUrls.length ? 'Có ảnh âm bản' : undefined,
+      },
+    };
+  });
 };
-
-const IMAGE_URLS = [
-  'https://images.unsplash.com/photo-1519608487953-e999c86e7455?auto=format&fit=crop&w=400&q=75',
-  'https://images.unsplash.com/photo-1500534623283-312aade485b7?auto=format&fit=crop&w=400&q=75',
-  'https://images.unsplash.com/photo-1470770841072-f978cf4d019e?auto=format&fit=crop&w=400&q=75',
-  'https://images.unsplash.com/photo-1514565131-fce0801e5785?auto=format&fit=crop&w=400&q=75',
-  'https://images.unsplash.com/photo-1441974231531-c6227db76b6e?auto=format&fit=crop&w=400&q=75',
-  'https://images.unsplash.com/photo-1500530855697-b586d89ba3ee?auto=format&fit=crop&w=400&q=75',
-  'https://images.unsplash.com/photo-1482192596544-9eb780fc7f66?auto=format&fit=crop&w=400&q=75',
-  'https://images.unsplash.com/photo-1500534314209-a25ddb2bd429?auto=format&fit=crop&w=400&q=75',
-];
-
-// Dữ liệu giả riêng cho bước 10. Không đồng bộ với Dashboard/Users/Contests.
-const DEMO_ROWS: DemoSubmission[] = [
-  { id: 'SUB-001', title: 'Sài Gòn chiều mưa', author: 'Trần Thị Bình', contest: 'Analog Moments 2025', submittedAt: '2025-08-26', image: IMAGE_URLS[3], status: 'PENDING', duplicateCheck: 'PASS', aiImageCheck: 'PASS', metadataCheck: 'PASS', filmStock: 'Kodak Portra 400', iso: 400, camera: 'Nikon FM2', format: '35mm', roll: 'ROLL-001', frame: '24', reviewNote: 'Đang chờ Ban tổ chức kiểm tra thủ công.' },
-  { id: 'SUB-002', title: 'Nắng cuối ngày', author: 'Nguyễn Văn C', contest: 'Film & City', submittedAt: '2025-06-25', image: IMAGE_URLS[5], status: 'APPROVED', duplicateCheck: 'PASS', aiImageCheck: 'PASS', metadataCheck: 'PASS', filmStock: 'Kodak Gold 200', iso: 200, camera: 'Canon AE-1', format: '35mm', roll: 'ROLL-002', frame: '12', reviewNote: 'Thông tin mẫu đã được đánh dấu hợp lệ.' },
-  { id: 'SUB-003', title: 'Đường về', author: 'Lê Thu D', contest: 'The Vintage Look', submittedAt: '2025-07-20', image: IMAGE_URLS[2], status: 'REJECTED', duplicateCheck: 'FLAGGED', aiImageCheck: 'PASS', metadataCheck: 'REVIEW', filmStock: 'Ilford HP5 Plus', iso: 400, camera: 'Pentax K1000', format: '35mm', roll: 'ROLL-003', frame: '08', reviewNote: 'Bản ghi mẫu có cờ nghi ngờ ảnh tương đồng; không đại diện kết luận thật của AI.' },
-  { id: 'SUB-004', title: 'Đỉnh núi', author: 'Phạm Văn E', contest: 'Nature on Film', submittedAt: '2025-08-18', image: IMAGE_URLS[0], status: 'JUDGING', duplicateCheck: 'PASS', aiImageCheck: 'PASS', metadataCheck: 'PASS', filmStock: 'Fujifilm Superia 400', iso: 400, camera: 'Olympus OM-1', format: '35mm', roll: 'ROLL-004', frame: '15', reviewNote: 'Bản ghi minh họa đang ở vòng chấm.' },
-  { id: 'SUB-005', title: 'Nhịp phố', author: 'Đỗ Minh G', contest: 'Film & City', submittedAt: '2025-06-21', image: IMAGE_URLS[3], status: 'PENDING', duplicateCheck: 'PASS', aiImageCheck: 'REVIEW', metadataCheck: 'PASS', filmStock: 'Cinestill 800T', iso: 800, camera: 'Minolta X-700', format: '35mm', roll: 'ROLL-005', frame: '03', reviewNote: 'Dấu hiệu cần kiểm tra thêm chỉ mang tính minh họa.' },
-  { id: 'SUB-006', title: 'Bình yên', author: 'Hồ Thị Lan', contest: 'Analog Moments 2025', submittedAt: '2025-08-24', image: IMAGE_URLS[6], status: 'APPROVED', duplicateCheck: 'PASS', aiImageCheck: 'PASS', metadataCheck: 'PASS', filmStock: 'Kodak Ektar 100', iso: 100, camera: 'Canon A-1', format: '35mm', roll: 'ROLL-006', frame: '26', reviewNote: 'Đã đánh dấu duyệt trong tập dữ liệu mẫu.' },
-  { id: 'SUB-007', title: 'Sương sớm', author: 'Vũ Thanh Mai', contest: 'Black & White Stories', submittedAt: '2025-05-12', image: IMAGE_URLS[2], status: 'APPROVED', duplicateCheck: 'PASS', aiImageCheck: 'PASS', metadataCheck: 'PASS', filmStock: 'Ilford Delta 100', iso: 100, camera: 'Nikon F3', format: '35mm', roll: 'ROLL-007', frame: '06', reviewNote: 'Metadata đầy đủ trong dữ liệu mẫu.' },
-  { id: 'SUB-008', title: 'Chân dung', author: 'Nguyễn Phú H', contest: 'The Vintage Look', submittedAt: '2025-07-09', image: IMAGE_URLS[7], status: 'JUDGING', duplicateCheck: 'PASS', aiImageCheck: 'PASS', metadataCheck: 'PASS', filmStock: 'Kodak Tri-X 400', iso: 400, camera: 'Yashica FX-3', format: '35mm', roll: 'ROLL-008', frame: '19', reviewNote: 'Bản ghi demo đang trong quá trình chấm.' },
-  { id: 'SUB-009', title: 'Một chiều Hà Nội', author: 'Trịnh Gia K', contest: 'Analog Moments 2025', submittedAt: '2025-08-20', image: IMAGE_URLS[3], status: 'REJECTED', duplicateCheck: 'PASS', aiImageCheck: 'FLAGGED', metadataCheck: 'REVIEW', filmStock: 'Kodak Portra 160', iso: 160, camera: 'Leica M6', format: '35mm', roll: 'ROLL-009', frame: '33', reviewNote: 'Ví dụ cờ nghi ngờ ảnh AI; không chứng minh ảnh thật sự do AI tạo.' },
-  { id: 'SUB-010', title: 'Mùa hoa', author: 'Trần Mỹ Linh', contest: 'Nature on Film', submittedAt: '2025-08-22', image: IMAGE_URLS[4], status: 'PENDING', duplicateCheck: 'REVIEW', aiImageCheck: 'PASS', metadataCheck: 'PASS', filmStock: 'Fujicolor C200', iso: 200, camera: 'Nikon FM10', format: '35mm', roll: 'ROLL-010', frame: '10', reviewNote: 'Cần xem ảnh tham chiếu khi kiểm duyệt.' },
-  { id: 'SUB-011', title: 'Thành phố đêm', author: 'Lâm Minh P', contest: 'Film & City', submittedAt: '2025-06-27', image: IMAGE_URLS[3], status: 'JUDGING', duplicateCheck: 'PASS', aiImageCheck: 'PASS', metadataCheck: 'PASS', filmStock: 'Cinestill 800T', iso: 800, camera: 'Pentax MX', format: '35mm', roll: 'ROLL-011', frame: '17', reviewNote: 'Đang chấm theo dữ liệu mô phỏng.' },
-  { id: 'SUB-012', title: 'Góc phố cũ', author: 'Đinh Văn Q', contest: 'Black & White Stories', submittedAt: '2025-05-03', image: IMAGE_URLS[7], status: 'APPROVED', duplicateCheck: 'PASS', aiImageCheck: 'PASS', metadataCheck: 'PASS', filmStock: 'Ilford HP5 Plus', iso: 400, camera: 'Canon FTb', format: '35mm', roll: 'ROLL-012', frame: '02', reviewNote: 'Bản ghi mẫu được duyệt.' },
-];
-
-const DEMO_SUBMISSIONS: Submission[] = DEMO_ROWS.map((row, index) => ({
-  ...row,
-  metadata: {
-    filmStock: row.filmStock,
-    iso: row.iso,
-    camera: row.camera,
-    lens: index % 2 === 0 ? '50mm f/1.8' : '35mm f/2.8',
-    format: row.format,
-    roll: row.roll,
-    frame: row.frame,
-    location: index % 2 === 0 ? 'TP. Hồ Chí Minh' : 'Hà Nội',
-    lab: index % 2 === 0 ? 'Lab A (mẫu)' : 'Lab B (mẫu)',
-    scan: 'JPEG · 3000 × 2000 px · 24-bit',
-    negativeReference: index % 3 === 0 ? 'Có thông tin tham chiếu (mẫu)' : undefined,
-  },
-}));
 
 const PAGE_SIZE = 6;
 const fmt = new Intl.NumberFormat('vi-VN');
@@ -118,6 +110,7 @@ const CHECK_INFO: Record<VerificationResult, { label: string; className: string 
   PASS: { label: 'Không có cờ cảnh báo', className: 'text-emerald-700' },
   REVIEW: { label: 'Cần xem xét', className: 'text-amber-700' },
   FLAGGED: { label: 'Có cờ nghi ngờ', className: 'text-rose-700' },
+  NOT_RUN: { label: 'Chưa kiểm tra', className: 'text-slate-500' },
 };
 
 function SubmissionThumbnail({ src, title, className = '' }: { src: string; title: string; className?: string }) {
@@ -125,9 +118,9 @@ function SubmissionThumbnail({ src, title, className = '' }: { src: string; titl
   return (
     <div className={`flex shrink-0 items-center justify-center overflow-hidden rounded-lg bg-slate-100 ${className}`}>
       {failed ? (
-        <ImageOff size={22} className="text-slate-400" aria-label="Không tải được ảnh minh họa" />
+        <ImageOff size={22} className="text-slate-400" aria-label="Không tải được ảnh" />
       ) : (
-        <img src={src} alt={`Ảnh minh họa: ${title}`} loading="lazy"
+        <img src={src} alt={`Ảnh dự thi: ${title}`} loading="lazy"
           onError={() => setFailed(true)} className="h-full w-full object-cover" />
       )}
     </div>
@@ -141,7 +134,7 @@ function VerificationLine({ label, result }: { label: string; result: Verificati
       {result === 'PASS' ? <CheckCircle2 size={14} className="mt-0.5 shrink-0" aria-hidden="true" />
         : result === 'REVIEW' ? <AlertTriangle size={14} className="mt-0.5 shrink-0" aria-hidden="true" />
           : <XCircle size={14} className="mt-0.5 shrink-0" aria-hidden="true" />}
-      <span><span className="font-semibold">{label}:</span> {result === 'PASS' && label.toLowerCase().includes('metadata') ? 'Đầy đủ (mẫu)' : item.label}</span>
+      <span><span className="font-semibold">{label}:</span> {result === 'PASS' && label.toLowerCase().includes('metadata') ? 'Đầy đủ' : item.label}</span>
     </div>
   );
 }
@@ -177,7 +170,7 @@ function SubmissionDetail({ item, onClose }: { item: Submission; onClose: () => 
         className="max-h-[94vh] w-full max-w-3xl overflow-y-auto rounded-2xl bg-white shadow-2xl">
         <div className="flex items-start justify-between gap-4 border-b border-slate-200 px-5 py-4">
           <div className="min-w-0">
-            <p className="text-xs font-semibold uppercase tracking-wide text-slate-500">Chi tiết bài dự thi · Dữ liệu mẫu</p>
+            <p className="text-xs font-semibold uppercase tracking-wide text-slate-500">Chi tiết bài dự thi</p>
             <h2 id="admin-submission-detail-title" className="mt-1 text-xl font-bold text-[#0B356B]">{item.title}</h2>
             <p className="mt-1 text-xs text-slate-500">Mã bài dự thi: {item.id}</p>
           </div>
@@ -229,6 +222,8 @@ function SubmissionDetail({ item, onClose }: { item: Submission; onClose: () => 
 }
 
 export function SubmissionsView() {
+  const { data, isLoading, error } = useFetch(fetchSubmissions);
+  const submissions = useMemo(() => data ?? [], [data]);
   const [statusFilter, setStatusFilter] = useState<FilterStatus>('ALL');
   const [contestFilter, setContestFilter] = useState('ALL');
   const [verificationFilter, setVerificationFilter] = useState('ALL');
@@ -239,10 +234,10 @@ export function SubmissionsView() {
   const [selectedSubmission, setSelectedSubmission] = useState<Submission | null>(null);
   const [notice, setNotice] = useState('');
 
-  const contests = [...new Set(DEMO_SUBMISSIONS.map((item) => item.contest))].sort((a, b) => a.localeCompare(b, 'vi'));
+  const contests = [...new Set(submissions.map((item) => item.contest))].sort((a, b) => a.localeCompare(b, 'vi'));
   const filtered = useMemo(() => {
     const term = search.trim().toLocaleLowerCase('vi');
-    return DEMO_SUBMISSIONS.filter((item) => {
+    return submissions.filter((item) => {
       const flagged = [item.duplicateCheck, item.aiImageCheck, item.metadataCheck].some((value) => value !== 'PASS');
       return (statusFilter === 'ALL' || item.status === statusFilter)
         && (contestFilter === 'ALL' || item.contest === contestFilter)
@@ -250,7 +245,7 @@ export function SubmissionsView() {
         && (!term || [item.id, item.title, item.author, item.contest, item.metadata.filmStock]
           .some((value) => value.toLocaleLowerCase('vi').includes(term)));
     }).sort((a, b) => b.submittedAt.localeCompare(a.submittedAt));
-  }, [contestFilter, search, statusFilter, verificationFilter]);
+  }, [contestFilter, search, statusFilter, verificationFilter, submissions]);
 
   const pageCount = Math.max(1, Math.ceil(filtered.length / PAGE_SIZE));
   const currentPage = Math.min(page, pageCount);
@@ -278,9 +273,11 @@ export function SubmissionsView() {
 
   return (
     <section aria-label="Giám sát bài dự thi" className="space-y-4">
+      {isLoading && <p className="text-sm text-slate-500">Đang tải dữ liệu...</p>}
+      {error && <p className="text-sm text-rose-600">{error}</p>}
       <div className="flex flex-wrap items-center justify-between gap-2">
         <span className="rounded-md bg-amber-50 px-3 py-2 text-xs font-semibold text-amber-800">
-          Dữ liệu và kết quả AI minh họa — chưa kết nối API Java / MongoDB
+          Dữ liệu từ hệ thống · Module AI chưa hoạt động
         </span>
         <span className="rounded-md border border-slate-200 bg-white px-3 py-2 text-xs text-slate-600">
           Admin: chỉ xem và giám sát · Organizer phụ trách duyệt bài
@@ -294,7 +291,7 @@ export function SubmissionsView() {
       <div className="overflow-hidden rounded-xl border border-slate-200 bg-white shadow-sm">
         <div className="flex gap-1 overflow-x-auto border-b border-slate-200 px-4 pt-3" role="tablist" aria-label="Lọc bài theo trạng thái">
           {STATUS_TABS.map((tab) => {
-            const count = tab.key === 'ALL' ? DEMO_SUBMISSIONS.length : DEMO_SUBMISSIONS.filter((item) => item.status === tab.key).length;
+            const count = tab.key === 'ALL' ? submissions.length : submissions.filter((item) => item.status === tab.key).length;
             return (
               <button key={tab.key} type="button" role="tab" aria-selected={statusFilter === tab.key}
                 onClick={() => { setStatusFilter(tab.key); resetPage(); }}
@@ -355,7 +352,7 @@ export function SubmissionsView() {
                 <th className="w-10 px-4 py-3"><input type="checkbox" aria-label="Chọn tất cả bài trên trang hiện tại" checked={allOnPageSelected} onChange={togglePage} disabled={items.length === 0} className="accent-blue-600"/></th>
                 <th className="min-w-64 px-3 py-3">Ảnh dự thi</th>
                 <th className="min-w-56 px-3 py-3">Thông tin kỹ thuật</th>
-                <th className="min-w-52 px-3 py-3">Kiểm tra (mẫu)</th>
+                <th className="min-w-52 px-3 py-3">Kiểm tra</th>
                 <th className="px-3 py-3">Trạng thái</th>
                 <th className="px-4 py-3 text-center">Thao tác</th>
               </tr>

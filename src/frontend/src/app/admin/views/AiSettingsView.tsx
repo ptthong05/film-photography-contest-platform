@@ -1,4 +1,5 @@
-import { useState } from 'react';
+import { useEffect, useState } from 'react';
+import { adminService } from '../../../services/adminService';
 import { CheckCircle2, Info, RotateCcw, Save, ShieldAlert, WifiOff } from 'lucide-react';
 import {
   AI_TABS,
@@ -10,19 +11,15 @@ import {
   type AiThresholdKey,
 } from '../components/AiSettingsControls';
 
-const STORAGE_KEY = 'filmcontest-admin-ai-settings-demo-v1';
+const SETTING_KEY = 'ai';
 
 function isObject(value: unknown): value is Record<string, unknown> {
   return typeof value === 'object' && value !== null && !Array.isArray(value);
 }
 
-// Chỉ nhận những dữ liệu mẫu hợp lệ từ trình duyệt, không tin tưởng nội dung localStorage.
-function readSavedSettings(): AiSettings {
-  if (typeof window === 'undefined') return DEFAULT_AI_SETTINGS;
+// Kiểm tra lại dữ liệu đọc từ máy chủ, thiếu trường nào thì dùng giá trị mặc định của trường đó
+function parseSettings(stored: unknown): AiSettings {
   try {
-    const raw = window.localStorage.getItem(STORAGE_KEY);
-    if (!raw) return DEFAULT_AI_SETTINGS;
-    const stored: unknown = JSON.parse(raw);
     if (!isObject(stored) || !isObject(stored.features) || !isObject(stored.thresholds)) {
       return DEFAULT_AI_SETTINGS;
     }
@@ -48,15 +45,25 @@ function readSavedSettings(): AiSettings {
   }
 }
 
-/** Admin chỉ cấu hình dữ liệu trình diễn; không đánh giá hoặc duyệt ảnh thực tế. */
+/** Cấu hình lưu trên máy chủ; module AI chưa chạy nên chưa có hiệu lực với bài dự thi. */
 export function AiSettingsView() {
   const [tab, setTab] = useState<AiTab>('general');
-  const [saved, setSaved] = useState<AiSettings>(readSavedSettings);
+  const [saved, setSaved] = useState<AiSettings>(DEFAULT_AI_SETTINGS);
   const [draft, setDraft] = useState<AiSettings>(saved);
   const [notice, setNotice] = useState('');
   const [showConnectionInfo, setShowConnectionInfo] = useState(false);
 
   const hasUnsavedChanges = JSON.stringify(draft) !== JSON.stringify(saved);
+
+  useEffect(() => {
+    adminService.getSetting<unknown>(SETTING_KEY)
+      .then((stored) => {
+        const settings = parseSettings(stored);
+        setSaved(settings);
+        setDraft(settings);
+      })
+      .catch((err: unknown) => setNotice(err instanceof Error ? err.message : 'Không tải được cấu hình'));
+  }, []);
 
   const handleToggle = (key: AiFeatureKey) => {
     setDraft((previous) => ({
@@ -74,13 +81,13 @@ export function AiSettingsView() {
     setNotice('');
   };
 
-  const handleSave = () => {
+  const handleSave = async () => {
     try {
-      window.localStorage.setItem(STORAGE_KEY, JSON.stringify(draft));
+      await adminService.saveSetting(SETTING_KEY, draft);
       setSaved(draft);
-      setNotice('Đã lưu cấu hình mẫu trên trình duyệt này. Chưa gửi thiết lập đến máy chủ AI.');
-    } catch {
-      setNotice('Không lưu được dữ liệu mẫu vào trình duyệt. Vui lòng kiểm tra quyền lưu trữ.');
+      setNotice('Đã lưu cấu hình AI. Cấu hình sẽ được áp dụng khi module AI hoạt động.');
+    } catch (err) {
+      setNotice(err instanceof Error ? err.message : 'Không lưu được cấu hình');
     }
   };
 
@@ -94,7 +101,7 @@ export function AiSettingsView() {
       features: { ...DEFAULT_AI_SETTINGS.features },
       thresholds: { ...DEFAULT_AI_SETTINGS.thresholds },
     });
-    setNotice('Đã đưa về giá trị mẫu ban đầu. Bấm Lưu cấu hình để ghi lại trên trình duyệt.');
+    setNotice('Đã đưa về giá trị mẫu ban đầu. Bấm Lưu cấu hình để ghi lại.');
   };
 
   return (

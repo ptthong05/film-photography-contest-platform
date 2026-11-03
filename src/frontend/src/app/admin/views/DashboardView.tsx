@@ -1,12 +1,15 @@
-import { useState } from 'react';
 import {
   CalendarDays, CheckCircle2, ClipboardCheck, Clock3, FileImage,
   Images, ShieldAlert, Trophy, UserRoundCheck, Users, type LucideIcon,
 } from 'lucide-react';
 import type { AdminView } from '../components/AdminSidebar';
+import { ACTION_INFO } from './LogsView';
+import { useFetch } from '../../../hooks/useFetch';
+import { adminService } from '../../../services/adminService';
+import { contestService } from '../../../services/contestService';
+import { reportService } from '../../../services/reportService';
+import { userService } from '../../../services/userService';
 
-// Dữ liệu minh họa để dựng UI; KHÔNG phải dữ liệu trả về từ Java/MongoDB.
-// Khi tích hợp API, thay đối tượng này bằng dữ liệu từ service của nhóm.
 interface DashboardData {
   users: number;
   contests: number;
@@ -16,32 +19,58 @@ interface DashboardData {
   statuses: { pending: number; approved: number; rejected: number; judging: number };
 }
 
-const MOCK_DASHBOARD: Record<string, DashboardData> = {
-  '2025': {
-    users: 1248, contests: 12, submissions: 3642, judges: 28,
-    monthly: [75, 90, 82, 125, 150, 122, 165, 190, 232, 284, 267, 325],
-    statuses: { pending: 1120, approved: 1980, rejected: 342, judging: 200 },
-  },
-  '2026': {
-    users: 1386, contests: 15, submissions: 4250, judges: 31,
-    monthly: [115, 130, 158, 174, 205, 223, 260, 289, 310, 334, 352, 378],
-    statuses: { pending: 1200, approved: 2380, rejected: 410, judging: 260 },
-  },
+const MONTHS_IN_YEAR = 12;
+const ACTIVITY_LIMIT = 5;
+const ONGOING_LIMIT = 3;
+
+const ACTIVITY_ICONS: Record<string, { icon: LucideIcon; color: string }> = {
+  SUBMISSION: { icon: FileImage, color: 'text-blue-600 bg-blue-50' },
+  CONTEST: { icon: Trophy, color: 'text-amber-600 bg-amber-50' },
+  USER: { icon: Users, color: 'text-emerald-600 bg-emerald-50' },
+  ASSIGNMENT: { icon: ClipboardCheck, color: 'text-blue-600 bg-blue-50' },
+  SETTING: { icon: ShieldAlert, color: 'text-rose-600 bg-rose-50' },
 };
 
-const SAMPLE_CONTESTS = [
-  { name: 'Analog Moments', participants: 342, status: 'Đang diễn ra' },
-  { name: 'Film & City', participants: 285, status: 'Đang diễn ra' },
-  { name: 'The Vintage Look', participants: 198, status: 'Đang diễn ra' },
-];
+function timeAgo(iso: string): string {
+  const minutes = Math.floor((Date.now() - new Date(iso).getTime()) / 60000);
+  if (minutes < 1) return 'Vừa xong';
+  if (minutes < 60) return `${minutes} phút trước`;
+  const hours = Math.floor(minutes / 60);
+  return hours < 24 ? `${hours} giờ trước` : `${Math.floor(hours / 24)} ngày trước`;
+}
 
-const SAMPLE_ACTIVITIES = [
-  { icon: FileImage, color: 'text-blue-600 bg-blue-50', text: 'Nguyễn Văn B đã nộp bài dự thi', time: '2 giờ trước' },
-  { icon: Trophy, color: 'text-amber-600 bg-amber-50', text: 'Cuộc thi Film & City đã kết thúc nhận bài', time: '30 phút trước' },
-  { icon: Users, color: 'text-emerald-600 bg-emerald-50', text: 'Trần Thị C được phê duyệt tài khoản', time: '1 giờ trước' },
-  { icon: ClipboardCheck, color: 'text-blue-600 bg-blue-50', text: 'Bài dự thi FC2025-001 được duyệt', time: '2 giờ trước' },
-  { icon: ShieldAlert, color: 'text-rose-600 bg-rose-50', text: 'Phát hiện ảnh trùng lặp (AI)', time: '3 giờ trước' },
-];
+const fetchDashboard = async () => {
+  const [report, users, contests, logs] = await Promise.all([
+    reportService.getReport(),
+    userService.getAll(),
+    contestService.getContests(),
+    adminService.getLogs(),
+  ]);
+  const monthly = Array.from({ length: MONTHS_IN_YEAR }, (_, index) => report.submissionsThisYear[index]?.count ?? 0);
+  const data: DashboardData = {
+    users: users.length,
+    contests: report.totalContests,
+    submissions: report.submissions,
+    judges: report.judges,
+    monthly,
+    statuses: {
+      pending: report.pendingSubmissions,
+      approved: report.verifiedSubmissions,
+      rejected: report.rejectedSubmissions,
+      judging: 0,
+    },
+  };
+  const ongoing = contests
+    .filter((contest) => contest.status === 'ONGOING' && !contest.archived)
+    .slice(0, ONGOING_LIMIT)
+    .map((contest) => ({ id: contest.id, name: contest.name, participants: contest.participantCount, status: 'Đang diễn ra' }));
+  const activities = logs.slice(0, ACTIVITY_LIMIT).map((log) => ({
+    ...(ACTIVITY_ICONS[log.targetType ?? ''] ?? ACTIVITY_ICONS.USER),
+    text: `${log.actorName ?? 'Hệ thống'}: ${ACTION_INFO[log.action]?.label ?? log.action}`,
+    time: timeAgo(log.createdAt),
+  }));
+  return { data, ongoing, activities };
+};
 
 interface DashboardViewProps {
   onNavigate: (view: AdminView) => void;
@@ -152,27 +181,30 @@ function StatusChart({ data }: { data: DashboardData }) {
 }
 
 export function DashboardView({ onNavigate }: DashboardViewProps) {
-  const [selectedYear, setSelectedYear] = useState('2025');
-  const data = MOCK_DASHBOARD[selectedYear];
+  const selectedYear = String(new Date().getFullYear());
+  const dashboard = useFetch(fetchDashboard);
+  if (dashboard.isLoading) return <p className="text-sm text-slate-500">Đang tải dữ liệu...</p>;
+  if (dashboard.error || !dashboard.data) return <p className="text-sm text-rose-600">{dashboard.error ?? 'Không tải được dữ liệu'}</p>;
+  const { data, ongoing, activities } = dashboard.data;
   const metrics = [
-    { label: 'Người dùng', value: data.users, change: '↑ 12%', icon: Users, color: 'bg-blue-100 text-blue-600' },
-    { label: 'Cuộc thi', value: data.contests, change: '↑ 2', icon: CalendarDays, color: 'bg-violet-100 text-violet-600' },
-    { label: 'Bài dự thi', value: data.submissions, change: '↑ 18%', icon: Images, color: 'bg-emerald-100 text-emerald-600' },
-    { label: 'Giám khảo', value: data.judges, change: '↑ 4', icon: UserRoundCheck, color: 'bg-amber-100 text-amber-600' },
+    { label: 'Người dùng', value: data.users, change: 'Tài khoản', icon: Users, color: 'bg-blue-100 text-blue-600' },
+    { label: 'Cuộc thi', value: data.contests, change: 'Tổng số', icon: CalendarDays, color: 'bg-violet-100 text-violet-600' },
+    { label: 'Bài dự thi', value: data.submissions, change: 'Tổng số', icon: Images, color: 'bg-emerald-100 text-emerald-600' },
+    { label: 'Giám khảo', value: data.judges, change: 'Tài khoản', icon: UserRoundCheck, color: 'bg-amber-100 text-amber-600' },
   ];
 
   return (
     <section aria-label="Tổng quan quản trị" className="space-y-5">
       <div className="flex flex-wrap items-center justify-between gap-3">
         <span className="rounded-md bg-amber-50 px-3 py-1.5 text-xs font-medium text-amber-800">
-          Dữ liệu mẫu – chưa kết nối API
+          Dữ liệu từ hệ thống
         </span>
         <label className="flex items-center gap-2 rounded-lg border border-slate-200 bg-white px-3 py-2 text-sm text-slate-700">
           <CalendarDays size={16} className="text-blue-600" aria-hidden="true" />
           <span className="sr-only">Chọn năm thống kê</span>
-          <select value={selectedYear} onChange={(event) => setSelectedYear(event.target.value)}
+          <select value={selectedYear} disabled
             className="cursor-pointer bg-transparent outline-none" aria-label="Chọn năm thống kê">
-            {Object.keys(MOCK_DASHBOARD).map((year) => <option key={year} value={year}>Năm {year}</option>)}
+            <option value={selectedYear}>Năm {selectedYear}</option>
           </select>
         </label>
       </div>
@@ -200,13 +232,14 @@ export function DashboardView({ onNavigate }: DashboardViewProps) {
               className="text-xs font-semibold text-blue-600 hover:underline">Xem tất cả</button>
           </div>
           <div className="divide-y divide-slate-100">
-            {SAMPLE_CONTESTS.map((contest) => (
-              <div key={contest.name} className="flex items-center gap-3 py-3">
+            {ongoing.length === 0 && <p className="text-sm text-slate-500">Chưa có cuộc thi đang diễn ra.</p>}
+            {ongoing.map((contest) => (
+              <div key={contest.id} className="flex items-center gap-3 py-3">
                 <div className="flex h-12 w-12 shrink-0 items-center justify-center rounded-lg bg-slate-100 text-slate-500">
                   <Trophy size={20} aria-hidden="true" />
                 </div>
                 <div className="min-w-0 flex-1">
-                  <p className="truncate text-sm font-semibold text-slate-800">{contest.name} {selectedYear}</p>
+                  <p className="truncate text-sm font-semibold text-slate-800">{contest.name}</p>
                   <span className="text-xs text-emerald-700">{contest.status}</span>
                 </div>
                 <span className="text-xs text-slate-500">{contest.participants} người</span>
@@ -221,7 +254,8 @@ export function DashboardView({ onNavigate }: DashboardViewProps) {
               className="text-xs font-semibold text-blue-600 hover:underline">Xem tất cả</button>
           </div>
           <div className="space-y-3">
-            {SAMPLE_ACTIVITIES.map(({ text, time, icon: Icon, color }, index) => (
+            {activities.length === 0 && <p className="text-sm text-slate-500">Chưa có hoạt động nào.</p>}
+            {activities.map(({ text, time, icon: Icon, color }, index) => (
               <div key={index} className="flex items-start gap-3">
                 <span className={`flex h-9 w-9 shrink-0 items-center justify-center rounded-full ${color}`}>
                   <Icon size={16} aria-hidden="true" />
@@ -229,7 +263,7 @@ export function DashboardView({ onNavigate }: DashboardViewProps) {
                 <div className="min-w-0 flex-1">
                   <p className="text-sm text-slate-700">{text}</p>
                   <p className="flex items-center gap-1 text-xs text-slate-400">
-                    <Clock3 size={11} aria-hidden="true" />{time} (minh họa)
+                    <Clock3 size={11} aria-hidden="true" />{time}
                   </p>
                 </div>
                 {index === 0 && <CheckCircle2 size={16} className="text-emerald-500" aria-hidden="true" />}
