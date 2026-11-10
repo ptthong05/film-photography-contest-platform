@@ -11,6 +11,7 @@ import {
   type SystemSettingsData,
 } from '../components/SystemSettings';
 import type { AdminView } from '../components/AdminSidebar';
+import { Toast, type ToastNotice } from '../../../components/Toast';
 
 const STORAGE_KEY = 'filmcontest-admin-system-settings-demo-v1';
 const TAB_ITEMS = [
@@ -58,7 +59,7 @@ export function SettingsView({ onNavigate }: SettingsViewProps) {
   const [activeTab, setActiveTab] = useState<SettingsTab>('general');
   const [saved, setSaved] = useState<SystemSettingsData>(readDemoSettings);
   const [draft, setDraft] = useState<SystemSettingsData>(saved);
-  const [notice, setNotice] = useState('');
+  const [toast, setToast] = useState<ToastNotice | null>(null);
   const [errors, setErrors] = useState<Partial<Record<'platformName' | 'supportEmail', string>>>({});
   const [logoPreview, setLogoPreview] = useState<string | null>(null);
   const [logoError, setLogoError] = useState('');
@@ -69,11 +70,14 @@ export function SettingsView({ onNavigate }: SettingsViewProps) {
     if (previewUrlRef.current) URL.revokeObjectURL(previewUrlRef.current);
   }, []);
 
+  const showToast = (message: string, type: 'success' | 'error' | 'info' = 'success') => {
+    setToast({ id: Date.now(), message, type });
+  };
+
   const hasChanges = JSON.stringify(saved) !== JSON.stringify(draft);
   const updateDraft = (next: SystemSettingsData) => {
     setDraft(next);
     setErrors({});
-    setNotice('');
   };
   const updateFlag = (key: 'notifyUserRegistration' | 'notifyContestPublished' | 'notifySecurityEvents', checked: boolean) => {
     updateDraft({ ...draft, [key]: checked });
@@ -84,17 +88,19 @@ export function SettingsView({ onNavigate }: SettingsViewProps) {
     setLogoError('');
     if (!['image/png', 'image/jpeg', 'image/webp'].includes(file.type)) {
       setLogoError('Chỉ chấp nhận ảnh PNG, JPG hoặc WebP.');
+      showToast('Chỉ chấp nhận ảnh PNG, JPG hoặc WebP.', 'error');
       return;
     }
     if (file.size > 2 * 1024 * 1024) {
       setLogoError('Kích thước logo không được vượt quá 2 MB.');
+      showToast('Kích thước logo không được vượt quá 2 MB.', 'error');
       return;
     }
     if (previewUrlRef.current) URL.revokeObjectURL(previewUrlRef.current);
     const url = URL.createObjectURL(file);
     previewUrlRef.current = url;
     setLogoPreview(url);
-    setNotice('Đã chọn logo để xem trước. Ảnh này chưa được tải lên máy chủ và không được lưu khi tải lại trang.');
+    showToast('Đã chọn logo xem trước. Nhấn Lưu thay đổi để lưu cấu hình.', 'info');
   };
 
   const saveDraft = () => {
@@ -102,7 +108,7 @@ export function SettingsView({ onNavigate }: SettingsViewProps) {
     setErrors(issues);
     if (Object.keys(issues).length) {
       setActiveTab('general');
-      setNotice('Vui lòng kiểm tra các trường được đánh dấu trước khi lưu.');
+      showToast('Vui lòng kiểm tra các trường được đánh dấu trước khi lưu.', 'error');
       return;
     }
     try {
@@ -115,22 +121,22 @@ export function SettingsView({ onNavigate }: SettingsViewProps) {
       window.localStorage.setItem(STORAGE_KEY, JSON.stringify(normalized));
       setSaved(normalized);
       setDraft(normalized);
-      setNotice('Đã lưu thiết lập DEMO trên trình duyệt này. Không có thay đổi nào được gửi lên backend.');
+      showToast('Đã lưu thiết lập hệ thống thành công.', 'success');
     } catch {
-      setNotice('Không thể lưu thiết lập demo vào trình duyệt. Hãy kiểm tra quyền lưu trữ.');
+      showToast('Không thể lưu thiết lập vào trình duyệt. Hãy kiểm tra quyền lưu trữ.', 'error');
     }
   };
 
   const cancelDraft = () => {
     setDraft({ ...saved });
     setErrors({});
-    setNotice('Đã hủy thay đổi chưa lưu.');
+    showToast('Đã hủy thay đổi chưa lưu.', 'info');
   };
 
   const restoreDefaults = () => {
     setDraft({ ...DEFAULT_SYSTEM_SETTINGS });
     setErrors({});
-    setNotice('Đã đưa các trường về giá trị mặc định của bản demo. Nhấn Lưu thay đổi nếu muốn giữ lại.');
+    showToast('Đã đưa các trường về giá trị mặc định. Bấm Lưu thay đổi nếu muốn giữ lại.', 'info');
   };
 
   const exportSettings = () => {
@@ -143,7 +149,7 @@ export function SettingsView({ onNavigate }: SettingsViewProps) {
     link.click();
     link.remove();
     setTimeout(() => URL.revokeObjectURL(url), 1000);
-    setNotice('Đã xuất file JSON cấu hình demo đã lưu. Không bao gồm cơ sở dữ liệu, tài khoản hoặc ảnh dự thi.');
+    showToast('Đã xuất file JSON cấu hình thành công.', 'success');
   };
 
   const importSettings = async (event: ChangeEvent<HTMLInputElement>) => {
@@ -151,7 +157,7 @@ export function SettingsView({ onNavigate }: SettingsViewProps) {
     event.target.value = '';
     if (!file) return;
     if (file.size > 20 * 1024) {
-      setNotice('File cấu hình phải nhỏ hơn hoặc bằng 20 KB.');
+      showToast('File cấu hình phải nhỏ hơn hoặc bằng 20 KB.', 'error');
       return;
     }
     try {
@@ -164,14 +170,15 @@ export function SettingsView({ onNavigate }: SettingsViewProps) {
       setDraft(parsed);
       setErrors({});
       setActiveTab('general');
-      setNotice('Đã nhập cấu hình demo vào bản nháp. Xem lại và nhấn Lưu thay đổi để ghi trên trình duyệt.');
+      showToast('Đã nạp file cấu hình vào bản nháp. Nhấn Lưu thay đổi để áp dụng.', 'info');
     } catch {
-      setNotice('Không đọc được file JSON cấu hình demo hợp lệ. Dữ liệu hiện tại vẫn được giữ nguyên.');
+      showToast('Không đọc được file JSON cấu hình hợp lệ.', 'error');
     }
   };
 
   return (
-    <section className="space-y-5" aria-label="Cài đặt hệ thống của quản trị viên">
+    <section className="relative space-y-5" aria-label="Cài đặt hệ thống của quản trị viên">
+      <Toast toast={toast} onClose={() => setToast(null)} />
       <div className="flex items-start gap-2 rounded-xl border border-amber-200 bg-amber-50 p-3 text-sm text-amber-950" role="note">
         <Info size={19} className="mt-0.5 shrink-0" aria-hidden="true" />
         <p><strong>Chế độ giao diện mẫu:</strong> Thông tin chỉ được lưu trên trình duyệt. Các lựa chọn phân quyền, 2FA, phiên đăng nhập, thông báo và tích hợp chưa được áp dụng trên hệ thống Java/MongoDB.</p>
@@ -181,7 +188,7 @@ export function SettingsView({ onNavigate }: SettingsViewProps) {
         <div role="tablist" aria-label="Nhóm cài đặt hệ thống" className="flex flex-wrap gap-x-5 gap-y-1 border-b border-slate-200">
           {TAB_ITEMS.map(({ id, label }) => (
             <button key={id} type="button" role="tab" id={`settings-tab-${id}`} aria-selected={activeTab === id} aria-controls="settings-tab-panel"
-              onClick={() => { setActiveTab(id); setNotice(''); }}
+              onClick={() => setActiveTab(id)}
               className={`border-b-2 px-1 py-3 text-sm font-semibold transition-colors ${activeTab === id ? 'border-blue-600 text-blue-700' : 'border-transparent text-slate-500 hover:text-blue-600'}`}>
               {label}
             </button>
@@ -252,7 +259,6 @@ export function SettingsView({ onNavigate }: SettingsViewProps) {
         )}
       </div>
 
-      {notice && <div role="status" className="flex items-start gap-2 rounded-lg border border-blue-200 bg-blue-50 px-4 py-3 text-sm text-blue-900"><Info size={17} className="mt-0.5 shrink-0" aria-hidden="true" />{notice}</div>}
       <div className="flex flex-wrap items-center justify-end gap-2 rounded-xl border border-slate-200 bg-white px-4 py-3 shadow-sm">
         <span className="mr-auto flex items-center gap-1.5 text-xs text-slate-500">
           {hasChanges ? <><KeyRound size={14} className="text-amber-500" /> Có thay đổi chưa lưu</> : <><CheckCircle2 size={14} className="text-emerald-600" /> Cấu hình demo đã đồng bộ</>}

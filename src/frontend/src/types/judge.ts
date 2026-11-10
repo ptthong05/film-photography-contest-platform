@@ -141,4 +141,4 @@ export interface ContestResultEntry {
   award: string | null;
 }
 
-export type JudgeView = 'OVERVIEW' | 'CONTESTS' | 'ASSIGNED' | 'SCORING' | 'RESULTS' | 'MESSAGES' | 'PROFILE';
+export type JudgeView = 'OVERVIEW' | 'CONTESTS' | 'ASSIGNED' | 'SCORING' | 'RESULTS' | 'ARCHIVE' | 'ARTICLES' | 'MESSAGES' | 'PROFILE';

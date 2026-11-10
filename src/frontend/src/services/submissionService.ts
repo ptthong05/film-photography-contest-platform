@@ -1,7 +1,16 @@
-import { MOCK_SUBMISSIONS } from "../mocks/organizerData";
 import { mockRequest } from "./mockClient";
+import { getAllUnifiedSubmissions } from "./contestSyncService";
+import type { Submission } from "../types/submission";
+
+function getAllAvailableSubmissions(): Submission[] {
+  return getAllUnifiedSubmissions();
+}
 
 export const submissionService = {
-  getSubmissions: () => mockRequest(MOCK_SUBMISSIONS),
-  getSubmissionById: (id: string) => mockRequest(MOCK_SUBMISSIONS.find((submission) => submission.id === id) ?? null),
+  getSubmissions: () => mockRequest(getAllAvailableSubmissions()),
+  getSubmissionById: (id: string) => {
+    const list = getAllAvailableSubmissions();
+    const found = list.find((s) => s.id === id || s.code === id || s.title.toLowerCase() === id.toLowerCase()) ?? null;
+    return mockRequest(found);
+  },
 };

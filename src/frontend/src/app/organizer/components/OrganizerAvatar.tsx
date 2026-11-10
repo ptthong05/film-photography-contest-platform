@@ -7,22 +7,35 @@ const AVATAR_COLORS = [
   "bg-cyan-100 text-cyan-700",
 ];
 
-function initials(name: string): string {
-  const parts = name.trim().split(/\s+/).filter(Boolean);
-  if (!parts.length) return "?";
+function initials(name?: string | null): string {
+  const parts = (name ?? "Ban tổ chức").trim().split(/\s+/).filter(Boolean);
+  if (!parts.length) return "O";
   return parts.length === 1
     ? parts[0].slice(0, 2).toLocaleUpperCase("vi-VN")
     : `${parts[0][0]}${parts[parts.length - 1][0]}`.toLocaleUpperCase("vi-VN");
 }
 
-function colorFor(name: string): string {
+function colorFor(name?: string | null): string {
+  const safeName = name ?? "Organizer";
   let hash = 0;
-  for (const character of name) hash = (hash * 31 + character.charCodeAt(0)) | 0;
+  for (const character of safeName) hash = (hash * 31 + character.charCodeAt(0)) | 0;
   return AVATAR_COLORS[Math.abs(hash) % AVATAR_COLORS.length];
 }
 
-export function OrganizerAvatar({ name }: { name: string }) {
-  return <span aria-label={name} title={name} className={`inline-flex size-10 shrink-0 items-center justify-center rounded-full text-xs font-bold ${colorFor(name)}`}>
-    {initials(name)}
-  </span>;
+export function OrganizerAvatar({ name = "Ban tổ chức", avatarUrl }: { name?: string | null; avatarUrl?: string | null }) {
+  const safeName = name ?? "Ban tổ chức";
+  if (avatarUrl) {
+    return (
+      <img
+        src={avatarUrl}
+        alt={safeName}
+        className="inline-flex size-10 shrink-0 rounded-full object-cover shadow-sm border border-white/20"
+      />
+    );
+  }
+  return (
+    <span aria-label={safeName} title={safeName} className={`inline-flex size-10 shrink-0 items-center justify-center rounded-full text-xs font-bold ${colorFor(safeName)}`}>
+      {initials(safeName)}
+    </span>
+  );
 }

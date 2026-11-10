@@ -1,5 +1,6 @@
-import React, { useState, useEffect } from 'react';
-import { Search, Bell } from 'lucide-react';
+import React, { useState, useEffect, useRef } from 'react';
+import { Camera, Menu, X } from 'lucide-react';
+import { PortalHeader } from '../../components/PortalHeader';
 import { Sidebar } from './components/Sidebar';
 import { DashboardTab } from './components/DashboardTab';
 import { ContestsTab } from './components/ContestsTab';
@@ -13,10 +14,62 @@ interface ParticipantPageProps {
   onGoHome?: () => void;
 }
 
+const PARTICIPANT_PAGE_INFO: Record<string, { title: string; subtitle: string }> = {
+  dashboard: {
+    title: 'Tổng quan',
+    subtitle: 'Theo dõi hoạt động, đăng ký và tiến độ tham gia cuộc thi nhiếp ảnh phim',
+  },
+  contests: {
+    title: 'Khám phá cuộc thi',
+    subtitle: 'Danh sách và thông tin các cuộc thi nhiếp ảnh phim đang mở',
+  },
+  'my-registrations': {
+    title: 'Đăng ký của tôi',
+    subtitle: 'Quản lý các cuộc thi bạn đã đăng ký tham gia',
+  },
+  submit: {
+    title: 'Nộp ảnh dự thi',
+    subtitle: 'Tải lên tác phẩm ảnh chụp phim và điền thông số kỹ thuật',
+  },
+  'film-roll': {
+    title: 'Quản lý cuộn phim',
+    subtitle: 'Quản lý Film Roll & Frame cho tác phẩm dự thi',
+  },
+  'my-entries': {
+    title: 'Bài dự thi của tôi',
+    subtitle: 'Theo dõi tình trạng phê duyệt và điểm số của các tác phẩm',
+  },
+  results: {
+    title: 'Kết quả & Giải thưởng',
+    subtitle: 'Bảng xếp hạng chung cuộc và các giải thưởng đạt được',
+  },
+  profile: {
+    title: 'Hồ sơ cá nhân',
+    subtitle: 'Quản lý thông tin tài khoản thí sinh và sở thích',
+  },
+};
+
+const PARTICIPANT_TAB_KEY = 'participant_active_tab';
+
 export default function ParticipantPage({ onGoHome }: ParticipantPageProps) {
-  const [activeTab, setActiveTab] = useState<string>('dashboard');
-  const [searchQuery, setSearchQuery] = useState<string>('');
-  const [isNotificationOpen, setIsNotificationOpen] = useState<boolean>(false);
+  const [activeTab, setActiveTabState] = useState<string>(() => {
+    if (typeof window !== 'undefined') {
+      const saved = localStorage.getItem(PARTICIPANT_TAB_KEY);
+      const valid = ['dashboard', 'contests', 'my-registrations', 'profile', 'film-roll', 'submit', 'my-entries', 'results'];
+      if (saved && valid.includes(saved)) return saved;
+    }
+    return 'dashboard';
+  });
+
+  const setActiveTab = (tab: string) => {
+    setActiveTabState(tab);
+    try {
+      localStorage.setItem(PARTICIPANT_TAB_KEY, tab);
+    } catch {}
+  };
+  const [avatarUrl, setAvatarUrl] = useState<string | null>(() => localStorage.getItem('participant_avatar'));
+  const [isMobileMenuOpen, setIsMobileMenuOpen] = useState(false);
+  const mobileCloseButtonRef = useRef<HTMLButtonElement>(null);
 
   const [registeredContestIds, setRegisteredContestIds] = useState<string[]>(() => {
     try {
@@ -78,6 +131,25 @@ export default function ParticipantPage({ onGoHome }: ParticipantPageProps) {
     return () => window.removeEventListener('userNameChanged', handleNameChange);
   }, []);
 
+  useEffect(() => {
+    const handleAvatarChange = () => {
+      setAvatarUrl(localStorage.getItem('participant_avatar'));
+    };
+    window.addEventListener('avatarChanged', handleAvatarChange);
+    return () => window.removeEventListener('avatarChanged', handleAvatarChange);
+  }, []);
+
+  // Xử lý phím Escape để đóng mobile drawer
+  useEffect(() => {
+    if (!isMobileMenuOpen) return;
+    const closeOnEscape = (event: KeyboardEvent) => {
+      if (event.key === 'Escape') setIsMobileMenuOpen(false);
+    };
+    document.addEventListener('keydown', closeOnEscape);
+    mobileCloseButtonRef.current?.focus();
+    return () => document.removeEventListener('keydown', closeOnEscape);
+  }, [isMobileMenuOpen]);
+
   const handleToggleRegister = (contestId: string) => {
     let updated: string[] = [];
     if (registeredContestIds.includes(contestId)) {
@@ -91,59 +163,72 @@ export default function ParticipantPage({ onGoHome }: ParticipantPageProps) {
     window.dispatchEvent(new Event('contestRegistrationChanged'));
   };
 
+  const handleNavigateTab = (tab: string) => {
+    setActiveTab(tab);
+    setIsMobileMenuOpen(false);
+  };
+
+  const currentMeta = PARTICIPANT_PAGE_INFO[activeTab] ?? {
+    title: 'Thí sinh',
+    subtitle: 'Cổng thông tin thí sinh tham gia cuộc thi',
+  };
+
   return (
-    <div className="flex min-h-screen bg-slate-100 text-slate-800 font-sans text-base w-full">
-      <Sidebar activeTab={activeTab} setActiveTab={setActiveTab} onGoHome={onGoHome} userName={userName} />
+    <div className="min-h-screen bg-slate-50 text-slate-900 md:flex">
+      {/* Sidebar cố định trên máy tính (desktop) - đồng nhất kích thước w-60 và màu nền #0B356B */}
+      <div className="sticky top-0 hidden h-screen w-60 shrink-0 md:block">
+        <Sidebar
+          activeTab={activeTab}
+          setActiveTab={setActiveTab}
+          onGoHome={onGoHome}
+          userName={userName}
+        />
+      </div>
 
-      <main className="flex-1 flex flex-col h-screen overflow-hidden w-full">
-        <header className="bg-white border-b border-slate-200 px-8 py-4 flex items-center justify-between gap-6 flex-shrink-0 z-20 w-full">
-          <div className="relative flex-1 max-w-2xl">
-            <Search className="absolute left-4 top-1/2 -translate-y-1/2 w-5 h-5 text-slate-400" />
-            <input
-              type="text"
-              placeholder="Tìm kiếm cuộc thi, bài dự thi, nhiếp ảnh gia..."
-              value={searchQuery}
-              onChange={(e) => setSearchQuery(e.target.value)}
-              className="w-full pl-11 pr-4 py-2.5 bg-slate-100 text-slate-800 border border-slate-200 rounded-xl text-sm focus:outline-none focus:ring-2 focus:ring-blue-500 focus:bg-white transition-all"
-            />
-          </div>
+      <div className="flex min-h-screen min-w-0 flex-1 flex-col">
+        {/* Topbar trên thiết bị di động */}
+        <div className="flex items-center gap-3 border-b border-slate-200 bg-white px-4 pb-3 pt-4 md:hidden">
+          <button
+            type="button"
+            onClick={() => setIsMobileMenuOpen(true)}
+            aria-label="Mở menu thí sinh"
+            aria-expanded={isMobileMenuOpen}
+            className="rounded-lg p-2 text-[#0B356B] transition-colors hover:bg-blue-50 focus-visible:outline-2 focus-visible:outline-blue-600"
+          >
+            <Menu size={22} aria-hidden="true" />
+          </button>
+          <span className="flex items-center gap-2 font-semibold text-[#0B356B]">
+            <Camera size={22} aria-hidden="true" />
+            FilmContest
+          </span>
+          <span className="ml-auto text-xs font-semibold uppercase tracking-wider text-slate-500">
+            Participant
+          </span>
+        </div>
 
-          <div className="flex items-center space-x-4 relative">
-            <button
-              onClick={() => setIsNotificationOpen(!isNotificationOpen)}
-              className="relative p-2.5 bg-slate-100 hover:bg-slate-200 rounded-xl text-slate-700 transition-all cursor-pointer"
-            >
-              <Bell className="w-5 h-5" />
-              <span className="absolute top-1.5 right-1.5 w-2.5 h-2.5 bg-red-500 rounded-full"></span>
-            </button>
+        {/* Portal Header */}
+        <PortalHeader
+          title={currentMeta.title}
+          subtitle={currentMeta.subtitle}
+          userName={userName}
+          userRole="Thí sinh"
+          avatarUrl={avatarUrl}
+          unreadCount={2}
+          onOpenProfile={() => setActiveTab('profile')}
+          onGoHome={onGoHome}
+          onOpenMenu={() => setIsMobileMenuOpen(true)}
+        />
 
-            {isNotificationOpen && (
-              <div className="absolute right-0 top-14 w-80 bg-white rounded-2xl shadow-2xl border border-slate-200 p-4 z-50 space-y-3">
-                <div className="flex justify-between items-center border-b pb-2">
-                  <h4 className="font-bold text-slate-900 text-sm">Thông báo hệ thống</h4>
-                  <button onClick={() => setIsNotificationOpen(false)} className="text-xs text-blue-600 font-bold cursor-pointer">
-                    Đóng
-                  </button>
-                </div>
-                <p className="p-2.5 bg-blue-50 rounded-xl text-xs text-slate-600">
-                  🔹 Bài dự thi của bạn đã được kiểm duyệt thành công.
-                </p>
-              </div>
-            )}
-
-            <div className="h-6 w-px bg-slate-200"></div>
-            <div className="text-right hidden sm:block">
-              <p className="text-sm font-bold text-slate-900">{userName}</p>
-              <p className="text-xs text-slate-500 font-medium">Participant Portal</p>
-            </div>
-          </div>
-        </header>
-
-        <div className="flex-1 p-8 space-y-8 overflow-y-auto w-full max-w-none">
+        {/* Nội dung chính đồng bộ lề và max-width với Admin & Organizer */}
+        <main
+          id="participant-main-content"
+          tabIndex={-1}
+          className="mx-auto w-full max-w-[1700px] flex-1 p-4 outline-none sm:p-6 lg:p-8"
+        >
           {activeTab === 'dashboard' && (
             <DashboardTab
               registeredCount={registeredContestIds.length}
-              onNavigate={(tab) => setActiveTab(tab)}
+              onNavigate={handleNavigateTab}
             />
           )}
 
@@ -151,7 +236,7 @@ export default function ParticipantPage({ onGoHome }: ParticipantPageProps) {
             <ContestsTab
               registeredIds={registeredContestIds}
               onToggleRegister={handleToggleRegister}
-              onNavigateSubmit={() => setActiveTab('submit')}
+              onNavigateSubmit={() => handleNavigateTab('submit')}
             />
           )}
 
@@ -159,7 +244,7 @@ export default function ParticipantPage({ onGoHome }: ParticipantPageProps) {
             <ContestsTab
               registeredIds={registeredContestIds}
               onToggleRegister={handleToggleRegister}
-              onNavigateSubmit={() => setActiveTab('submit')}
+              onNavigateSubmit={() => handleNavigateTab('submit')}
               filterRegisteredOnly={true}
             />
           )}
@@ -170,15 +255,49 @@ export default function ParticipantPage({ onGoHome }: ParticipantPageProps) {
 
           {activeTab === 'submit' && (
             <SubmitEntryForm
-              onSubmitSuccess={() => setActiveTab('my-entries')}
+              onSubmitSuccess={() => handleNavigateTab('my-entries')}
             />
           )}
 
           {activeTab === 'my-entries' && <MyEntriesList />}
 
           {activeTab === 'results' && <ResultsTab />}
+        </main>
+      </div>
+
+      {/* Menu Drawer trên màn hình di động */}
+      {isMobileMenuOpen && (
+        <div
+          className="fixed inset-0 z-50 md:hidden"
+          role="dialog"
+          aria-modal="true"
+          aria-label="Menu thí sinh"
+        >
+          <button
+            type="button"
+            className="absolute inset-0 bg-slate-950/60 transition-opacity"
+            onClick={() => setIsMobileMenuOpen(false)}
+            aria-label="Đóng menu"
+          />
+          <div className="absolute inset-y-0 left-0 w-60 shadow-xl">
+            <Sidebar
+              activeTab={activeTab}
+              setActiveTab={handleNavigateTab}
+              onGoHome={onGoHome}
+              userName={userName}
+            />
+          </div>
+          <button
+            ref={mobileCloseButtonRef}
+            type="button"
+            onClick={() => setIsMobileMenuOpen(false)}
+            aria-label="Đóng menu thí sinh"
+            className="absolute left-[15.5rem] top-4 rounded-full bg-white p-2 text-slate-800 shadow-md hover:bg-slate-100"
+          >
+            <X size={20} aria-hidden="true" />
+          </button>
         </div>
-      </main>
+      )}
     </div>
   );
 }

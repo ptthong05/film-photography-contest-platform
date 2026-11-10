@@ -6,6 +6,7 @@ export interface ManagedAssignment {
   reviewedSubmissionIds: string[];
   remindersSent: number;
   updatedAt: string;
+  deadline?: string;
 }
 
 const STORAGE_KEY = "filmcontest.organizer.assignments.v1";

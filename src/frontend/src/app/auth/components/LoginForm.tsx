@@ -4,7 +4,7 @@ import { validateLoginIdentifier } from '../../../utils/phoneValidator';
 
 interface LoginFormProps {
   onSwitchToRegister: () => void;
-  onSubmitSuccess?: () => void;
+  onSubmitSuccess?: (identifier?: string) => void;
 }
 
 export function LoginForm({ onSwitchToRegister, onSubmitSuccess }: LoginFormProps) {
@@ -25,7 +25,7 @@ export function LoginForm({ onSwitchToRegister, onSubmitSuccess }: LoginFormProp
     setIdentifierError('');
 
     if (onSubmitSuccess) {
-      onSubmitSuccess();
+      onSubmitSuccess(check.normalizedValue);
     } else {
       alert(`Đăng nhập thành công với tài khoản: ${check.normalizedValue}`);
     }

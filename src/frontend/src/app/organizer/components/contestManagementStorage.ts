@@ -166,16 +166,17 @@ export function saveContestSubmissionReview(contestId: string, submissionId: str
 
 export function withContestSettings(contest: Contest): Contest {
   const settings = readContestSettings(contest.id);
-  if (!settings) return contest;
+  const baseName = contest.name || (contest as any).title || "Cuộc thi nhiếp ảnh phim";
+  if (!settings) return { ...contest, name: baseName };
   return {
     ...contest,
-    judgeNames: settings.judgeNames ?? contest.judgeNames,
-    status: settings.lifecycleStatus ?? contest.status,
-    name: settings.name,
-    description: settings.description,
-    tags: settings.tags,
-    startDate: settings.startDate,
-    endDate: settings.endDate,
-    prizes: settings.prizes,
+    judgeNames: settings.judgeNames ?? contest.judgeNames ?? [],
+    status: settings.lifecycleStatus ?? contest.status ?? "ONGOING",
+    name: settings.name || baseName,
+    description: settings.description || contest.description || "",
+    tags: settings.tags || contest.tags || [],
+    startDate: settings.startDate || contest.startDate || "2026-06-01",
+    endDate: settings.endDate || contest.endDate || "2026-11-30",
+    prizes: settings.prizes || contest.prizes || [],
   };
 }

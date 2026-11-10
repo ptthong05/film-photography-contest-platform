@@ -6,6 +6,7 @@ import {
 } from "lucide-react";
 import { StateMessage } from "../../../components/StateMessage";
 import { StatusBadge } from "../../../components/StatusBadge";
+import { Toast, type ToastNotice } from "../../../components/Toast";
 import { useFetch } from "../../../hooks/useFetch";
 import { contestService } from "../../../services/contestService";
 import type { Contest, ContestStatus } from "../../../types/contest";
@@ -25,20 +26,19 @@ import {
   withContestSettings,
 } from "./contestManagementStorage";
 
-type StatusFilter = ContestStatus | "ALL" | "ARCHIVED";
+type StatusFilter = ContestStatus | "ALL";
 
 const FILTER_TABS: { value: StatusFilter; label: string }[] = [
   { value: "ALL", label: "Tất cả" },
   { value: "ONGOING", label: "Đang diễn ra" },
   { value: "UPCOMING", label: "Sắp diễn ra" },
   { value: "ENDED", label: "Đã kết thúc" },
-  { value: "ARCHIVED", label: "Đã lưu trữ" },
 ];
 const PAGE_SIZE = 5;
 const NUMBER_FORMAT = new Intl.NumberFormat("vi-VN");
 
 export function ContestsView({ onNavigate }: OrganizerViewProps) {
-  const { data, isLoading, error } = useFetch(contestService.getContests);
+  const { data, isLoading, error, refetch } = useFetch(contestService.getContests);
   const [keyword, setKeyword] = useState("");
   const [statusFilter, setStatusFilter] = useState<StatusFilter>("ALL");
   const [categoryFilter, setCategoryFilter] = useState("ALL");
@@ -47,25 +47,50 @@ export function ContestsView({ onNavigate }: OrganizerViewProps) {
   const [page, setPage] = useState(1);
   const [selectedContest, setSelectedContest] = useState<Contest | null>(null);
   const [openMenuId, setOpenMenuId] = useState<string | null>(null);
-  const [notice, setNotice] = useState("");
+  const [toast, setToast] = useState<ToastNotice | null>(null);
   const [collectionVersion, setCollectionVersion] = useState(0);
 
-  const contests = useMemo(
-    () => [...(data ?? []), ...getOrganizerContestCopies()].map(withContestSettings).filter((contest) => !isOrganizerContestDeleted(contest.id)),
-    [data, collectionVersion],
-  );
+  const showToast = (message: string, type: 'success' | 'error' | 'info' = 'success') => {
+    setToast({ id: Date.now(), message, type });
+  };
+
+  // Đồng bộ thời gian thực khi có cuộc thi mới được tạo hoặc cập nhật từ bất kỳ giao diện nào
+  useEffect(() => {
+    const handleUpdate = () => {
+      void refetch();
+      setCollectionVersion((v) => v + 1);
+    };
+    window.addEventListener("filmcontest:contests-updated", handleUpdate);
+    window.addEventListener("storage", handleUpdate);
+    return () => {
+      window.removeEventListener("filmcontest:contests-updated", handleUpdate);
+      window.removeEventListener("storage", handleUpdate);
+    };
+  }, [refetch]);
+
+  const contests = useMemo(() => {
+    const rawList = [...(data ?? []), ...getOrganizerContestCopies()];
+    const map = new Map<string, Contest>();
+    for (const contest of rawList) {
+      if (!isOrganizerContestDeleted(contest.id)) {
+        map.set(contest.id, withContestSettings(contest));
+      }
+    }
+    return Array.from(map.values());
+  }, [data, collectionVersion]);
+
   const availableYears = [...new Set(contests.map((contest) => contest.startDate.slice(0, 4)))].sort().reverse();
   const availableCategories = [...new Set(contests.flatMap((contest) => contest.tags ?? []))]
     .sort((a, b) => a.localeCompare(b, "vi"));
   const filteredContests = useMemo(() => {
-    const term = keyword.trim().toLocaleLowerCase("vi-VN");
+    const term = (keyword ?? "").trim().toLocaleLowerCase("vi-VN");
     return contests.filter((contest) =>
-      (statusFilter === "ARCHIVED" ? isOrganizerContestArchived(contest.id) : !isOrganizerContestArchived(contest.id) && (statusFilter === "ALL" || contest.status === statusFilter)) &&
+      (statusFilter === "ALL" || contest.status === statusFilter) &&
       (categoryFilter === "ALL" || (contest.tags ?? []).includes(categoryFilter)) &&
-      (yearFilter === "ALL" || contest.startDate.startsWith(yearFilter)) &&
-      (!term || [contest.name, contest.id, contest.description ?? "", ...(contest.tags ?? []), ...(contest.judgeNames ?? [])]
-        .some((value) => value.toLocaleLowerCase("vi-VN").includes(term)))
-    ).sort((a, b) => b.startDate.localeCompare(a.startDate));
+      (yearFilter === "ALL" || (contest.startDate ?? "").startsWith(yearFilter)) &&
+      (!term || [contest.name ?? "", contest.id ?? "", contest.description ?? "", ...(contest.tags ?? []), ...(contest.judgeNames ?? [])]
+        .some((value) => (value ?? "").toLocaleLowerCase("vi-VN").includes(term)))
+    ).sort((a, b) => (b.startDate ?? "").localeCompare(a.startDate ?? ""));
   }, [contests, keyword, statusFilter, categoryFilter, yearFilter]);
 
   const pageCount = Math.max(1, Math.ceil(filteredContests.length / PAGE_SIZE));
@@ -85,9 +110,9 @@ export function ContestsView({ onNavigate }: OrganizerViewProps) {
     setOpenMenuId(null);
     try {
       await navigator.clipboard.writeText(id);
-      setNotice(`Đã sao chép mã cuộc thi ${id}.`);
+      showToast(`Đã sao chép mã cuộc thi ${id}.`, 'success');
     } catch {
-      setNotice(`Không thể sao chép tự động. Mã cuộc thi: ${id}`);
+      showToast(`Không thể sao chép tự động. Mã cuộc thi: ${id}`, 'error');
     }
   };
   const openContestManagement = (contest: Contest) => {
@@ -105,33 +130,27 @@ export function ContestsView({ onNavigate }: OrganizerViewProps) {
     archiveOrganizerContest(contest.id);
     setCollectionVersion((version) => version + 1);
     setOpenMenuId(null);
-    setNotice(`Đã lưu trữ cuộc thi “${contest.name}”. Có thể mở lại trong tab Đã lưu trữ.`);
+    showToast("Đã lưu trữ cuộc thi", 'info');
   };
   const restoreContest = (contest: Contest) => {
     restoreOrganizerContest(contest.id);
     setCollectionVersion((version) => version + 1);
     setOpenMenuId(null);
-    setNotice(`Đã khôi phục cuộc thi “${contest.name}”.`);
+    showToast("Đã khôi phục cuộc thi", 'success');
   };
   const removeContest = (contest: Contest) => {
     if (!window.confirm(`Xóa cuộc thi “${contest.name}” khỏi danh sách Organizer?`)) return;
     deleteOrganizerContest(contest.id);
     setCollectionVersion((version) => version + 1);
     setOpenMenuId(null);
-    setNotice(`Đã xóa cuộc thi “${contest.name}” khỏi danh sách Organizer.`);
+    showToast("Đã xóa cuộc thi", 'info');
   };
 
   return (
-    <section aria-label="Quản lý cuộc thi" className="space-y-5">
+    <section aria-label="Quản lý cuộc thi" className="relative space-y-5">
+      <Toast toast={toast} onClose={() => setToast(null)} />
       <OrganizerPageHeader title="Quản lý cuộc thi" description="Theo dõi thông tin, bài dự thi và tiến độ các chương trình."
         action={<button type="button" onClick={() => onNavigate({ view: "CREATE_CONTEST" })} className="inline-flex items-center gap-2 rounded-xl bg-blue-600 px-4 py-2.5 text-sm font-semibold text-white shadow-sm transition hover:bg-blue-700"><Plus size={17} aria-hidden="true" />Tạo cuộc thi</button>} />
-
-      {notice && (
-        <div role="status" className="flex items-center justify-between gap-3 rounded-lg border border-blue-200 bg-blue-50 px-4 py-3 text-sm text-blue-900">
-          <span>{notice}</span>
-          <button type="button" onClick={() => setNotice("")} aria-label="Đóng thông báo"><X size={17} /></button>
-        </div>
-      )}
       {isLoading && <StateMessage message="Đang tải dữ liệu..." />}
       {error && <StateMessage message={error} isError />}
 
@@ -140,10 +159,8 @@ export function ContestsView({ onNavigate }: OrganizerViewProps) {
           <div className="flex gap-1 overflow-x-auto border-b border-slate-200 px-4 pt-3" role="tablist" aria-label="Lọc cuộc thi theo trạng thái">
             {FILTER_TABS.map((tab) => {
               const count = tab.value === "ALL"
-                ? contests.filter((contest) => !isOrganizerContestArchived(contest.id)).length
-                : tab.value === "ARCHIVED"
-                  ? contests.filter((contest) => isOrganizerContestArchived(contest.id)).length
-                  : contests.filter((contest) => !isOrganizerContestArchived(contest.id) && contest.status === tab.value).length;
+                ? contests.length
+                : contests.filter((contest) => contest.status === tab.value).length;
               return (
                 <button key={tab.value} type="button" role="tab" aria-selected={statusFilter === tab.value}
                   onClick={() => { setStatusFilter(tab.value); resetPage(); }}
@@ -251,12 +268,24 @@ function ContestRow({ contest, seed, isArchived, isMenuOpen, onToggleMenu, onQui
   return (
     <article className="flex flex-col gap-4 px-4 py-4 transition-colors hover:bg-slate-50/70 lg:flex-row lg:items-center">
       <div className="flex min-w-0 flex-1 gap-3 sm:gap-4">
-        <div className="h-20 w-24 shrink-0 overflow-hidden rounded-lg bg-gradient-to-br from-slate-300 to-slate-600 sm:h-24 sm:w-32">
+        <button
+          type="button"
+          onClick={onManage}
+          className="h-20 w-24 shrink-0 overflow-hidden rounded-lg bg-gradient-to-br from-slate-300 to-slate-600 sm:h-24 sm:w-32 cursor-pointer transition hover:opacity-90"
+          title={`Xem chi tiết cuộc thi ${contest.name}`}
+        >
           <ContestCover title={contest.name} seed={seed} className="h-full w-full object-cover" />
-        </div>
+        </button>
         <div className="min-w-0 flex-1 space-y-1.5">
           <div className="flex flex-wrap items-center gap-2">
-            <h2 className="max-w-full truncate text-sm font-bold text-[#0B356B] sm:text-base" title={contest.name}>{contest.name}</h2>
+            <button
+              type="button"
+              onClick={onManage}
+              className="max-w-full truncate text-sm font-bold text-[#0B356B] hover:text-blue-600 text-left sm:text-base cursor-pointer"
+              title={contest.name}
+            >
+              {contest.name}
+            </button>
             <span className="rounded-md bg-slate-100 px-2 py-0.5 text-[11px] font-semibold text-slate-500">{contest.id}</span>
           </div>
           <p className="flex items-center gap-1 text-xs text-slate-500"><CalendarDays size={13} aria-hidden="true" /> {formatDate(contest.startDate)} – {formatDate(contest.endDate)}</p>
@@ -274,24 +303,29 @@ function ContestRow({ contest, seed, isArchived, isMenuOpen, onToggleMenu, onQui
       </div>
 
       <div className="flex shrink-0 items-center justify-end gap-2 lg:pl-2">
-        <button type="button" onClick={onQuickView} className="inline-flex items-center gap-1.5 rounded-lg border border-blue-200 bg-white px-3 py-2 text-xs font-semibold text-blue-700 transition hover:bg-blue-50 sm:text-sm">
+        <button
+          type="button"
+          onClick={onManage}
+          className="inline-flex items-center gap-1.5 rounded-lg border border-blue-200 bg-white px-3 py-2 text-xs font-semibold text-blue-700 transition hover:bg-blue-50 sm:text-sm cursor-pointer"
+        >
           <Eye size={15} aria-hidden="true" /> Xem chi tiết
         </button>
-        <button type="button" onClick={onManage} className="rounded-lg bg-blue-600 px-3 py-2 text-xs font-semibold text-white transition hover:bg-blue-700 focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-blue-700 sm:text-sm">
+        <button
+          type="button"
+          onClick={onManage}
+          className="rounded-lg bg-blue-600 px-3 py-2 text-xs font-semibold text-white transition hover:bg-blue-700 focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-blue-700 sm:text-sm cursor-pointer"
+        >
           Quản lý
         </button>
         <div className="relative">
           <button type="button" onClick={onToggleMenu} aria-label={`Thao tác với cuộc thi ${contest.name}`} aria-expanded={isMenuOpen}
-            className="rounded-lg border border-slate-200 p-2 text-slate-500 hover:bg-slate-50"><MoreVertical size={17} /></button>
+            className="rounded-lg border border-slate-200 p-2 text-slate-500 hover:bg-slate-50 cursor-pointer"><MoreVertical size={17} /></button>
           {isMenuOpen && (
             <div className="absolute right-0 top-full z-20 mt-1 w-48 rounded-lg border border-slate-200 bg-white p-1 shadow-lg">
-              <button type="button" onClick={onQuickView} className="flex w-full items-center gap-2 rounded-md px-3 py-2 text-left text-xs text-slate-700 hover:bg-slate-100"><Eye size={14} aria-hidden="true" /> Xem nhanh thông tin</button>
-              <button type="button" onClick={onCopyId} className="flex w-full items-center gap-2 rounded-md px-3 py-2 text-left text-xs text-slate-700 hover:bg-slate-100"><ClipboardCopy size={14} aria-hidden="true" /> Sao chép mã</button>
-              <button type="button" onClick={onDuplicate} className="flex w-full items-center gap-2 rounded-md px-3 py-2 text-left text-xs text-slate-700 hover:bg-slate-100"><Copy size={14} aria-hidden="true" /> Nhân bản cuộc thi</button>
-              {isArchived
-                ? <button type="button" onClick={onRestore} className="flex w-full items-center gap-2 rounded-md px-3 py-2 text-left text-xs text-blue-700 hover:bg-blue-50"><ArchiveRestore size={14} aria-hidden="true" /> Khôi phục</button>
-                : <button type="button" onClick={onArchive} className="flex w-full items-center gap-2 rounded-md px-3 py-2 text-left text-xs text-slate-700 hover:bg-slate-100"><Archive size={14} aria-hidden="true" /> Lưu trữ</button>}
-              <button type="button" onClick={onDelete} className="flex w-full items-center gap-2 rounded-md px-3 py-2 text-left text-xs text-rose-700 hover:bg-rose-50"><Trash2 size={14} aria-hidden="true" /> Xóa cuộc thi</button>
+              <button type="button" onClick={onManage} className="flex w-full items-center gap-2 rounded-md px-3 py-2 text-left text-xs text-slate-700 hover:bg-slate-100 cursor-pointer"><Eye size={14} aria-hidden="true" /> Xem chi tiết cuộc thi</button>
+              <button type="button" onClick={onCopyId} className="flex w-full items-center gap-2 rounded-md px-3 py-2 text-left text-xs text-slate-700 hover:bg-slate-100 cursor-pointer"><ClipboardCopy size={14} aria-hidden="true" /> Sao chép mã</button>
+              <button type="button" onClick={onDuplicate} className="flex w-full items-center gap-2 rounded-md px-3 py-2 text-left text-xs text-slate-700 hover:bg-slate-100 cursor-pointer"><Copy size={14} aria-hidden="true" /> Nhân bản cuộc thi</button>
+              <button type="button" onClick={onDelete} className="flex w-full items-center gap-2 rounded-md px-3 py-2 text-left text-xs text-rose-700 hover:bg-rose-50 cursor-pointer"><Trash2 size={14} aria-hidden="true" /> Xóa cuộc thi</button>
             </div>
           )}
         </div>

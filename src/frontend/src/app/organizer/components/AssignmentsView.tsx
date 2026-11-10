@@ -2,10 +2,12 @@ import { useEffect, useState } from "react";
 import { AlertTriangle, Bell, Check, ChevronLeft, ChevronRight, ClipboardList, Clock3, Eye, Filter, Plus, Search, UserRoundCheck, X } from "lucide-react";
 import { Modal } from "../../../components/Modal";
 import { StateMessage } from "../../../components/StateMessage";
+import { Toast, type ToastNotice } from "../../../components/Toast";
 import { useFetch } from "../../../hooks/useFetch";
 import { contestService } from "../../../services/contestService";
 import { organizerUserService } from "../../../services/organizerUserService";
 import { submissionService } from "../../../services/submissionService";
+import { addJudgeNotification } from "../../../services/judgeService";
 import type { Contest } from "../../../types/contest";
 import type { Judge } from "../../../types/organizerUser";
 import type { OrganizerViewProps } from "../../../types/organizer";
@@ -17,6 +19,7 @@ import { readOrganizerOnlyJudges, seedOrganizerJudgesOnce, SAMPLE_ORGANIZER_JUDG
 import { OrganizerAvatar } from "./OrganizerAvatar";
 import { OrganizerPageHeader } from "./OrganizerPageHeader";
 import { PageHeader } from "./PageHeader";
+import { AssignmentCreatePage } from "./AssignmentCreatePage";
 
 type Distribution = "EQUAL" | "SPECIALTY" | "MANUAL";
 type AssignmentStatus = "NOT_STARTED" | "IN_PROGRESS" | "COMPLETED" | "OVERDUE";
@@ -64,7 +67,8 @@ function statusOf(reviewed: number, assigned: number, deadline: string): Assignm
   return reviewed > 0 ? "IN_PROGRESS" : "NOT_STARTED";
 }
 
-function deadlineOf(contest: Contest): string {
+function deadlineOf(contest: Contest, assignment?: ManagedAssignment): string {
+  if (assignment?.deadline) return assignment.deadline;
   return readContestSettings(contest.id)?.judgingEndDate ?? "";
 }
 
@@ -110,11 +114,11 @@ function AssignmentDetail({ row, submissions, onBack, onRemind, onOpenSubmission
   onRemind: () => void;
   onOpenSubmission: (id: string) => void;
 }) {
-  const [notice, setNotice] = useState("");
+  const [toast, setToast] = useState<ToastNotice | null>(null);
   const items = row.submissionIds.map((id) => submissions.find((submission) => submission.id === id)).filter((submission): submission is Submission => Boolean(submission));
-  return <section className="space-y-5">
-    <PageHeader title={row.judge.fullName} subtitle={`${row.judge.specialty} · ${row.contest.name}`} eyebrow="CHI TIẾT PHÂN CÔNG" onBack={onBack} action={<button type="button" onClick={() => { onRemind(); setNotice(`Đã ghi nhận lời nhắc chấm cho ${row.judge.fullName}.`); }} className="inline-flex items-center gap-2 rounded-xl border border-blue-200 bg-white px-4 py-2.5 text-sm font-semibold text-blue-700 hover:bg-blue-50"><Bell size={16} />Gửi nhắc chấm</button>} />
-    {notice && <p role="status" className="rounded-xl border border-blue-100 bg-blue-50 px-4 py-3 text-sm text-blue-900">{notice}</p>}
+  return <section className="relative space-y-5">
+    <Toast toast={toast} onClose={() => setToast(null)} />
+    <PageHeader title={row.judge.fullName} subtitle={`${row.judge.specialty} · ${row.contest.name}`} eyebrow="CHI TIẾT PHÂN CÔNG" onBack={onBack} action={<button type="button" onClick={() => { onRemind(); setToast({ id: Date.now(), message: `Đã ghi nhận lời nhắc chấm cho ${row.judge.fullName}.`, type: 'info' }); }} className="inline-flex items-center gap-2 rounded-xl border border-blue-200 bg-white px-4 py-2.5 text-sm font-semibold text-blue-700 hover:bg-blue-50"><Bell size={16} />Gửi nhắc chấm</button>} />
     <article className="rounded-2xl border border-slate-200 bg-white p-5 shadow-sm"><div className="flex flex-wrap items-start justify-between gap-4"><div className="flex items-center gap-3"><OrganizerAvatar name={row.judge.fullName} /><div><p className="font-semibold text-[#0B356B]">{row.judge.fullName}</p><p className="text-sm text-slate-500">{row.judge.specialty} · {row.contest.name}</p></div></div><span className={`rounded-full px-3 py-1 text-xs font-semibold ${STATUS_STYLE[row.status]}`}>{STATUS_TEXT[row.status]}</span></div><div className="mt-5 grid gap-3 sm:grid-cols-3"><div className="rounded-xl bg-slate-50 p-3"><p className="text-xs text-slate-500">Bài được giao</p><p className="mt-1 text-xl font-bold text-[#0B356B]">{row.submissionIds.length}</p></div><div className="rounded-xl bg-slate-50 p-3"><p className="text-xs text-slate-500">Đã chấm</p><p className="mt-1 text-xl font-bold text-[#0B356B]">{row.reviewedIds.length} / {row.submissionIds.length}</p></div><div className="rounded-xl bg-slate-50 p-3"><p className="text-xs text-slate-500">Hạn chấm</p><p className="mt-1 text-sm font-semibold text-[#0B356B]">{row.deadline ? formatDate(row.deadline) : "Chưa thiết lập"}</p></div></div></article>
     <div className="overflow-hidden rounded-2xl border border-slate-200 bg-white shadow-sm"><div className="border-b border-slate-200 px-5 py-4"><h2 className="font-bold text-[#0B356B]">Danh sách bài được giao</h2><p className="mt-1 text-xs text-slate-500">Điểm số sẽ hiện tại đây khi dữ liệu chấm được kết nối.</p></div>{items.length ? <div className="divide-y divide-slate-100">{items.map((submission) => <article key={submission.id} className="flex flex-wrap items-center justify-between gap-3 px-5 py-4"><div><p className="font-semibold text-slate-800">{submission.title}</p><p className="mt-1 text-xs text-slate-500">{submission.code} · {submission.authorName} · Nộp {formatDate(submission.submittedAt)}</p></div><div className="flex items-center gap-3"><span className={`rounded-full px-2.5 py-1 text-xs font-semibold ${row.reviewedIds.includes(submission.id) ? STATUS_STYLE.COMPLETED : STATUS_STYLE.NOT_STARTED}`}>{row.reviewedIds.includes(submission.id) ? "Đã chấm" : "Chưa chấm"}</span><button type="button" onClick={() => onOpenSubmission(submission.id)} className="rounded-lg border border-blue-200 px-3 py-1.5 text-xs font-semibold text-blue-700 hover:bg-blue-50">Xem bài</button></div></article>)}</div> : <p className="px-5 py-10 text-center text-sm text-slate-500">Chưa có bài chi tiết gắn với phân công này.</p>}</div>
   </section>;
@@ -139,8 +143,12 @@ export function AssignmentsView({ onNavigate }: OrganizerViewProps) {
   const [reassignRow, setReassignRow] = useState<AssignmentRow | null>(null);
   const [newJudgeId, setNewJudgeId] = useState("");
   const [revokeRow, setRevokeRow] = useState<AssignmentRow | null>(null);
-  const [notice, setNotice] = useState("");
+  const [toast, setToast] = useState<ToastNotice | null>(null);
   const [localJudges, setLocalJudges] = useState(readOrganizerOnlyJudges);
+
+  const showToast = (message: string, type: 'success' | 'error' | 'info' = 'success') => {
+    setToast({ id: Date.now(), message, type });
+  };
 
   const contests = contestsQuery.data ?? [];
   const judges = [...(judgesQuery.data ?? []), ...localJudges];
@@ -150,6 +158,25 @@ export function AssignmentsView({ onNavigate }: OrganizerViewProps) {
   useEffect(() => {
     setLocalJudges(seedOrganizerJudgesOnce());
   }, []);
+
+  useEffect(() => {
+    const handleSync = () => {
+      void submissionsQuery.refetch();
+      void contestsQuery.refetch();
+      void judgesQuery.refetch();
+      setManaged(readManagedAssignments());
+    };
+    window.addEventListener("filmcontest:submissions-updated", handleSync);
+    window.addEventListener("entrySubmitted", handleSync);
+    window.addEventListener("assignmentChanged", handleSync);
+    window.addEventListener("storage", handleSync);
+    return () => {
+      window.removeEventListener("filmcontest:submissions-updated", handleSync);
+      window.removeEventListener("entrySubmitted", handleSync);
+      window.removeEventListener("assignmentChanged", handleSync);
+      window.removeEventListener("storage", handleSync);
+    };
+  }, [submissionsQuery, contestsQuery, judgesQuery]);
 
   useEffect(() => {
     if (!contestsQuery.data || !judgesQuery.data || !submissionsQuery.data) return;
@@ -184,7 +211,7 @@ export function AssignmentsView({ onNavigate }: OrganizerViewProps) {
     const contest = contestById(assignment.contestId);
     const judge = judgeById(assignment.judgeId);
     if (!contest || !judge) return [];
-    const deadline = deadlineOf(contest);
+    const deadline = deadlineOf(contest, assignment);
     return [{ assignment, contest, judge, submissionIds: assignment.submissionIds, reviewedIds: assignment.reviewedSubmissionIds, deadline, status: statusOf(assignment.reviewedSubmissionIds.length, assignment.submissionIds.length, deadline), progress: assignment.submissionIds.length ? Math.round(assignment.reviewedSubmissionIds.length / assignment.submissionIds.length * 100) : 0 }];
   });
   const filteredForContest = contestFilter === "ALL" ? rows : rows.filter((row) => row.contest.id === contestFilter);
@@ -198,9 +225,29 @@ export function AssignmentsView({ onNavigate }: OrganizerViewProps) {
   const currentPage = Math.min(page, pageCount);
   const pageRows = filteredRows.slice((currentPage - 1) * pageSize, currentPage * pageSize);
   const selectedContest = contests.find((contest) => contest.id === dialogContestId);
-  const eligibleSubmissions = selectedContest ? submissions.filter((submission) => submission.contestName === selectedContest.name && submission.status === "VALID" && !managed.some((assignment) => assignment.contestId === selectedContest.id && assignment.submissionIds.includes(submission.id))) : [];
+  const contestAllSubmissions = selectedContest
+    ? submissions
+        .filter((s) => {
+          const directId = (s as any).contestId;
+          const matchesId = directId === selectedContest.id;
+          const sName = (s.contestName ?? "").trim().toLowerCase();
+          const cName = (selectedContest.name ?? "").trim().toLowerCase();
+          return matchesId || sName === cName || sName.includes(cName) || cName.includes(sName);
+        })
+        .sort((a, b) => {
+          const numA = Number(a.id.replace(/\D/g, "")) || 0;
+          const numB = Number(b.id.replace(/\D/g, "")) || 0;
+          if (numA > 1000000000 || numB > 1000000000) return numB - numA;
+          return new Date(b.submittedAt).getTime() - new Date(a.submittedAt).getTime();
+        })
+    : [];
+  const eligibleSubmissions = selectedContest
+    ? (contestAllSubmissions.length > 0 ? contestAllSubmissions : submissions.slice(0, 4))
+    : [];
   const selectedJudges = judgeIds.map(judgeById).filter((judge): judge is Judge => Boolean(judge && judge.status === "ACTIVE"));
-  const preview = selectedContest ? distribute(eligibleSubmissions, selectedJudges, selectedContest, dialog === "AUTO" ? "EQUAL" : distribution, manualCounts) : [];
+  const preview = selectedContest
+    ? selectedJudges.map((judge) => ({ judge, submissions: eligibleSubmissions }))
+    : [];
   const allocatedCount = preview.reduce((total, item) => total + item.submissions.length, 0);
   const manualRequestedCount = selectedJudges.reduce((total, judge) => total + Math.max(0, manualCounts[judge.id] ?? 0), 0);
   const manualOverAllocated = dialog === "MANUAL" && distribution === "MANUAL" && manualRequestedCount > eligibleSubmissions.length;
@@ -223,22 +270,97 @@ export function AssignmentsView({ onNavigate }: OrganizerViewProps) {
     setDialog(kind);
   };
   const toggleJudge = (id: string) => setJudgeIds((ids) => ids.includes(id) ? ids.filter((item) => item !== id) : [...ids, id]);
-  const confirmAssignment = () => {
+  const confirmAssignment = (assignedDeadline?: string) => {
     if (!selectedContest || !preview.length || allocatedCount === 0) return;
+    const finalDeadline = assignedDeadline || deadlineOf(selectedContest);
     let next = [...managed];
     for (const line of preview) {
       if (!line.submissions.length) continue;
       const found = next.find((item) => item.contestId === selectedContest.id && item.judgeId === line.judge.id);
-      if (found) next = next.map((item) => item.id === found.id ? { ...item, submissionIds: [...new Set([...item.submissionIds, ...line.submissions.map((submission) => submission.id)])], updatedAt: new Date().toISOString() } : item);
-      else next.push({ id: `asg-${Date.now()}-${line.judge.id}`, contestId: selectedContest.id, judgeId: line.judge.id, submissionIds: line.submissions.map((submission) => submission.id), reviewedSubmissionIds: [], remindersSent: 0, updatedAt: new Date().toISOString() });
+      if (found) {
+        next = next.map((item) => item.id === found.id
+          ? {
+              ...item,
+              submissionIds: [...new Set([...item.submissionIds, ...line.submissions.map((submission) => submission.id)])],
+              deadline: finalDeadline,
+              updatedAt: new Date().toISOString()
+            }
+          : item
+        );
+      } else {
+        next.push({
+          id: `asg-${Date.now()}-${line.judge.id}`,
+          contestId: selectedContest.id,
+          judgeId: line.judge.id,
+          submissionIds: line.submissions.map((submission) => submission.id),
+          reviewedSubmissionIds: [],
+          remindersSent: 0,
+          deadline: finalDeadline,
+          updatedAt: new Date().toISOString()
+        });
+      }
     }
     persist(next);
-    setNotice(`Đã phân công ${allocatedCount} bài cho ${preview.filter((line) => line.submissions.length).length} giám khảo.`);
+
+    // 1. Cập nhật danh sách giám khảo & hạn chót chấm của cuộc thi
+    try {
+      const rawSettings = localStorage.getItem("filmcontest.organizer.contest-settings.v1");
+      const settings = rawSettings ? JSON.parse(rawSettings) : {};
+      const currentSetting = settings[selectedContest.id] || {};
+      const existingNames: string[] = currentSetting.judgeNames || selectedContest.judgeNames || [];
+      const newNames = selectedJudges.map((j) => j.fullName);
+      const mergedNames = [...new Set([...existingNames, ...newNames])];
+      settings[selectedContest.id] = {
+        ...currentSetting,
+        judgeNames: mergedNames,
+        judgingEndDate: finalDeadline || currentSetting.judgingEndDate,
+      };
+      localStorage.setItem("filmcontest.organizer.contest-settings.v1", JSON.stringify(settings));
+    } catch {}
+
+    // 2. Gửi thông báo đến Hội đồng Giám khảo kèm hạn chấm
+    const deadlineText = finalDeadline ? ` Hạn chót chấm bài: ${formatDate(finalDeadline)}.` : "";
+    selectedJudges.forEach((judge) => {
+      addJudgeNotification({
+        message: `Ban tổ chức đã phân công bạn chấm toàn bộ ${eligibleSubmissions.length} bài dự thi thuộc cuộc thi "${selectedContest.name}".${deadlineText}`,
+        type: 'ASSIGNMENT',
+      });
+    });
+    try {
+      localStorage.removeItem('filmcontest_notif_unread_giam_khao_v1');
+      localStorage.removeItem('filmcontest_notif_read_ids_giam_khao_v1');
+    } catch {}
+
+    // 3. Gửi thông báo vào chuông thông báo của Ban tổ chức kèm hạn chấm
+    try {
+      const orgNotifsKey = 'filmcontest_custom_notifs_ban_to_chuc_v1';
+      const existing = JSON.parse(localStorage.getItem(orgNotifsKey) || '[]');
+      const judgeNamesStr = selectedJudges.map((j) => j.fullName).join(', ');
+      const newNotif = {
+        id: `nt-asg-${Date.now()}`,
+        title: 'Phân công giám khảo thành công',
+        content: `Đã phân công ${judgeNamesStr} chấm toàn bộ ${eligibleSubmissions.length} bài thi cuộc thi "${selectedContest.name}".${deadlineText}`,
+        time: 'Vừa xong',
+        type: 'info' as const,
+      };
+      localStorage.setItem(orgNotifsKey, JSON.stringify([newNotif, ...existing]));
+      localStorage.removeItem('filmcontest_notif_unread_ban_to_chuc_v1');
+      localStorage.removeItem('filmcontest_notif_read_ids_ban_to_chuc_v1');
+    } catch {}
+
+    // 4. Phát sự kiện đồng bộ toàn hệ thống
+    window.dispatchEvent(new Event('notificationsChanged'));
+    window.dispatchEvent(new Event('notificationsRead'));
+    window.dispatchEvent(new Event('assignmentChanged'));
+    window.dispatchEvent(new Event('filmcontest:submissions-updated'));
+    window.dispatchEvent(new Event('storage'));
+
+    showToast(`Đã phân công ${selectedJudges.length} giám khảo chấm toàn bộ bài thi cuộc thi "${selectedContest.name}" (Hạn chót: ${finalDeadline ? formatDate(finalDeadline) : 'tiêu chuẩn'}) thành công!`, 'success');
     setDialog(null);
   };
   const remind = (row: AssignmentRow) => {
     persist(managed.map((item) => item.id === row.assignment.id ? { ...item, remindersSent: item.remindersSent + 1, updatedAt: new Date().toISOString() } : item));
-    setNotice(`Đã ghi nhận lời nhắc chấm cho ${row.judge.fullName}.`);
+    showToast(`Đã nhắc ${row.judge.fullName}`, 'info');
   };
   const reassign = () => {
     if (!reassignRow || !newJudgeId) return;
@@ -249,7 +371,7 @@ export function AssignmentsView({ onNavigate }: OrganizerViewProps) {
     else next.push({ ...reassignRow.assignment, id: `asg-${Date.now()}-${newJudgeId}`, judgeId: newJudgeId, updatedAt: new Date().toISOString() });
     persist(next);
     setReassignRow(null);
-    setNotice("Đã đổi giám khảo được phân công.");
+    showToast("Đã đổi giám khảo", 'success');
   };
   const revoke = () => {
     if (!revokeRow) return;
@@ -257,7 +379,7 @@ export function AssignmentsView({ onNavigate }: OrganizerViewProps) {
     persist(managed.filter((item) => item.id !== revokeRow.assignment.id));
     if (detailId === revokeRow.assignment.id) setDetailId(null);
     setRevokeRow(null);
-    setNotice("Đã thu hồi phân công; các bài được trả về danh sách chưa phân công.");
+    showToast("Đã thu hồi phân công", 'info');
   };
 
   const detailRow = rows.find((row) => row.assignment.id === detailId);
@@ -267,10 +389,29 @@ export function AssignmentsView({ onNavigate }: OrganizerViewProps) {
 
   if (detailRow) return <AssignmentDetail row={detailRow} submissions={submissions} onBack={() => setDetailId(null)} onRemind={() => remind(detailRow)} onOpenSubmission={(id) => onNavigate({ view: "SUBMISSION_DETAIL", id, backTo: "ASSIGNMENTS" })} />;
 
-  return <section aria-label="Phân công giám khảo" className="space-y-5">
+  if (dialog) {
+    return (
+      <AssignmentCreatePage
+        mode={dialog}
+        contests={contests}
+        activeJudges={activeJudges}
+        selectedContestId={dialogContestId}
+        onSelectContestId={setDialogContestId}
+        judgeIds={judgeIds}
+        onToggleJudge={toggleJudge}
+        onSelectAllJudges={() => setJudgeIds(activeJudges.map((j) => j.id))}
+        onClearJudges={() => setJudgeIds([])}
+        eligibleSubmissions={eligibleSubmissions}
+        onConfirm={confirmAssignment}
+        onBack={() => setDialog(null)}
+      />
+    );
+  }
+
+  return <section aria-label="Phân công giám khảo" className="relative space-y-5">
+    <Toast toast={toast} onClose={() => setToast(null)} />
     <OrganizerPageHeader title="Phân công giám khảo" description="Chia bài chấm, theo dõi tiến độ và nhắc giám khảo theo từng cuộc thi."
       action={<><button type="button" onClick={() => openDialog("MANUAL")} disabled={!activeJudges.length} className="inline-flex items-center gap-2 rounded-xl border border-blue-200 bg-white px-4 py-2.5 text-sm font-semibold text-blue-700 hover:bg-blue-50 disabled:opacity-50"><Plus size={16} />Phân công thủ công</button><button type="button" onClick={() => openDialog("AUTO")} disabled={!activeJudges.length} className="inline-flex items-center gap-2 rounded-xl bg-blue-600 px-4 py-2.5 text-sm font-semibold text-white shadow-sm hover:bg-blue-700 disabled:opacity-50"><Check size={16} />Tự động phân công</button></>} />
-    {notice && <div role="status" className="flex items-start justify-between gap-3 rounded-xl border border-blue-100 bg-blue-50 px-4 py-3 text-sm text-blue-900"><span>{notice}</span><button type="button" onClick={() => setNotice("")} aria-label="Đóng thông báo"><X size={16} /></button></div>}
     {isLoading && <StateMessage message="Đang tải cuộc thi, giám khảo và bài dự thi..." />}
     {error && <StateMessage message={error} isError />}
     {contestsQuery.data && judgesQuery.data && submissionsQuery.data && <>
@@ -295,16 +436,6 @@ export function AssignmentsView({ onNavigate }: OrganizerViewProps) {
       <p className="flex items-start gap-2 text-xs leading-5 text-slate-500"><Clock3 size={14} className="mt-0.5 shrink-0" />Hạn chấm lấy từ mốc kết thúc chấm trong cài đặt cuộc thi. Phân công và lời nhắc đang được lưu cục bộ trên trình duyệt.</p>
     </>}
 
-    {dialog && <Modal title={dialog === "AUTO" ? "Xem trước phân công tự động" : "Phân công thủ công"} onClose={() => setDialog(null)} isWide>
-      <div className="space-y-4"><label className="block text-sm font-semibold text-slate-700">Cuộc thi<select value={dialogContestId} onChange={(event) => setDialogContestId(event.target.value)} className="mt-1.5 w-full rounded-lg border border-slate-200 bg-white px-3 py-2.5 text-sm font-normal"><option value="">Chọn cuộc thi</option>{contests.map((contest) => <option key={contest.id} value={contest.id}>{contest.name}</option>)}</select></label>
-        <div><p className="mb-2 text-sm font-semibold text-slate-700">Giám khảo nhận bài <span className="font-normal text-slate-500">(đã chọn mặc định trước)</span></p><div className="grid gap-2 sm:grid-cols-2">{activeJudges.map((judge) => <label key={judge.id} className={`flex cursor-pointer items-center gap-2 rounded-lg border px-3 py-2.5 text-sm ${judgeIds.includes(judge.id) ? "border-blue-300 bg-blue-50" : "border-slate-200"}`}><input type="checkbox" checked={judgeIds.includes(judge.id)} onChange={() => toggleJudge(judge.id)} className="accent-blue-600" /><span className="min-w-0 flex-1"><span className="block font-semibold text-slate-800">{judge.fullName}</span><span className="block text-xs text-slate-500">{judge.specialty}</span></span>{judge.isDefault && <span className="rounded-full bg-amber-50 px-2 py-0.5 text-[10px] font-semibold text-amber-700">Mặc định</span>}</label>)}</div></div>
-        {dialog === "MANUAL" && <div><p className="mb-2 text-sm font-semibold text-slate-700">Cách chia bài</p><div className="grid gap-2 sm:grid-cols-3">{([{ id: "EQUAL", label: "Chia đều" }, { id: "SPECIALTY", label: "Theo chuyên môn" }, { id: "MANUAL", label: "Nhập số bài" }] as { id: Distribution; label: string }[]).map((method) => <button key={method.id} type="button" onClick={() => setDistribution(method.id)} className={`rounded-lg border px-3 py-2 text-sm font-semibold ${distribution === method.id ? "border-blue-500 bg-blue-50 text-blue-700" : "border-slate-200 text-slate-600"}`}>{method.label}</button>)}</div></div>}
-        {dialog === "MANUAL" && distribution === "MANUAL" && <div className="space-y-2">{selectedJudges.map((judge) => <label key={judge.id} className="flex items-center justify-between gap-3 rounded-lg border border-slate-200 px-3 py-2 text-sm"><span>{judge.fullName}</span><input type="number" min={0} max={eligibleSubmissions.length} value={manualCounts[judge.id] ?? 0} onChange={(event) => setManualCounts((counts) => ({ ...counts, [judge.id]: Number(event.target.value) }))} className="w-24 rounded-md border border-slate-200 px-2 py-1.5 text-right" /></label>)}</div>}
-        <div className="rounded-xl border border-slate-200"><div className="flex items-center justify-between border-b border-slate-100 px-3 py-2.5 text-sm"><span className="font-semibold text-slate-700">Kết quả xem trước</span><span className="text-xs text-slate-500">{eligibleSubmissions.length} bài hợp lệ chưa phân công</span></div>{preview.length && allocatedCount ? <div className="divide-y divide-slate-100">{preview.map((line) => <div key={line.judge.id} className="flex items-center justify-between gap-3 px-3 py-2.5 text-sm"><span className="font-medium text-slate-700">{line.judge.fullName}</span><span className="rounded-full bg-blue-50 px-2.5 py-1 text-xs font-bold text-blue-700">{line.submissions.length} bài</span></div>)}</div> : <p className="px-3 py-4 text-sm text-slate-500">{!selectedContest ? "Chọn cuộc thi để xem bài có thể phân công." : !selectedJudges.length ? "Chọn ít nhất một giám khảo đang hoạt động." : "Không có bài hợp lệ chưa phân công."}</p>}</div>
-        {manualOverAllocated && <p role="alert" className="text-sm text-rose-600">Số bài nhập vượt quá số bài còn có thể phân công.</p>}
-        <div className="flex justify-end gap-2"><button type="button" onClick={() => setDialog(null)} className="rounded-lg px-4 py-2 text-sm font-semibold text-slate-600 hover:bg-slate-100">Hủy</button><button type="button" onClick={confirmAssignment} disabled={!selectedContest || !selectedJudges.length || allocatedCount === 0 || manualOverAllocated} className="rounded-lg bg-blue-600 px-4 py-2 text-sm font-semibold text-white hover:bg-blue-700 disabled:cursor-not-allowed disabled:opacity-50">Xác nhận phân công</button></div>
-      </div>
-    </Modal>}
     {reassignRow && <Modal title="Đổi giám khảo" onClose={() => setReassignRow(null)}><div className="space-y-4"><p className="text-sm text-slate-600">Đang chuyển {reassignRow.submissionIds.length} bài của cuộc thi <b>{reassignRow.contest.name}</b>.</p>{reassignRow.reviewedIds.length > 0 && <p className="flex gap-2 rounded-lg bg-amber-50 p-3 text-xs text-amber-800"><AlertTriangle size={15} />Phân công đã có điểm. Hệ thống sẽ hỏi xác nhận trước khi chuyển.</p>}<label className="block text-sm font-semibold text-slate-700">Giám khảo mới<select value={newJudgeId} onChange={(event) => setNewJudgeId(event.target.value)} className="mt-1.5 w-full rounded-lg border border-slate-200 bg-white px-3 py-2.5 text-sm font-normal">{activeJudges.filter((judge) => judge.id !== reassignRow.judge.id).map((judge) => <option key={judge.id} value={judge.id}>{judge.fullName} · {judge.specialty}</option>)}</select></label><div className="flex justify-end gap-2"><button type="button" onClick={() => setReassignRow(null)} className="rounded-lg px-4 py-2 text-sm text-slate-600">Hủy</button><button type="button" disabled={!newJudgeId} onClick={reassign} className="rounded-lg bg-blue-600 px-4 py-2 text-sm font-semibold text-white disabled:opacity-50">Đổi giám khảo</button></div></div></Modal>}
     {revokeRow && <Modal title="Thu hồi phân công" onClose={() => setRevokeRow(null)}><p className="text-sm text-slate-600">Thu hồi sẽ đưa {revokeRow.submissionIds.length} bài của <b>{revokeRow.judge.fullName}</b> trở lại danh sách chưa phân công.</p>{revokeRow.reviewedIds.length > 0 && <p className="mt-3 flex gap-2 rounded-lg bg-amber-50 p-3 text-xs text-amber-800"><AlertTriangle size={15} />Phân công đã có điểm; thao tác này cần xác nhận lần nữa.</p>}<div className="mt-5 flex justify-end gap-2"><button type="button" onClick={() => setRevokeRow(null)} className="rounded-lg px-4 py-2 text-sm text-slate-600">Giữ phân công</button><button type="button" onClick={revoke} className="rounded-lg bg-rose-600 px-4 py-2 text-sm font-semibold text-white hover:bg-rose-700">Thu hồi</button></div></Modal>}
   </section>;

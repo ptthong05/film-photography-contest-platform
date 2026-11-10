@@ -6,10 +6,16 @@ const PROFILE_STORAGE_KEY = "filmcontest-organizer-profile-demo-v1";
 
 export function readOrganizerProfile(): OrganizerProfile {
   try {
+    let directAvatar: string | null = null;
+    const storedAvatar = window.localStorage.getItem('organizer_avatar');
+    if (storedAvatar && storedAvatar.startsWith('data:image/')) {
+      directAvatar = storedAvatar;
+    }
+
     const raw = window.localStorage.getItem(PROFILE_STORAGE_KEY);
-    if (!raw) return { ...MOCK_PROFILE };
+    if (!raw) return { ...MOCK_PROFILE, avatarDataUrl: directAvatar };
     const value: unknown = JSON.parse(raw);
-    if (!value || typeof value !== "object" || Array.isArray(value)) return { ...MOCK_PROFILE };
+    if (!value || typeof value !== "object" || Array.isArray(value)) return { ...MOCK_PROFILE, avatarDataUrl: directAvatar };
     const source = value as Record<string, unknown>;
     return {
       fullName: typeof source.fullName === "string" ? source.fullName.slice(0, 80) : MOCK_PROFILE.fullName,
@@ -17,8 +23,8 @@ export function readOrganizerProfile(): OrganizerProfile {
       phone: typeof source.phone === "string" ? source.phone.slice(0, 24) : MOCK_PROFILE.phone,
       role: MOCK_PROFILE.role,
       bio: typeof source.bio === "string" ? source.bio.slice(0, 500) : MOCK_PROFILE.bio,
-      avatarDataUrl: typeof source.avatarDataUrl === "string" && source.avatarDataUrl.length < 1_500_000 &&
-        /^data:image\/(?:jpeg|png|webp);base64,/i.test(source.avatarDataUrl) ? source.avatarDataUrl : null,
+      avatarDataUrl: directAvatar || (typeof source.avatarDataUrl === "string" && source.avatarDataUrl.length < 1_500_000 &&
+        /^data:image\/(?:jpeg|png|webp);base64,/i.test(source.avatarDataUrl) ? source.avatarDataUrl : null),
     };
   } catch {
     return { ...MOCK_PROFILE };

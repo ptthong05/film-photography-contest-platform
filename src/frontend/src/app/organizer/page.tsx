@@ -12,25 +12,50 @@ import { ParticipantsView } from "./components/ParticipantsView";
 import { ProfileView } from "./components/ProfileView";
 import { ReportsView } from "./components/ReportsView";
 import { ResultsView } from "./components/ResultsView";
+import { ScoringPublishView } from "./components/ScoringPublishView";
 import { Sidebar } from "./components/Sidebar";
 import { SubmissionDetailPage } from "./components/SubmissionDetailPage";
 import { SubmissionsView } from "./components/SubmissionsView";
 import { Topbar } from "./components/Topbar";
 import { readOrganizerProfile } from "../../services/profileService";
+import { ErrorBoundary } from "../../components/ErrorBoundary";
 
 interface OrganizerPageProps {
   onGoHome?: () => void;
 }
 
+const VALID_ORGANIZER_VIEWS: OrganizerView[] = [
+  "OVERVIEW",
+  "CONTESTS",
+  "PARTICIPANTS",
+  "SUBMISSIONS",
+  "JUDGES",
+  "ASSIGNMENTS",
+  "ARCHIVE",
+  "RESULTS",
+  "REPORTS",
+  "SCORING_PUBLISH",
+  "PROFILE",
+  "CREATE_CONTEST",
+  "CONTEST_DETAIL",
+  "SUBMISSION_DETAIL",
+];
+
 // Trang con (tạo/chi tiết) vẫn sáng mục menu của trang cha.
-function getMenuView(route: OrganizerRoute): OrganizerView {
+function getMenuView(route?: OrganizerRoute | null): OrganizerView {
+  if (!route || !route.view) return "OVERVIEW";
   if (route.view === "CREATE_CONTEST" || route.view === "CONTEST_DETAIL") return "CONTESTS";
   if (route.view === "SUBMISSION_DETAIL") return route.backTo ?? "SUBMISSIONS";
   return route.view;
 }
 
-function renderView(route: OrganizerRoute, onNavigate: (next: OrganizerRoute) => void, onProfileNameSaved: (name: string) => void): JSX.Element {
-  switch (route.view) {
+function renderView(
+  route: OrganizerRoute,
+  onNavigate: (next: OrganizerRoute) => void,
+  onProfileNameSaved: (name: string) => void
+): JSX.Element {
+  const currentView = route?.view || "OVERVIEW";
+  switch (currentView) {
     case "OVERVIEW":
       return <OverviewView onNavigate={onNavigate} />;
     case "CONTESTS":
@@ -46,9 +71,11 @@ function renderView(route: OrganizerRoute, onNavigate: (next: OrganizerRoute) =>
     case "ARCHIVE":
       return <ArchiveView onNavigate={onNavigate} />;
     case "RESULTS":
-      return <ResultsView />;
+      return <ResultsView onNavigate={onNavigate} />;
     case "REPORTS":
       return <ReportsView />;
+    case "SCORING_PUBLISH":
+      return <ScoringPublishView />;
     case "PROFILE":
       return <ProfileView onNameSaved={onProfileNameSaved} />;
     case "CREATE_CONTEST":
@@ -59,25 +86,45 @@ function renderView(route: OrganizerRoute, onNavigate: (next: OrganizerRoute) =>
         />
       );
     case "CONTEST_DETAIL":
-      return <ContestDetailPage contestId={route.id ?? ""} onBack={() => onNavigate({ view: "CONTESTS" })} />;
+      return <ContestDetailPage contestId={route?.id ?? ""} onBack={() => onNavigate({ view: "CONTESTS" })} />;
     case "SUBMISSION_DETAIL":
       return (
         <SubmissionDetailPage
-          submissionId={route.id ?? ""}
-          onBack={() => onNavigate({ view: route.backTo ?? "SUBMISSIONS" })}
+          submissionId={route?.id ?? ""}
+          onBack={() => onNavigate({ view: route?.backTo ?? "SUBMISSIONS" })}
         />
       );
+    default:
+      return <OverviewView onNavigate={onNavigate} />;
   }
 }
 
+const ORGANIZER_ROUTE_KEY = 'organizer_active_route';
+
 export default function OrganizerPage({ onGoHome }: OrganizerPageProps) {
-  const [route, setRoute] = useState<OrganizerRoute>({ view: "OVERVIEW" });
+  const [route, setRoute] = useState<OrganizerRoute>(() => {
+    if (typeof window !== "undefined") {
+      try {
+        const saved = localStorage.getItem(ORGANIZER_ROUTE_KEY);
+        if (saved) {
+          const parsed = JSON.parse(saved);
+          if (parsed && typeof parsed === "object" && VALID_ORGANIZER_VIEWS.includes(parsed.view)) {
+            return parsed;
+          }
+        }
+      } catch {}
+    }
+    return { view: "OVERVIEW" };
+  });
   const [organizerName, setOrganizerName] = useState(() => readOrganizerProfile().fullName);
   const [isMobileMenuOpen, setIsMobileMenuOpen] = useState(false);
   const mobileCloseButtonRef = useRef<HTMLButtonElement>(null);
   const navigate = (next: OrganizerRoute) => {
     setRoute(next);
     setIsMobileMenuOpen(false);
+    try {
+      localStorage.setItem(ORGANIZER_ROUTE_KEY, JSON.stringify(next));
+    } catch {}
   };
 
   useEffect(() => {
@@ -99,8 +146,18 @@ export default function OrganizerPage({ onGoHome }: OrganizerPageProps) {
           <span className="flex items-center gap-2 font-semibold text-[#0B356B]"><Camera size={22} aria-hidden="true" />FilmContest</span>
           <span className="ml-auto text-xs font-semibold uppercase tracking-wider text-slate-500">Organizer</span>
         </div>
-        <Topbar organizerName={organizerName} />
-        <main id="organizer-main-content" className="mx-auto w-full max-w-[1700px] p-4 outline-none sm:p-6 lg:p-8">{renderView(route, navigate, setOrganizerName)}</main>
+        <Topbar
+          activeView={getMenuView(route)}
+          organizerName={organizerName}
+          onNavigate={(view) => navigate({ view })}
+          onGoHome={onGoHome}
+          onOpenMenu={() => setIsMobileMenuOpen(true)}
+        />
+        <main id="organizer-main-content" className="mx-auto w-full max-w-[1700px] p-4 outline-none sm:p-6 lg:p-8">
+          <ErrorBoundary portalName="Ban tổ chức" onReset={() => navigate({ view: "OVERVIEW" })}>
+            {renderView(route, navigate, setOrganizerName)}
+          </ErrorBoundary>
+        </main>
       </div>
       {isMobileMenuOpen && (
         <div className="fixed inset-0 z-50 md:hidden" role="dialog" aria-modal="true" aria-label="Menu ban tổ chức">

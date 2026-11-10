@@ -1,33 +1,18 @@
-import { useMemo, useCallback, useState } from 'react';
+import { useMemo, useCallback, useState, useEffect } from 'react';
 import { ArrowUpDown, CheckCircle2, Plus, Search, SlidersHorizontal, X } from 'lucide-react';
+import { Toast, type ToastNotice } from '../../../components/Toast';
 import { UserManagementTable } from '../components/UserManagementTable';
-import { UserModal } from '../components/UserModal';
 import { ROLE_INFO, STATUS_INFO, type AdminUser, type UserDraft, type UserRole, type UserStatus } from '../types/adminUser';
+import { AdminUserDetailPage } from './AdminUserDetailPage';
+import { AdminUserEditPage } from './AdminUserEditPage';
+import { unifiedUserService, type UnifiedUser } from '../../../services/unifiedUserService';
 
-// Dữ liệu minh họa phục vụ xây dựng giao diện, CHƯA kết nối Spring Boot/MongoDB.
+// Dữ liệu quản lý người dùng toàn hệ thống, đồng bộ giữa Admin & Organizer
 type RoleFilter = UserRole | 'ALL';
 type StatusFilter = UserStatus | 'ALL';
 type SortOrder = 'newest' | 'oldest' | 'name';
 
 const PAGE_SIZE = 8;
-
-const INITIAL_USERS: AdminUser[] = [
-  { id: 'U01', fullName: 'Nguyễn Văn A', email: 'nguyenvana@example.com', role: 'ADMIN', contestCount: 8, status: 'ACTIVE', joinedAt: '2025-01-10' },
-  { id: 'U02', fullName: 'Trần Thị Bình', email: 'tranthibinh@example.com', role: 'PARTICIPANT', contestCount: 12, status: 'ACTIVE', joinedAt: '2025-02-12' },
-  { id: 'U03', fullName: 'Lê Minh Công', email: 'leminhcong@example.com', role: 'JUDGE', contestCount: 5, status: 'ACTIVE', joinedAt: '2025-02-15' },
-  { id: 'U04', fullName: 'Phạm Thị Dung', email: 'phamthidung@example.com', role: 'ORGANIZER', contestCount: 4, status: 'ACTIVE', joinedAt: '2025-03-01' },
-  { id: 'U05', fullName: 'Hoàng Văn E', email: 'hoangvane@example.com', role: 'PARTICIPANT', contestCount: 6, status: 'SUSPENDED', joinedAt: '2025-03-05' },
-  { id: 'U06', fullName: 'Nguyễn Thị F', email: 'nguyenthif@example.com', role: 'PARTICIPANT', contestCount: 3, status: 'ACTIVE', joinedAt: '2025-03-10' },
-  { id: 'U07', fullName: 'Đỗ Minh G', email: 'dominhg@example.com', role: 'JUDGE', contestCount: 2, status: 'ACTIVE', joinedAt: '2025-03-12' },
-  { id: 'U08', fullName: 'Trần Văn H', email: 'tranvanh@example.com', role: 'PARTICIPANT', contestCount: 1, status: 'LOCKED', joinedAt: '2025-03-18' },
-  { id: 'U09', fullName: 'Võ Thị I', email: 'vothii@example.com', role: 'ORGANIZER', contestCount: 7, status: 'ACTIVE', joinedAt: '2025-04-01' },
-  { id: 'U10', fullName: 'Bùi Văn K', email: 'buivank@example.com', role: 'PARTICIPANT', contestCount: 2, status: 'ACTIVE', joinedAt: '2025-04-07' },
-  { id: 'U11', fullName: 'Lý Thị L', email: 'lythil@example.com', role: 'JUDGE', contestCount: 3, status: 'ACTIVE', joinedAt: '2025-04-15' },
-  { id: 'U12', fullName: 'Ngô Văn M', email: 'ngovanm@example.com', role: 'ADMIN', contestCount: 2, status: 'ACTIVE', joinedAt: '2025-04-21' },
-  { id: 'U13', fullName: 'Phan Thị N', email: 'phanthin@example.com', role: 'PARTICIPANT', contestCount: 4, status: 'SUSPENDED', joinedAt: '2025-05-02' },
-  { id: 'U14', fullName: 'Dương Văn P', email: 'duongvanp@example.com', role: 'PARTICIPANT', contestCount: 6, status: 'ACTIVE', joinedAt: '2025-05-08' },
-  { id: 'U15', fullName: 'Mai Thị Q', email: 'maithiq@example.com', role: 'PARTICIPANT', contestCount: 2, status: 'ACTIVE', joinedAt: '2025-05-20' },
-];
 
 const ROLE_TABS: { value: RoleFilter; label: string }[] = [
   { value: 'ALL', label: 'Tất cả' },
@@ -44,9 +29,17 @@ const EMPTY_DRAFT: UserDraft = {
   status: 'ACTIVE',
 };
 
-/** Màn hình Admin > Quản lý người dùng; tất cả thay đổi hiện chỉ ở bộ nhớ trình duyệt. */
+/** Màn hình Admin > Quản lý người dùng; đồng bộ dữ liệu với Thí sinh & Giám khảo bên Organizer */
 export function UsersView() {
-  const [users, setUsers] = useState<AdminUser[]>(INITIAL_USERS);
+  const [users, setUsers] = useState<UnifiedUser[]>(() => unifiedUserService.getAllUsers());
+
+  useEffect(() => {
+    const handleSync = () => {
+      setUsers(unifiedUserService.getAllUsers());
+    };
+    window.addEventListener('usersChanged', handleSync);
+    return () => window.removeEventListener('usersChanged', handleSync);
+  }, []);
   const [activeTab, setActiveTab] = useState<RoleFilter>('ALL');
   const [roleFilter, setRoleFilter] = useState<RoleFilter>('ALL');
   const [statusFilter, setStatusFilter] = useState<StatusFilter>('ALL');
@@ -56,11 +49,14 @@ export function UsersView() {
   const [page, setPage] = useState(1);
   const [selectedIds, setSelectedIds] = useState<Set<string>>(new Set());
   const [openMenuId, setOpenMenuId] = useState<string | null>(null);
-  const [editorId, setEditorId] = useState<string | null>(null);
-  const [isEditorOpen, setIsEditorOpen] = useState(false);
-  const [draft, setDraft] = useState<UserDraft>(EMPTY_DRAFT);
-  const [formError, setFormError] = useState('');
-  const [notice, setNotice] = useState('');
+  const [detailUser, setDetailUser] = useState<AdminUser | null>(null);
+  const [editingUser, setEditingUser] = useState<AdminUser | null>(null);
+  const [isCreatingUser, setIsCreatingUser] = useState(false);
+  const [toast, setToast] = useState<ToastNotice | null>(null);
+
+  const showToast = (message: string, type: 'success' | 'error' | 'info' = 'success') => {
+    setToast({ id: Date.now(), message, type });
+  };
 
   const filteredUsers = useMemo(() => {
     const term = search.trim().toLocaleLowerCase('vi');
@@ -85,69 +81,72 @@ export function UsersView() {
   const changeFilters = () => { setPage(1); setSelectedIds(new Set()); setOpenMenuId(null); };
 
   const openCreate = () => {
-    setDraft({ ...EMPTY_DRAFT });
-    setEditorId(null);
-    setFormError('');
-    setIsEditorOpen(true);
+    setIsCreatingUser(true);
+    setEditingUser(null);
   };
   const openEdit = (user: AdminUser) => {
-    setDraft({ fullName: user.fullName, email: user.email, role: user.role, status: user.status });
-    setEditorId(user.id);
-    setFormError('');
+    setEditingUser(user);
+    setIsCreatingUser(false);
     setOpenMenuId(null);
-    setIsEditorOpen(true);
   };
-  const closeEditor = useCallback(() => { setIsEditorOpen(false); setFormError(''); }, []);
+  const openDetail = (user: AdminUser) => {
+    setDetailUser(user);
+    setOpenMenuId(null);
+  };
 
-  const saveUser = () => {
+  const handleSaveDraft = (draft: UserDraft) => {
     const fullName = draft.fullName.trim();
     const email = draft.email.trim().toLowerCase();
-    if (fullName.length < 2 || fullName.length > 80) {
-      setFormError('Họ và tên phải có từ 2 đến 80 ký tự.');
-      return;
-    }
-    if (email.length > 120 || !/^[^\s@]+@[^\s@]+\.[^\s@]+$/.test(email)) {
-      setFormError('Vui lòng nhập email hợp lệ (tối đa 120 ký tự).');
-      return;
-    }
-    if (users.some((user) => user.email.toLowerCase() === email && user.id !== editorId)) {
-      setFormError('Email này đã tồn tại trong danh sách mẫu.');
-      return;
-    }
-    if (editorId) {
-      setUsers((previous) => previous.map((user) => user.id === editorId
-        ? { ...user, ...draft, fullName, email } : user));
-      setNotice('Đã cập nhật người dùng trong dữ liệu mẫu (chưa lưu máy chủ).');
+    if (editingUser) {
+      unifiedUserService.updateUser(editingUser.id, { ...draft, fullName, email });
+      setUsers(unifiedUserService.getAllUsers());
+      showToast('Đã cập nhật thông tin người dùng thành công.', 'success');
+      if (detailUser && detailUser.id === editingUser.id) {
+        setDetailUser({ ...detailUser, ...draft, fullName, email });
+      }
     } else {
-      const newUser: AdminUser = {
+      const newUser: UnifiedUser = {
         id: `LOCAL-${Date.now()}`,
-        fullName, email, role: draft.role, status: draft.status,
+        fullName,
+        email,
+        role: draft.role,
+        status: draft.status,
         contestCount: 0,
+        submissionCount: 0,
         joinedAt: new Date().toLocaleDateString('sv-SE'),
       };
-      setUsers((previous) => [newUser, ...previous]);
-      setNotice('Đã thêm người dùng vào dữ liệu mẫu (chưa lưu máy chủ).');
+      unifiedUserService.addUser(newUser);
+      setUsers(unifiedUserService.getAllUsers());
+      showToast('Đã thêm người dùng mới thành công.', 'success');
     }
-    setActiveTab('ALL'); setRoleFilter('ALL'); setStatusFilter('ALL'); setSearch(''); setPage(1);
-    closeEditor();
+    setEditingUser(null);
+    setIsCreatingUser(false);
   };
 
   const changeStatus = (id: string, status: UserStatus) => {
-    setUsers((previous) => previous.map((user) => user.id === id ? { ...user, status } : user));
-    setNotice('Đã thay đổi trạng thái trong dữ liệu mẫu (chưa lưu máy chủ).');
+    unifiedUserService.updateUserStatus(id, status);
+    setUsers(unifiedUserService.getAllUsers());
+    if (detailUser && detailUser.id === id) {
+      setDetailUser((prev) => (prev ? { ...prev, status } : null));
+    }
+    showToast('Đã thay đổi trạng thái tài khoản thành công.', 'success');
     setOpenMenuId(null);
   };
+
   const deleteUser = (user: AdminUser) => {
-    if (!window.confirm(`Xóa "${user.fullName}" khỏi danh sách dữ liệu mẫu?`)) return;
-    setUsers((previous) => previous.filter((item) => item.id !== user.id));
+    if (!window.confirm(`Xóa "${user.fullName}" khỏi danh sách người dùng?`)) return;
+    unifiedUserService.deleteUser(user.id);
+    setUsers(unifiedUserService.getAllUsers());
     setSelectedIds((previous) => { const next = new Set(previous); next.delete(user.id); return next; });
-    setNotice('Đã xóa khỏi dữ liệu mẫu (chưa thay đổi cơ sở dữ liệu).');
+    showToast('Đã xóa người dùng thành công.', 'success');
     setOpenMenuId(null);
   };
+
   const updateSelectedStatus = (status: UserStatus) => {
-    setUsers((previous) => previous.map((user) => selectedIds.has(user.id) ? { ...user, status } : user));
+    selectedIds.forEach((id) => unifiedUserService.updateUserStatus(id, status));
+    setUsers(unifiedUserService.getAllUsers());
     setSelectedIds(new Set());
-    setNotice('Đã cập nhật các tài khoản được chọn trong dữ liệu mẫu.');
+    showToast('Đã cập nhật các tài khoản được chọn.', 'success');
   };
   const toggleSelected = (id: string) => {
     setSelectedIds((previous) => {
@@ -164,8 +163,37 @@ export function UsersView() {
     });
   };
 
+  // NẾU ĐANG CHỈNH SỬA HOẶC TẠO MỚI: Hiển thị trang Form riêng
+  if (isCreatingUser || editingUser) {
+    return (
+      <AdminUserEditPage
+        user={editingUser}
+        onBack={() => {
+          setIsCreatingUser(false);
+          setEditingUser(null);
+        }}
+        onSave={handleSaveDraft}
+      />
+    );
+  }
+
+  // NẾU ĐANG XEM CHI TIẾT NGƯỜI DÙNG: Hiển thị trang chi tiết riêng
+  if (detailUser) {
+    return (
+      <AdminUserDetailPage
+        user={detailUser}
+        onBack={() => setDetailUser(null)}
+        onEdit={() => {
+          setEditingUser(detailUser);
+        }}
+        onChangeStatus={changeStatus}
+      />
+    );
+  }
+
   return (
-    <section aria-label="Quản lý người dùng" className="space-y-4">
+    <section aria-label="Quản lý người dùng" className="relative space-y-4">
+      <Toast toast={toast} onClose={() => setToast(null)} />
       <div className="flex flex-wrap items-center justify-between gap-3">
         <p className="rounded-md bg-amber-50 px-3 py-2 text-xs font-medium text-amber-800">
           Dữ liệu minh họa ({users.length} tài khoản) — chưa kết nối API
@@ -175,13 +203,6 @@ export function UsersView() {
           <Plus size={17} aria-hidden="true" /> Thêm người dùng
         </button>
       </div>
-
-      {notice && (
-        <div role="status" className="flex items-center justify-between gap-2 rounded-lg border border-emerald-200 bg-emerald-50 px-4 py-3 text-sm text-emerald-800">
-          <span className="flex items-center gap-2"><CheckCircle2 size={17} aria-hidden="true" />{notice}</span>
-          <button type="button" onClick={() => setNotice('')} aria-label="Đóng thông báo"><X size={17} /></button>
-        </div>
-      )}
 
       <div className="rounded-xl border border-slate-200 bg-white shadow-sm">
         <div className="flex gap-1 overflow-x-auto border-b border-slate-200 px-4 pt-3" role="tablist" aria-label="Lọc theo vai trò">
@@ -266,18 +287,13 @@ export function UsersView() {
           onTogglePageSelection={togglePageSelection}
           onToggleSelected={toggleSelected}
           onToggleMenu={(id) => setOpenMenuId((previous) => previous === id ? null : id)}
+          onViewDetail={openDetail}
           onEdit={openEdit}
           onChangeStatus={changeStatus}
           onDelete={deleteUser}
           onPageChange={setPage}
         />
       </div>
-
-      {isEditorOpen && (
-        <UserModal draft={draft} isEditing={editorId !== null} error={formError}
-          onChange={(nextDraft) => { setDraft(nextDraft); setFormError(''); }}
-          onSave={saveUser} onClose={closeEditor} />
-      )}
     </section>
   );
 }

@@ -1,18 +1,30 @@
-import { MOCK_JUDGES, MOCK_PARTICIPANTS } from "../mocks/organizerData";
-import type { Judge } from "../types/organizerUser";
+import { unifiedUserService } from "./unifiedUserService";
+import type { Judge, Participant } from "../types/organizerUser";
 import { mockRequest } from "./mockClient";
 
-// Mock: ghi thẳng vào mảng trong bộ nhớ để giả lập backend.
 export const organizerUserService = {
-  getParticipants: () => mockRequest(MOCK_PARTICIPANTS),
-  getJudges: () => mockRequest(MOCK_JUDGES.map((judge) => ({ ...judge }))),
+  getParticipants: () => {
+    return mockRequest<Participant[]>(unifiedUserService.getParticipants());
+  },
+  getJudges: () => {
+    return mockRequest<Judge[]>(unifiedUserService.getJudges());
+  },
   setDefaultJudge: (id: string, isDefault: boolean) => {
-    const judge = MOCK_JUDGES.find((item) => item.id === id);
-    if (judge) judge.isDefault = isDefault;
-    return mockRequest<void>(undefined, 100);
+    unifiedUserService.setDefaultJudge(id, isDefault);
+    return mockRequest<void>(undefined, 50);
   },
   createJudge: (judge: Judge) => {
-    MOCK_JUDGES.unshift(judge);
-    return mockRequest(judge, 100);
+    unifiedUserService.addUser({
+      id: judge.id,
+      fullName: judge.fullName,
+      email: judge.email,
+      role: 'JUDGE',
+      specialty: judge.specialty,
+      contestCount: judge.contestCount || 1,
+      status: judge.status === 'LOCKED' ? 'LOCKED' : 'ACTIVE',
+      isDefault: Boolean(judge.isDefault),
+      joinedAt: new Date().toLocaleDateString('sv-SE'),
+    });
+    return mockRequest<Judge>(judge, 50);
   },
 };

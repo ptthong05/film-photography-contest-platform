@@ -1,9 +1,10 @@
-import React, { useState, useMemo } from 'react';
+import React, { useState, useMemo, useEffect } from 'react';
 import type { Portal } from '../../../../types/portal';
 import { Navbar } from '../Navbar';
 import { Footer } from '../Footer';
 import { ContestDetailModal } from '../ContestDetailModal';
 import type { ContestItem } from '../LiveContestsSection';
+import { getUnifiedFeaturedContests } from '../LiveContestsSection';
 import { Trophy, Search, Calendar, Users } from 'lucide-react';
 
 interface ContestsPageProps {
@@ -126,12 +127,26 @@ export default function ContestsPage({
   onOpenAuth,
   onOpenContestDetail,
 }: ContestsPageProps) {
+  const [contestsList, setContestsList] = useState<ContestItem[]>(getUnifiedFeaturedContests);
+
+  useEffect(() => {
+    const handleUpdate = () => {
+      setContestsList(getUnifiedFeaturedContests());
+    };
+    window.addEventListener('filmcontest:contests-updated', handleUpdate);
+    window.addEventListener('storage', handleUpdate);
+    return () => {
+      window.removeEventListener('filmcontest:contests-updated', handleUpdate);
+      window.removeEventListener('storage', handleUpdate);
+    };
+  }, []);
+
   const [statusFilter, setStatusFilter] = useState<'all' | 'active' | 'upcoming' | 'ended'>('all');
   const [searchQuery, setSearchQuery] = useState('');
   const [selectedContest, setSelectedContest] = useState<ContestItem | null>(null);
 
   const filteredContests = useMemo(() => {
-    return ALL_CONTESTS_DATA.filter((contest) => {
+    return contestsList.filter((contest) => {
       const matchStatus = statusFilter === 'all' || contest.status === statusFilter;
       const matchSearch =
         searchQuery === '' ||
@@ -139,13 +154,13 @@ export default function ContestsPage({
         contest.categories.some((c) => c.toLowerCase().includes(searchQuery.toLowerCase()));
       return matchStatus && matchSearch;
     });
-  }, [statusFilter, searchQuery]);
+  }, [statusFilter, searchQuery, contestsList]);
 
   const counts = {
-    all: ALL_CONTESTS_DATA.length,
-    active: ALL_CONTESTS_DATA.filter((c) => c.status === 'active').length,
-    upcoming: ALL_CONTESTS_DATA.filter((c) => c.status === 'upcoming').length,
-    ended: ALL_CONTESTS_DATA.filter((c) => c.status === 'ended').length,
+    all: contestsList.length,
+    active: contestsList.filter((c) => c.status === 'active').length,
+    upcoming: contestsList.filter((c) => c.status === 'upcoming').length,
+    ended: contestsList.filter((c) => c.status === 'ended').length,
   };
 
   return (

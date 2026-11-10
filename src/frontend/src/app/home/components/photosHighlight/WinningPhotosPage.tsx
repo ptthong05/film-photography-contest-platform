@@ -4,6 +4,7 @@ import { Navbar } from '../Navbar';
 import { Footer } from '../Footer';
 import type { PhotoDetailItem } from './data';
 import { ALL_PHOTOS_DATA } from './data';
+import { getPublishedWinningPhotos } from '../../../../services/publishedAwardService';
 import {
   Trophy,
   Award,
@@ -64,7 +65,37 @@ export function WinningPhotosPage({
     });
   };
 
-  const allPhotos = useMemo(() => Object.values(ALL_PHOTOS_DATA), []);
+  const allPhotos = useMemo(() => {
+    const published = getPublishedWinningPhotos();
+    const mappedPublished: PhotoDetailItem[] = published.map((p) => ({
+      id: p.id,
+      title: p.title,
+      author: p.author,
+      image: p.image,
+      award: p.award,
+      contestName: p.contestTitle,
+      category: 'Đời thường',
+      filmStock: p.filmStock || 'Kodak Portra 400',
+      camera: p.camera || 'Nikon FM2',
+      lens: p.lens || '50mm f/1.8',
+      shutterSpeed: '1/250s',
+      aperture: 'f/2.8',
+      iso: '400',
+      lab: 'Lab Sài Gòn Analog',
+      location: 'Việt Nam',
+      dateTaken: p.publishedAt,
+      story: `Tác phẩm xuất sắc đoạt ${p.award} với kỹ thuật chụp phim điêu luyện, cảm xúc thăng hoa.`,
+      views: p.views,
+      likes: p.likes,
+      year: p.publishedAt ? p.publishedAt.slice(0, 4) : '2025',
+    }));
+
+    const basePhotos = Object.values(ALL_PHOTOS_DATA);
+    return [
+      ...mappedPublished,
+      ...basePhotos.filter((b) => !mappedPublished.some((m) => m.title === b.title || m.id === b.id)),
+    ];
+  }, []);
 
   const ranks = [
     { id: 'all', label: 'Tất cả giải thưởng' },

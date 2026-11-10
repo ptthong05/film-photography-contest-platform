@@ -1,5 +1,5 @@
 import { useCallback, useEffect, useMemo, useState } from "react";
-import { ChevronLeft, ChevronRight, Eye, Filter, Mail, Search, ShieldCheck, Star, UserRoundCheck, Users } from "lucide-react";
+import { ChevronLeft, ChevronRight, Eye, Filter, Mail, Search, ShieldCheck, Star, UserRoundCheck } from "lucide-react";
 import { StateMessage } from "../../../components/StateMessage";
 import { StatusBadge } from "../../../components/StatusBadge";
 import { useFetch } from "../../../hooks/useFetch";
@@ -11,11 +11,11 @@ import type { Contest } from "../../../types/contest";
 import type { OrganizerViewProps } from "../../../types/organizer";
 import type { AccountStatus, Judge } from "../../../types/organizerUser";
 import { ACCOUNT_STATUS } from "../../../utils/statusBadges";
-import { JudgeFormModal } from "./JudgeFormModal";
 import { readManagedAssignments, type ManagedAssignment } from "./assignmentManagementStorage";
-import { readOrganizerOnlyJudges, saveOrganizerOnlyJudge, seedOrganizerJudgesOnce, updateOrganizerOnlyJudge } from "./organizerJudgeStorage";
+import { readOrganizerOnlyJudges, seedOrganizerJudgesOnce, updateOrganizerOnlyJudge } from "./organizerJudgeStorage";
 import { OrganizerAvatar } from "./OrganizerAvatar";
 import { OrganizerPageHeader } from "./OrganizerPageHeader";
+import { OrganizerJudgeDetailPage } from "./OrganizerJudgeDetailPage";
 
 type StatusFilter = "ALL" | AccountStatus;
 const PAGE_SIZE_OPTIONS = [10, 20, 50];
@@ -25,42 +25,6 @@ const FILTERS: { id: StatusFilter; label: string }[] = [
   { id: "LOCKED", label: "Tạm khóa" },
 ];
 
-function JudgeDetail({ judge, contests, assignments, managedAssignments, onClose, onOpenAssignments }: {
-  judge: Judge;
-  contests: Contest[];
-  assignments: Assignment[];
-  managedAssignments: ManagedAssignment[];
-  onClose: () => void;
-  onOpenAssignments: () => void;
-}) {
-  useEffect(() => {
-    const onKeyDown = (event: KeyboardEvent) => { if (event.key === "Escape") onClose(); };
-    window.addEventListener("keydown", onKeyDown);
-    return () => window.removeEventListener("keydown", onKeyDown);
-  }, [onClose]);
-  const currentContestNames = managedAssignments.filter((item) => item.judgeId === judge.id).map((item) => contests.find((contest) => contest.id === item.contestId)?.name).filter((name): name is string => Boolean(name));
-  const contestNames = currentContestNames.length ? currentContestNames : assignments.filter((item) => item.judgeName === judge.fullName).map((item) => item.contestName);
-  const assignedContests = contestNames.length ? contestNames : contests.filter((contest) => (contest.judgeNames ?? []).includes(judge.fullName)).map((contest) => contest.name);
-  return (
-    <div className="fixed inset-0 z-[80] flex items-center justify-center bg-slate-950/60 p-3 sm:p-6" onMouseDown={(event) => { if (event.target === event.currentTarget) onClose(); }}>
-      <section role="dialog" aria-modal="true" aria-labelledby="organizer-judge-detail-title" className="max-h-[92vh] w-full max-w-2xl overflow-y-auto rounded-2xl bg-white shadow-2xl">
-        <header className="flex items-start justify-between gap-4 border-b border-slate-200 p-5">
-          <div><p className="text-xs font-semibold uppercase tracking-wide text-blue-700">Hồ sơ giám khảo</p><h2 id="organizer-judge-detail-title" className="mt-1 text-xl font-bold text-[#0B356B]">{judge.fullName}</h2></div>
-          <button type="button" onClick={onClose} aria-label="Đóng hồ sơ giám khảo" className="rounded-lg px-3 py-1.5 text-sm font-semibold text-slate-600 hover:bg-slate-100">Đóng</button>
-        </header>
-        <div className="space-y-5 p-5">
-          <div className="flex flex-wrap items-center gap-3 rounded-xl bg-slate-50 p-4"><OrganizerAvatar name={judge.fullName} /><div className="min-w-0 flex-1"><p className="font-semibold text-slate-800">{judge.fullName}</p><p className="break-all text-sm text-slate-500">{judge.email}</p></div><StatusBadge {...ACCOUNT_STATUS[judge.status]} /></div>
-          <dl className="grid gap-3 sm:grid-cols-2"><div className="rounded-xl border border-slate-200 p-3"><dt className="text-xs text-slate-500">Chuyên môn</dt><dd className="mt-1 font-semibold text-slate-800">{judge.specialty}</dd></div><div className="rounded-xl border border-slate-200 p-3"><dt className="text-xs text-slate-500">Chấm mặc định</dt><dd className="mt-1 inline-flex items-center gap-1.5 font-semibold text-slate-800">{judge.isDefault ? <><Star size={15} className="fill-amber-400 text-amber-500" />Có</> : "Không"}</dd></div><div className="rounded-xl border border-slate-200 p-3"><dt className="text-xs text-slate-500">Số cuộc thi được phân công</dt><dd className="mt-1 font-semibold text-slate-800">{assignedContests.length || judge.contestCount}</dd></div><div className="rounded-xl border border-slate-200 p-3"><dt className="text-xs text-slate-500">Trạng thái tài khoản</dt><dd className="mt-1 font-semibold text-slate-800">{ACCOUNT_STATUS[judge.status].label}</dd></div></dl>
-          <section className="rounded-xl border border-slate-200 p-4"><div className="flex items-center justify-between gap-3"><div><h3 className="font-semibold text-[#0B356B]">Cuộc thi được phân công</h3><p className="mt-1 text-xs text-slate-500">Các cuộc thi Organizer đã gán cho giám khảo này.</p></div><button type="button" onClick={onOpenAssignments} className="shrink-0 rounded-lg border border-blue-200 px-3 py-2 text-xs font-semibold text-blue-700 hover:bg-blue-50">Mở phân công</button></div>
-            {assignedContests.length ? <ul className="mt-3 divide-y divide-slate-100">{assignedContests.map((name) => <li key={name} className="flex items-center gap-2 py-2 text-sm text-slate-700"><span className="size-1.5 rounded-full bg-blue-500" />{name}</li>)}</ul> : <p className="mt-3 rounded-lg bg-slate-50 px-3 py-4 text-center text-sm text-slate-500">Chưa có cuộc thi được phân công.</p>}
-          </section>
-          <p className="flex items-start gap-2 rounded-xl border border-blue-100 bg-blue-50 p-3 text-xs leading-5 text-blue-900"><ShieldCheck size={16} className="mt-0.5 shrink-0" aria-hidden="true" />Organizer quản lý chuyên môn và phân công chấm. Trạng thái tài khoản do Admin quản lý.</p>
-        </div>
-      </section>
-    </div>
-  );
-}
-
 export function JudgesView({ onNavigate }: OrganizerViewProps) {
   const [version, setVersion] = useState(0);
   const [statusFilter, setStatusFilter] = useState<StatusFilter>("ALL");
@@ -69,15 +33,32 @@ export function JudgesView({ onNavigate }: OrganizerViewProps) {
   const [page, setPage] = useState(1);
   const [pageSize, setPageSize] = useState(10);
   const [selectedJudge, setSelectedJudge] = useState<Judge | null>(null);
-  const [isFormOpen, setIsFormOpen] = useState(false);
   const [localJudges, setLocalJudges] = useState(readOrganizerOnlyJudges);
   const fetchJudges = useCallback(() => organizerUserService.getJudges(), [version]);
   const judgesQuery = useFetch(fetchJudges);
   const contestsQuery = useFetch(contestService.getContests);
   const assignmentsQuery = useFetch(assignmentService.getAssignments);
   const managedAssignments = readManagedAssignments();
+  useEffect(() => {
+    const handleSync = () => {
+      setVersion((v) => v + 1);
+    };
+    window.addEventListener('usersChanged', handleSync);
+    return () => window.removeEventListener('usersChanged', handleSync);
+  }, []);
   useEffect(() => { setLocalJudges(seedOrganizerJudgesOnce()); }, []);
-  const judges = [...(judgesQuery.data ?? []), ...localJudges];
+  const judges = useMemo(() => {
+    const map = new Map<string, Judge>();
+    for (const judge of judgesQuery.data ?? []) {
+      map.set(judge.id, judge);
+    }
+    for (const judge of localJudges) {
+      if (!map.has(judge.id)) {
+        map.set(judge.id, judge);
+      }
+    }
+    return Array.from(map.values());
+  }, [judgesQuery.data, localJudges]);
   const statusCounts = useMemo(() => ({
     ALL: judges.length,
     ACTIVE: judges.filter((judge) => judge.status === "ACTIVE").length,
@@ -105,17 +86,26 @@ export function JudgesView({ onNavigate }: OrganizerViewProps) {
     else await organizerUserService.setDefaultJudge(judge.id, !judge.isDefault);
     setVersion((value) => value + 1);
   };
-  const submitJudge = async (judge: Judge) => {
-    setLocalJudges(saveOrganizerOnlyJudge(judge));
-    setIsFormOpen(false);
-    setVersion((value) => value + 1);
-  };
-  const openAssignments = () => { setSelectedJudge(null); onNavigate({ view: "ASSIGNMENTS" }); };
+
+  if (selectedJudge) {
+    return (
+      <OrganizerJudgeDetailPage
+        judge={selectedJudge}
+        contests={contestsQuery.data ?? []}
+        assignments={assignmentsQuery.data ?? []}
+        managedAssignments={managedAssignments}
+        onBack={() => setSelectedJudge(null)}
+        onToggleDefault={() => void toggleDefault(selectedJudge)}
+      />
+    );
+  }
 
   return (
     <section aria-label="Quản lý giám khảo" className="space-y-5">
-      <OrganizerPageHeader title="Quản lý giám khảo" description="Theo dõi chuyên môn, người chấm mặc định và phân công theo cuộc thi."
-        action={<button type="button" onClick={() => setIsFormOpen(true)} className="inline-flex items-center gap-2 rounded-xl bg-blue-600 px-4 py-2.5 text-sm font-semibold text-white shadow-sm hover:bg-blue-700"><Users size={17} aria-hidden="true" />Thêm giám khảo</button>} />
+      <OrganizerPageHeader
+        title="Quản lý giám khảo"
+        description="Theo dõi chuyên môn, người chấm mặc định và phân công theo cuộc thi."
+      />
 
       {(judgesQuery.isLoading || contestsQuery.isLoading || assignmentsQuery.isLoading) && <StateMessage message="Đang tải danh sách giám khảo..." />}
       {(judgesQuery.error || contestsQuery.error || assignmentsQuery.error) && <StateMessage message={judgesQuery.error ?? contestsQuery.error ?? assignmentsQuery.error ?? "Không tải được dữ liệu."} isError />}
@@ -134,9 +124,7 @@ export function JudgesView({ onNavigate }: OrganizerViewProps) {
         <footer className="flex flex-col gap-3 border-t border-slate-200 px-5 py-4 text-sm text-slate-500 sm:flex-row sm:items-center sm:justify-between"><div className="flex flex-wrap items-center gap-3"><p>Hiển thị {firstRow}–{lastRow} của {filteredJudges.length} giám khảo</p><label className="flex items-center gap-2 text-xs">Dòng mỗi trang<select value={pageSize} onChange={(event) => { setPageSize(Number(event.target.value)); setPage(1); }} className="rounded-md border border-slate-200 bg-white px-2 py-1.5 text-slate-700">{PAGE_SIZE_OPTIONS.map((size) => <option key={size} value={size}>{size}</option>)}</select></label></div><nav aria-label="Phân trang giám khảo" className="flex items-center gap-1"><button type="button" aria-label="Trang trước" disabled={currentPage <= 1} onClick={() => setPage((value) => Math.max(1, value - 1))} className="rounded-md border border-slate-200 p-2 text-slate-600 hover:bg-slate-50 disabled:cursor-not-allowed disabled:opacity-35"><ChevronLeft size={15} aria-hidden="true" /></button><span className="px-2 text-xs">Trang {currentPage} / {pageCount}</span><button type="button" aria-label="Trang sau" disabled={currentPage >= pageCount} onClick={() => setPage((value) => Math.min(pageCount, value + 1))} className="rounded-md border border-slate-200 p-2 text-slate-600 hover:bg-slate-50 disabled:cursor-not-allowed disabled:opacity-35"><ChevronRight size={15} aria-hidden="true" /></button></nav></footer>
       </div>}
 
-      <div className="flex items-start gap-2 rounded-xl border border-blue-100 bg-blue-50 p-4 text-sm text-blue-900"><ShieldCheck size={18} className="mt-0.5 shrink-0" aria-hidden="true" /><p>Organizer phụ trách thêm giám khảo, đánh dấu người chấm mặc định và phân công theo cuộc thi. Trạng thái tài khoản do Admin quản lý.</p></div>
-      {selectedJudge && <JudgeDetail judge={selectedJudge} contests={contestsQuery.data ?? []} assignments={assignmentsQuery.data ?? []} managedAssignments={managedAssignments} onClose={() => setSelectedJudge(null)} onOpenAssignments={openAssignments} />}
-      {isFormOpen && <JudgeFormModal onClose={() => setIsFormOpen(false)} onSubmit={submitJudge} />}
+      <div className="flex items-start gap-2 rounded-xl border border-blue-100 bg-blue-50 p-4 text-sm text-blue-900"><ShieldCheck size={18} className="mt-0.5 shrink-0" aria-hidden="true" /><p>Organizer theo dõi danh sách giám khảo, đánh dấu người chấm mặc định và phân công theo cuộc thi. Trạng thái tài khoản do Admin quản lý.</p></div>
     </section>
   );
 }

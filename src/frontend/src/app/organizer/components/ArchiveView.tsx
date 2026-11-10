@@ -1,4 +1,4 @@
-import { useMemo, useState } from "react";
+import { useEffect, useMemo, useState } from "react";
 import { Award, CalendarDays, ChevronLeft, ChevronRight, Download, Eye, FilterX, ImageOff, Search, UserRound } from "lucide-react";
 import { StateMessage } from "../../../components/StateMessage";
 import { useFetch } from "../../../hooks/useFetch";
@@ -14,9 +14,10 @@ import { formatDate } from "../../../utils/formatDate";
 import { ContestCover } from "./ContestCover";
 import { Modal } from "../../../components/Modal";
 import { OrganizerPageHeader } from "./OrganizerPageHeader";
+import { getOrganizerPublishedArchives, type StoredOrganizerArchiveItem } from "../../../services/publishedAwardService";
 
 type PrizeFilter = "ALL" | AwardLevel;
-type ArchiveItem = { result: ContestResult; contest: Contest; submission?: Submission; year: number };
+type ArchiveItem = { result: ContestResult; contest: Contest; submission?: Submission; year: number; imageUrl?: string };
 const PAGE_SIZE = 10;
 const PRIZE_TABS: { value: PrizeFilter; label: string }[] = [
   { value: "ALL", label: "Tất cả" },
@@ -32,8 +33,8 @@ const PRIZE_STYLE: Record<AwardLevel, string> = {
   HONORABLE: "bg-violet-100 text-violet-700",
 };
 
-function normalize(value: string): string {
-  return value.normalize("NFD").replace(/[\u0300-\u036f]/g, "").replace(/đ/g, "d").replace(/Đ/g, "D").toLocaleLowerCase("vi-VN").trim();
+function normalize(value?: string | null): string {
+  return (value ?? "").normalize("NFD").replace(/[\u0300-\u036f]/g, "").replace(/đ/g, "d").replace(/Đ/g, "D").toLocaleLowerCase("vi-VN").trim();
 }
 
 function escapeCsv(value: string | number): string { return `"${String(value).replace(/"/g, '""')}"`; }
@@ -52,17 +53,28 @@ function makeArchive(results: ContestResult[], contests: Contest[], submissions:
 
 function ArchiveDetail({ item, onClose, onOpenSubmission }: { item: ArchiveItem; onClose: () => void; onOpenSubmission: () => void }) {
   const metadata = item.submission?.metadata;
+  const photoUrl = item.imageUrl || item.submission?.imageUrl;
   return <Modal title="Chi tiết tác phẩm đạt giải" onClose={onClose} isWide>
     <div className="space-y-5">
       <div className="overflow-hidden rounded-xl border border-slate-200">
-        <ContestCover title={item.contest.name} seed={item.result.rank} className="h-52 w-full" />
+        {photoUrl ? (
+          <div className="relative aspect-video max-h-80 w-full overflow-hidden bg-slate-900">
+            <img
+              src={photoUrl}
+              alt={item.result.title}
+              className="h-full w-full object-contain"
+            />
+          </div>
+        ) : (
+          <ContestCover title={item.contest.name} seed={item.result.rank} className="h-52 w-full" />
+        )}
         <div className="flex flex-wrap items-start justify-between gap-3 p-4">
           <div className="min-w-0"><h3 className="text-lg font-bold text-[#0B356B]">{item.result.title}</h3><p className="mt-1 text-sm text-slate-500">{item.result.authorName} · {item.contest.name}</p></div>
           <span className={`inline-flex shrink-0 items-center gap-1.5 rounded-full px-3 py-1.5 text-xs font-semibold ${PRIZE_STYLE[item.result.award]}`}><Award size={14} />{AWARD_LEVEL[item.result.award]}</span>
         </div>
       </div>
       <dl className="grid gap-3 sm:grid-cols-2">
-        <div className="rounded-lg border border-slate-200 p-3"><dt className="text-xs text-slate-500">Điểm</dt><dd className="mt-1 font-bold text-[#0B356B]">{item.result.score.toFixed(1)} / 10</dd></div>
+        <div className="rounded-lg border border-slate-200 p-3"><dt className="text-xs text-slate-500">Điểm</dt><dd className="mt-1 font-bold text-[#0B356B]">{Number(item.result?.score ?? 0).toFixed(1)} / 10</dd></div>
         <div className="rounded-lg border border-slate-200 p-3"><dt className="text-xs text-slate-500">Năm cuộc thi</dt><dd className="mt-1 font-semibold text-slate-800">{item.year || "Chưa cập nhật"}</dd></div>
         <div className="rounded-lg border border-slate-200 p-3"><dt className="text-xs text-slate-500">Ngày nộp</dt><dd className="mt-1 font-semibold text-slate-800">{item.submission ? formatDate(item.submission.submittedAt) : "Chưa cập nhật"}</dd></div>
         <div className="rounded-lg border border-slate-200 p-3"><dt className="text-xs text-slate-500">Mã bài dự thi</dt><dd className="mt-1 font-semibold text-slate-800">{item.submission?.code ?? "Chưa liên kết"}</dd></div>
@@ -83,25 +95,50 @@ export function ArchiveView({ onNavigate }: OrganizerViewProps) {
   const [year, setYear] = useState("ALL");
   const [page, setPage] = useState(1);
   const [selected, setSelected] = useState<ArchiveItem | null>(null);
+  const [publishedOrgItems, setPublishedOrgItems] = useState<StoredOrganizerArchiveItem[]>(getOrganizerPublishedArchives);
 
-  const archive = useMemo(() => makeArchive(resultsQuery.data ?? [], contestsQuery.data ?? [], submissionsQuery.data ?? []), [resultsQuery.data, contestsQuery.data, submissionsQuery.data]);
-  const contests = useMemo(() => [...new Set(archive.map((item) => item.contest.name))].sort((a, b) => a.localeCompare(b, "vi")), [archive]);
+  useEffect(() => {
+    setPublishedOrgItems(getOrganizerPublishedArchives());
+    const handleUpdate = () => {
+      setPublishedOrgItems(getOrganizerPublishedArchives());
+    };
+    window.addEventListener("storage", handleUpdate);
+    window.addEventListener("filmcontest:published-results-updated", handleUpdate);
+    return () => {
+      window.removeEventListener("storage", handleUpdate);
+      window.removeEventListener("filmcontest:published-results-updated", handleUpdate);
+    };
+  }, []);
+
+  const archive = useMemo(() => {
+    return (publishedOrgItems || []).filter((item) => item && item.result && item.contest);
+  }, [publishedOrgItems]);
+  const contests = useMemo(() => [...new Set(archive.map((item) => item.contest?.name).filter(Boolean) as string[])].sort((a, b) => a.localeCompare(b, "vi")), [archive]);
   const years = useMemo(() => [...new Set(archive.map((item) => item.year).filter(Boolean))].sort((a, b) => b - a), [archive]);
   const counts = useMemo(() => ({
     ALL: archive.length,
-    FIRST: archive.filter((item) => item.result.award === "FIRST").length,
-    SECOND: archive.filter((item) => item.result.award === "SECOND").length,
-    THIRD: archive.filter((item) => item.result.award === "THIRD").length,
-    HONORABLE: archive.filter((item) => item.result.award === "HONORABLE").length,
+    FIRST: archive.filter((item) => item.result?.award === "FIRST").length,
+    SECOND: archive.filter((item) => item.result?.award === "SECOND").length,
+    THIRD: archive.filter((item) => item.result?.award === "THIRD").length,
+    HONORABLE: archive.filter((item) => item.result?.award === "HONORABLE").length,
   }), [archive]);
   const filtered = useMemo(() => {
     const term = normalize(search);
     return archive.filter((item) => {
-      if (prize !== "ALL" && item.result.award !== prize) return false;
-      if (contestName !== "ALL" && item.contest.name !== contestName) return false;
+      if (prize !== "ALL" && item.result?.award !== prize) return false;
+      if (contestName !== "ALL" && item.contest?.name !== contestName) return false;
       if (year !== "ALL" && item.year !== Number(year)) return false;
-      return !term || [item.result.title, item.result.authorName, item.contest.name, item.submission?.code ?? "", item.submission?.metadata.filmStock ?? ""].some((value) => normalize(value).includes(term));
-    }).sort((a, b) => a.result.rank - b.result.rank);
+      return !term || [
+        item.result?.title ?? "",
+        item.result?.authorName ?? "",
+        item.contest?.name ?? "",
+        item.submission?.code ?? "",
+        item.submission?.metadata?.filmStock ?? "",
+      ].some((value) => normalize(value).includes(term));
+    }).sort((a, b) => {
+      if (b.year !== a.year) return b.year - a.year;
+      return (a.result?.rank ?? 0) - (b.result?.rank ?? 0);
+    });
   }, [archive, search, prize, contestName, year]);
   const pageCount = Math.max(1, Math.ceil(filtered.length / PAGE_SIZE));
   const currentPage = Math.min(page, pageCount);
@@ -114,7 +151,16 @@ export function ArchiveView({ onNavigate }: OrganizerViewProps) {
   const exportCsv = () => {
     if (!filtered.length) return;
     const header = ["Tác phẩm", "Thí sinh", "Cuộc thi", "Năm", "Giải thưởng", "Điểm", "Mã bài dự thi", "Film stock"];
-    const rows = filtered.map((item) => [item.result.title, item.result.authorName, item.contest.name, item.year, AWARD_LEVEL[item.result.award], item.result.score.toFixed(1), item.submission?.code ?? "", item.submission?.metadata.filmStock ?? ""]);
+    const rows = filtered.map((item) => [
+      item.result?.title ?? "",
+      item.result?.authorName ?? "",
+      item.contest?.name ?? "",
+      item.year ?? "",
+      AWARD_LEVEL[item.result?.award as AwardLevel] || "Đạt giải",
+      Number(item.result?.score ?? 0).toFixed(1),
+      item.submission?.code ?? "",
+      item.submission?.metadata?.filmStock ?? ""
+    ]);
     const csv = "\uFEFF" + [header, ...rows].map((row) => row.map(escapeCsv).join(",")).join("\r\n");
     const url = URL.createObjectURL(new Blob([csv], { type: "text/csv;charset=utf-8" }));
     const anchor = document.createElement("a");
@@ -143,10 +189,27 @@ export function ArchiveView({ onNavigate }: OrganizerViewProps) {
         </div>
       </div>
 
-      {visible.length ? <div className="grid grid-cols-1 gap-4 sm:grid-cols-2 lg:grid-cols-3 xl:grid-cols-4">{visible.map((item) => <article key={item.result.id} className="group flex min-w-0 flex-col overflow-hidden rounded-xl border border-slate-200 bg-white shadow-sm transition-shadow hover:shadow-md">
-        <div className="relative"><ContestCover title={item.contest.name} seed={item.result.rank} className="aspect-[4/3] w-full" /><span className={`absolute left-3 top-3 inline-flex items-center gap-1 rounded-full px-2.5 py-1 text-[11px] font-semibold shadow-sm ${PRIZE_STYLE[item.result.award]}`}><Award size={13} aria-hidden="true" />{AWARD_LEVEL[item.result.award]}</span><span className="absolute right-3 top-3 rounded-full bg-white/95 px-2.5 py-1 text-xs font-extrabold text-[#0B356B] shadow-sm">#{item.result.rank}</span></div>
-        <div className="flex flex-1 flex-col gap-2 p-3"><p className="truncate text-sm font-bold text-[#0B356B]" title={item.result.title}>{item.result.title}</p><p className="flex items-center gap-1.5 truncate text-xs text-slate-600" title={item.result.authorName}><UserRound size={13} className="shrink-0" aria-hidden="true" />{item.result.authorName}</p><p className="truncate text-xs text-slate-500" title={item.contest.name}>{item.contest.name} · {item.year || "Năm chưa rõ"}</p><div className="mt-1 flex items-center justify-between border-t border-slate-100 pt-2"><span className="text-xs text-slate-500">Điểm</span><span className="font-bold tabular-nums text-[#0B356B]">{item.result.score.toFixed(1)}<span className="ml-1 text-[11px] font-medium text-slate-400">/ 10</span></span></div><button type="button" onClick={() => setSelected(item)} className="mt-auto inline-flex items-center justify-center gap-1.5 rounded-lg border border-blue-200 px-3 py-2 text-xs font-semibold text-blue-700 hover:bg-blue-50" aria-label={`Xem chi tiết tác phẩm ${item.result.title}`}><Eye size={15} aria-hidden="true" />Xem chi tiết</button></div>
-      </article>)}</div> : <div className="rounded-xl border border-dashed border-slate-300 bg-white px-6 py-16 text-center"><ImageOff className="mx-auto size-10 text-slate-400" aria-hidden="true" /><p className="mt-3 font-semibold text-slate-700">{archive.length ? "Không tìm thấy tác phẩm phù hợp" : "Chưa có tác phẩm đạt giải"}</p><p className="mt-1 text-sm text-slate-500">{archive.length ? "Thử đổi bộ lọc hoặc xóa điều kiện tìm kiếm." : "Tác phẩm sẽ xuất hiện tại đây sau khi kết quả cuộc thi được công bố."}</p>{archive.length > 0 && <button type="button" onClick={resetFilters} className="mt-3 text-sm font-semibold text-blue-700 hover:underline">Xóa bộ lọc</button>}</div>}
+      {visible.length ? <div className="grid grid-cols-1 gap-4 sm:grid-cols-2 lg:grid-cols-3 xl:grid-cols-4">{visible.map((item) => {
+        const photoUrl = item.imageUrl || item.submission?.imageUrl;
+        return (
+          <article key={item.result.id} className="group flex min-w-0 flex-col overflow-hidden rounded-xl border border-slate-200 bg-white shadow-sm transition-shadow hover:shadow-md">
+            <div className="relative aspect-[4/3] w-full overflow-hidden bg-slate-100">
+              {photoUrl ? (
+                <img
+                  src={photoUrl}
+                  alt={item.result.title}
+                  className="h-full w-full object-cover group-hover:scale-105 transition-transform duration-300"
+                />
+              ) : (
+                <ContestCover title={item.contest.name} seed={item.result.rank} className="aspect-[4/3] w-full" />
+              )}
+              <span className={`absolute left-3 top-3 inline-flex items-center gap-1 rounded-full px-2.5 py-1 text-[11px] font-semibold shadow-sm ${PRIZE_STYLE[item.result.award as AwardLevel] || "bg-blue-100 text-blue-700"}`}><Award size={13} aria-hidden="true" />{AWARD_LEVEL[item.result.award as AwardLevel] || "Đạt giải"}</span>
+              <span className="absolute right-3 top-3 rounded-full bg-white/95 px-2.5 py-1 text-xs font-extrabold text-[#0B356B] shadow-sm">#{item.result.rank}</span>
+            </div>
+            <div className="flex flex-1 flex-col gap-2 p-3"><p className="truncate text-sm font-bold text-[#0B356B]" title={item.result.title}>{item.result.title}</p><p className="flex items-center gap-1.5 truncate text-xs text-slate-600" title={item.result.authorName}><UserRound size={13} className="shrink-0" aria-hidden="true" />{item.result.authorName}</p><p className="truncate text-xs text-slate-500" title={item.contest.name}>{item.contest.name} · {item.year || "Năm chưa rõ"}</p><div className="mt-1 flex items-center justify-between border-t border-slate-100 pt-2"><span className="text-xs text-slate-500">Điểm</span><span className="font-bold tabular-nums text-[#0B356B]">{Number(item.result?.score ?? 0).toFixed(1)}<span className="ml-1 text-[11px] font-medium text-slate-400">/ 10</span></span></div><button type="button" onClick={() => setSelected(item)} className="mt-auto inline-flex items-center justify-center gap-1.5 rounded-lg border border-blue-200 px-3 py-2 text-xs font-semibold text-blue-700 hover:bg-blue-50 cursor-pointer" aria-label={`Xem chi tiết tác phẩm ${item.result.title}`}><Eye size={15} aria-hidden="true" />Xem chi tiết</button></div>
+          </article>
+        );
+      })}</div> : <div className="rounded-xl border border-dashed border-slate-300 bg-white px-6 py-16 text-center"><ImageOff className="mx-auto size-10 text-slate-400" aria-hidden="true" /><p className="mt-3 font-semibold text-slate-700">{archive.length ? "Không tìm thấy tác phẩm phù hợp" : "Chưa có tác phẩm đạt giải"}</p><p className="mt-1 text-sm text-slate-500">{archive.length ? "Thử đổi bộ lọc hoặc xóa điều kiện tìm kiếm." : "Tác phẩm sẽ xuất hiện tại đây sau khi kết quả cuộc thi được công bố."}</p>{archive.length > 0 && <button type="button" onClick={resetFilters} className="mt-3 text-sm font-semibold text-blue-700 hover:underline">Xóa bộ lọc</button>}</div>}
 
       <div className="flex flex-col gap-3 rounded-2xl border border-slate-200 bg-white px-4 py-3 text-sm text-slate-500 shadow-sm sm:flex-row sm:items-center sm:justify-between"><span>Hiển thị <strong className="text-slate-700">{start}–{end}</strong> / {filtered.length} tác phẩm đạt giải</span><div className="flex items-center gap-2"><button type="button" aria-label="Trang trước" disabled={currentPage <= 1} onClick={() => setPage((value) => Math.max(1, value - 1))} className="rounded-lg border border-slate-300 p-2 text-slate-600 hover:bg-slate-50 disabled:cursor-not-allowed disabled:opacity-40"><ChevronLeft size={17} aria-hidden="true" /></button><span className="rounded-lg bg-blue-600 px-3 py-2 text-xs font-bold text-white">{currentPage} / {pageCount}</span><button type="button" aria-label="Trang sau" disabled={currentPage >= pageCount} onClick={() => setPage((value) => Math.min(pageCount, value + 1))} className="rounded-lg border border-slate-300 p-2 text-slate-600 hover:bg-slate-50 disabled:cursor-not-allowed disabled:opacity-40"><ChevronRight size={17} aria-hidden="true" /></button></div></div>
     </>}

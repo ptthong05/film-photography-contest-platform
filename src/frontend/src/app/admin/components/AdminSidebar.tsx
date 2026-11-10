@@ -1,3 +1,4 @@
+import { useState, useEffect } from 'react';
 import {
   BrainCircuit,
   Camera,
@@ -13,6 +14,7 @@ import {
   Users,
   type LucideIcon,
 } from 'lucide-react';
+import { readAdminDemoProfile } from '../views/ProfileView';
 
 // Danh sách màn hình thuộc riêng khu vực Admin.
 export type AdminView =
@@ -20,7 +22,6 @@ export type AdminView =
   | 'users'
   | 'contests'
   | 'submissions'
-  | 'judges'
   | 'archive'
   | 'ai-settings'
   | 'settings'
@@ -45,7 +46,6 @@ const ADMIN_MENU_ITEMS: AdminMenuItem[] = [
   { id: 'users', label: 'Quản lý người dùng', icon: Users },
   { id: 'contests', label: 'Quản lý cuộc thi', icon: Trophy },
   { id: 'submissions', label: 'Bài dự thi', icon: FileImage },
-  { id: 'judges', label: 'Giám khảo', icon: UserRoundCheck },
   { id: 'archive', label: 'Kho dữ liệu', icon: Database },
   { id: 'ai-settings', label: 'Cấu hình AI', icon: BrainCircuit },
   { id: 'settings', label: 'Cài đặt hệ thống', icon: Settings },
@@ -59,11 +59,31 @@ export function AdminSidebar({
   adminName = 'Quản trị viên',
   className = '',
 }: AdminSidebarProps) {
+  const [avatarUrl, setAvatarUrl] = useState<string | null>(() => {
+    const prof = readAdminDemoProfile();
+    return prof.avatarDataUrl || (typeof window !== 'undefined' ? localStorage.getItem('admin_avatar') : null);
+  });
+
+  useEffect(() => {
+    const handleProfileSync = () => {
+      const prof = readAdminDemoProfile();
+      setAvatarUrl(prof.avatarDataUrl || (typeof window !== 'undefined' ? localStorage.getItem('admin_avatar') : null));
+    };
+    window.addEventListener('adminProfileUpdated', handleProfileSync);
+    window.addEventListener('userNameChanged', handleProfileSync);
+    window.addEventListener('storage', handleProfileSync);
+    return () => {
+      window.removeEventListener('adminProfileUpdated', handleProfileSync);
+      window.removeEventListener('userNameChanged', handleProfileSync);
+      window.removeEventListener('storage', handleProfileSync);
+    };
+  }, []);
+
   return (
     <aside
       className={`sticky top-0 flex h-screen w-60 shrink-0 flex-col bg-[#0B356B] text-white ${className}`}
     >
-      <div className="flex items-center gap-3 border-b border-white/15 px-4 pb-5 pt-[4.5rem]">
+      <div className="flex items-center gap-3 border-b border-white/15 px-4 pb-5 pt-6">
         <span className="flex h-10 w-10 items-center justify-center rounded-xl bg-blue-600">
           <Camera size={22} aria-hidden="true" />
         </span>
@@ -105,9 +125,17 @@ export function AdminSidebar({
           className="flex w-full cursor-pointer items-center gap-3 rounded-lg px-2 py-2 text-left transition-colors hover:bg-white/10 focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-white"
           aria-label="Mở hồ sơ cá nhân"
         >
-          <span className="flex h-9 w-9 shrink-0 items-center justify-center rounded-full bg-blue-200 text-blue-950">
-            <UserCircle size={23} aria-hidden="true" />
-          </span>
+          {avatarUrl ? (
+            <img
+              src={avatarUrl}
+              alt={adminName}
+              className="h-9 w-9 shrink-0 rounded-full object-cover border border-white/20 shadow-sm"
+            />
+          ) : (
+            <span className="flex h-9 w-9 shrink-0 items-center justify-center rounded-full bg-blue-200 text-blue-950 font-bold text-xs">
+              {adminName.trim().slice(0, 1).toUpperCase() || 'A'}
+            </span>
+          )}
           <span className="min-w-0 flex-1">
             <span className="block truncate text-sm font-semibold">{adminName}</span>
             <span className="block text-xs text-blue-200">Administrator</span>

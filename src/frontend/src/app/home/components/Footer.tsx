@@ -158,6 +158,14 @@ export function Footer({ onSelectPortal, onGoHome }: FooterProps) {
                   Liên hệ hỗ trợ
                 </button>
               </li>
+              <li>
+                <button
+                  onClick={(e) => handleNavigatePortal('ADMIN', e)}
+                  className="hover:text-blue-400 transition-colors cursor-pointer text-left text-slate-400 font-medium"
+                >
+                  Cổng Quản trị (Admin)
+                </button>
+              </li>
             </ul>
           </div>
 

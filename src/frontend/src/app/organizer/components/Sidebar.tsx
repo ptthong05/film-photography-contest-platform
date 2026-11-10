@@ -1,10 +1,11 @@
+import { useState, useEffect } from "react";
 import {
+  Award,
   BarChart3,
   Camera,
   ClipboardList,
   CircleUser,
   Database,
-  Globe,
   Images,
   LayoutDashboard,
   Medal,
@@ -15,6 +16,7 @@ import {
 } from "lucide-react";
 import type { OrganizerView } from "../../../types/organizer";
 import { OrganizerAvatar } from "./OrganizerAvatar";
+import { readOrganizerProfile } from "../../../services/profileService";
 
 interface MenuItem {
   label: string;
@@ -32,6 +34,7 @@ const MENU_ITEMS: MenuItem[] = [
   { label: "Kho dữ liệu", icon: Database, view: "ARCHIVE" },
   { label: "Kết quả", icon: Medal, view: "RESULTS" },
   { label: "Báo cáo", icon: BarChart3, view: "REPORTS" },
+  { label: "Chấm điểm & Công bố", icon: Award, view: "SCORING_PUBLISH" },
   { label: "Hồ sơ cá nhân", icon: CircleUser, view: "PROFILE" },
 ];
 
@@ -43,22 +46,32 @@ interface SidebarProps {
 }
 
 export function Sidebar({ activeView, onNavigate, onGoHome, organizerName = "Nguyễn Văn A" }: SidebarProps) {
+  const [avatarUrl, setAvatarUrl] = useState<string | null>(() => {
+    const prof = readOrganizerProfile();
+    return prof.avatarDataUrl || (typeof window !== 'undefined' ? localStorage.getItem('organizer_avatar') : null);
+  });
+
+  useEffect(() => {
+    const handleProfileSync = () => {
+      const prof = readOrganizerProfile();
+      setAvatarUrl(prof.avatarDataUrl || (typeof window !== 'undefined' ? localStorage.getItem('organizer_avatar') : null));
+    };
+    window.addEventListener('organizerProfileUpdated', handleProfileSync);
+    window.addEventListener('userNameChanged', handleProfileSync);
+    window.addEventListener('storage', handleProfileSync);
+    return () => {
+      window.removeEventListener('organizerProfileUpdated', handleProfileSync);
+      window.removeEventListener('userNameChanged', handleProfileSync);
+      window.removeEventListener('storage', handleProfileSync);
+    };
+  }, []);
+
   return (
     <aside className="sticky top-0 flex h-screen w-60 shrink-0 flex-col bg-[#0B356B] text-white">
       <div className="flex items-center gap-3 border-b border-white/15 px-4 pb-5 pt-6">
         <span className="flex h-10 w-10 items-center justify-center rounded-xl bg-blue-600"><Camera size={22} aria-hidden="true" /></span>
         <div><p className="text-base font-bold leading-5">FilmContest</p><p className="mt-0.5 text-[10px] font-semibold tracking-[0.14em] text-blue-200">ORGANIZER PORTAL</p></div>
       </div>
-      {onGoHome && (
-        <button
-          type="button"
-          onClick={onGoHome}
-          className="mx-3 mt-4 flex items-center justify-center gap-2 rounded-lg bg-blue-600 px-4 py-2.5 text-sm font-semibold hover:bg-blue-500"
-        >
-          <Globe size={18} aria-hidden />
-          Về Trang Chủ
-        </button>
-      )}
       <nav aria-label="Điều hướng ban tổ chức" className="min-h-0 flex-1 space-y-1 overflow-y-auto px-3 py-5">
         {MENU_ITEMS.map(({ label, icon: Icon, view }) => (
           <button
@@ -77,7 +90,7 @@ export function Sidebar({ activeView, onNavigate, onGoHome, organizerName = "Ngu
       </nav>
       <div className="border-t border-white/15 p-3">
         <button type="button" onClick={() => onNavigate("PROFILE")} className="flex w-full items-center gap-3 rounded-lg px-2 py-2 text-left transition-colors hover:bg-white/10" aria-label="Mở hồ sơ cá nhân">
-          <OrganizerAvatar name={organizerName} />
+          <OrganizerAvatar name={organizerName} avatarUrl={avatarUrl} />
           <span className="min-w-0 flex-1"><span className="block truncate text-sm font-semibold">{organizerName}</span><span className="block text-xs text-blue-200">Ban tổ chức</span></span>
           <span aria-hidden="true" className="text-blue-200">›</span>
         </button>

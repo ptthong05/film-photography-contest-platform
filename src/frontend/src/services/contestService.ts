@@ -1,27 +1,38 @@
-import { MOCK_CONTESTS, MOCK_JUDGES, MOCK_OVERVIEW_STATS } from "../mocks/organizerData";
+import { MOCK_OVERVIEW_STATS } from "../mocks/organizerData";
 import type { Contest, ContestDraft } from "../types/contest";
 import { mockRequest } from "./mockClient";
+import {
+  getAllUnifiedContests,
+  createNewUnifiedContest,
+} from "./contestSyncService";
 
-// Mock: ghi thẳng vào mảng trong bộ nhớ để các trang thấy dữ liệu mới (tải lại trang là mất).
+const CONTEST_ID_ALIASES: Record<string, string> = {
+  c1: "CT-2026-001",
+  c2: "CT-2026-002",
+  c3: "CT-2026-003",
+  c4: "CT-2026-004",
+  c5: "CT-2026-005",
+};
+
 export const contestService = {
-  getContests: () => mockRequest([...MOCK_CONTESTS]),
-  getOverviewStats: () => mockRequest(MOCK_OVERVIEW_STATS),
-  getContestById: (id: string) => mockRequest(MOCK_CONTESTS.find((contest) => contest.id === id) ?? null),
+  getContests: () => mockRequest(getAllUnifiedContests()),
+  getOverviewStats: () => {
+    const all = getAllUnifiedContests();
+    return mockRequest({
+      ongoingContests: all.filter((c) => c.status === "ONGOING").length,
+      participants: 1386 + all.length * 45,
+      submissions: 1845 + all.length * 80,
+      judges: 28,
+    });
+  },
+  getContestById: (id: string) => {
+    const resolvedId = CONTEST_ID_ALIASES[id] ?? id;
+    const all = getAllUnifiedContests();
+    const found = all.find((c) => c.id === resolvedId || c.id === id || c.name.toLowerCase() === id.toLowerCase()) ?? null;
+    return mockRequest(found);
+  },
   createContest: (draft: ContestDraft, judgeIds: string[]) => {
-    const contest: Contest = {
-      id: `c-${Date.now()}`,
-      name: draft.name.trim(),
-      startDate: draft.startDate,
-      endDate: draft.endDate,
-      participantCount: 0,
-      submissionCount: 0,
-      status: "UPCOMING",
-      tags: [draft.category],
-      description: draft.description.trim(),
-      prizes: draft.prizes,
-      judgeNames: MOCK_JUDGES.filter((judge) => judgeIds.includes(judge.id)).map((judge) => judge.fullName),
-    };
-    MOCK_CONTESTS.unshift(contest);
+    const contest = createNewUnifiedContest(draft, judgeIds);
     return mockRequest(contest);
   },
 };

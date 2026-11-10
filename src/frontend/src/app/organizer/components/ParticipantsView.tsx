@@ -1,9 +1,10 @@
-import { useMemo, useState } from "react";
+import { useEffect, useMemo, useState } from "react";
 import { CalendarDays, ChevronLeft, ChevronRight, Eye, Filter, Images, LockKeyhole, Search, Trophy, Unlock, Users } from "lucide-react";
 import { StateMessage } from "../../../components/StateMessage";
 import { useFetch } from "../../../hooks/useFetch";
 import { contestService } from "../../../services/contestService";
 import { organizerUserService } from "../../../services/organizerUserService";
+import { unifiedUserService } from "../../../services/unifiedUserService";
 import { submissionService } from "../../../services/submissionService";
 import type { Contest } from "../../../types/contest";
 import type { OrganizerViewProps } from "../../../types/organizer";
@@ -42,11 +43,12 @@ function readStatusOverrides(): Record<string, Participant["status"]> {
   }
 }
 
-function ParticipantAvatar({ name, size = "size-10" }: { name: string; size?: string }) {
+function ParticipantAvatar({ name = "Thí sinh", size = "size-10" }: { name?: string; size?: string }) {
+  const safeName = name || "Thí sinh";
   const colors = ["bg-sky-100 text-sky-800", "bg-violet-100 text-violet-800", "bg-rose-100 text-rose-800", "bg-amber-100 text-amber-800", "bg-emerald-100 text-emerald-800"];
-  const hash = [...name].reduce((value, character) => value + character.charCodeAt(0), 0);
-  const initial = name.trim().split(/\s+/).map((part) => part[0]).slice(-2).join("").toUpperCase();
-  return <span aria-label={`Ảnh đại diện ${name}`} className={`inline-flex shrink-0 items-center justify-center rounded-full text-sm font-bold ${size} ${colors[hash % colors.length]}`}>{initial || "?"}</span>;
+  const hash = [...safeName].reduce((value, character) => value + character.charCodeAt(0), 0);
+  const initial = safeName.trim().split(/\s+/).map((part) => part[0]).slice(-2).join("").toUpperCase();
+  return <span aria-label={`Ảnh đại diện ${safeName}`} className={`inline-flex shrink-0 items-center justify-center rounded-full text-sm font-bold ${size} ${colors[hash % colors.length]}`}>{initial || "T"}</span>;
 }
 
 function ParticipantStatus({ status }: { status: Participant["status"] }) {
@@ -77,6 +79,14 @@ export function ParticipantsView({ onNavigate }: OrganizerViewProps) {
   const [selectedParticipant, setSelectedParticipant] = useState<Participant | null>(null);
   const [fallbackSubmission, setFallbackSubmission] = useState<{ entry: ParticipantEntry; participant: Participant } | null>(null);
   const [statusOverrides, setStatusOverrides] = useState(readStatusOverrides);
+
+  useEffect(() => {
+    const handleSync = () => {
+      setStatusOverrides(readStatusOverrides());
+    };
+    window.addEventListener('usersChanged', handleSync);
+    return () => window.removeEventListener('usersChanged', handleSync);
+  }, []);
 
   const participants = participantsQuery.data ?? [];
   const allSubmissions = submissionsQuery.data ?? [];
@@ -119,6 +129,7 @@ export function ParticipantsView({ onNavigate }: OrganizerViewProps) {
     const next = { ...statusOverrides, [participant.id]: nextStatus };
     setStatusOverrides(next);
     localStorage.setItem(STATUS_STORAGE_KEY, JSON.stringify(next));
+    unifiedUserService.updateUserStatus(participant.id, nextStatus);
   };
 
   if (fallbackSubmission) return <RecentSubmissionDetail entry={fallbackSubmission.entry} participant={fallbackSubmission.participant} onBack={() => setFallbackSubmission(null)} />;

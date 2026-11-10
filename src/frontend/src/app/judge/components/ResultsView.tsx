@@ -18,8 +18,23 @@ interface ResultsViewProps {
   onViewDetail: (submissionId: string) => void;
 }
 
+const JUDGE_RESULTS_TAB_KEY = 'judge_results_tab';
+
 export function ResultsView({ onViewDetail }: ResultsViewProps) {
-  const [tab, setTab] = useState<ResultTab>('EVALUATED');
+  const [tab, setTabState] = useState<ResultTab>(() => {
+    if (typeof window !== 'undefined') {
+      const saved = localStorage.getItem(JUDGE_RESULTS_TAB_KEY) as ResultTab | null;
+      if (saved && (saved === 'EVALUATED' || saved === 'STATISTICS' || saved === 'FINAL')) return saved;
+    }
+    return 'EVALUATED';
+  });
+
+  const setTab = (nextTab: ResultTab) => {
+    setTabState(nextTab);
+    try {
+      localStorage.setItem(JUDGE_RESULTS_TAB_KEY, nextTab);
+    } catch {}
+  };
   const [selectedContestId, setSelectedContestId] = useState('');
   const contests = useFetch(judgeService.getContests);
   const submissions = useFetch(judgeService.getAssignedSubmissions);

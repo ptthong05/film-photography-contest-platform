@@ -12,6 +12,7 @@ import {
   X,
 } from 'lucide-react';
 import type { AdminView } from '../components/AdminSidebar';
+import { AdminJudgeDetailPage } from './AdminJudgeDetailPage';
 
 /**
  * Admin > Giám khảo.
@@ -19,10 +20,10 @@ import type { AdminView } from '../components/AdminSidebar';
  * thuộc Admin, việc phân công chấm và vận hành vòng chấm thuộc Organizer.
  * Chỉ dùng dữ liệu MẪU, chưa có API / kết nối MongoDB.
  */
-type JudgeStatus = 'ACTIVE' | 'SUSPENDED' | 'DISABLED';
-type JudgeFilter = 'ALL' | JudgeStatus;
+export type JudgeStatus = 'ACTIVE' | 'SUSPENDED' | 'DISABLED';
+export type JudgeFilter = 'ALL' | JudgeStatus;
 
-type Expertise =
+export type Expertise =
   | 'Nhiếp ảnh phim'
   | 'Nghệ thuật thị giác'
   | 'Nhiếp ảnh tài liệu'
@@ -30,7 +31,7 @@ type Expertise =
   | 'Nhiếp ảnh phong cảnh'
   | 'Lịch sử nhiếp ảnh';
 
-interface Judge {
+export interface Judge {
   id: string;
   name: string;
   email: string;
@@ -181,6 +182,7 @@ interface JudgesViewProps {
 }
 
 export function JudgesView({ onNavigate }: JudgesViewProps) {
+  const [judges, setJudges] = useState<Judge[]>(DEMO_JUDGES);
   const [statusFilter, setStatusFilter] = useState<JudgeFilter>('ALL');
   const [search, setSearch] = useState('');
   const [expertiseFilter, setExpertiseFilter] = useState<Expertise | 'ALL'>('ALL');
@@ -188,22 +190,22 @@ export function JudgesView({ onNavigate }: JudgesViewProps) {
   const [selectedJudge, setSelectedJudge] = useState<Judge | null>(null);
 
   const statusCounts = useMemo(() => ({
-    ALL: DEMO_JUDGES.length,
-    ACTIVE: DEMO_JUDGES.filter((judge) => judge.status === 'ACTIVE').length,
-    SUSPENDED: DEMO_JUDGES.filter((judge) => judge.status === 'SUSPENDED').length,
-    DISABLED: DEMO_JUDGES.filter((judge) => judge.status === 'DISABLED').length,
-  }), []);
+    ALL: judges.length,
+    ACTIVE: judges.filter((judge) => judge.status === 'ACTIVE').length,
+    SUSPENDED: judges.filter((judge) => judge.status === 'SUSPENDED').length,
+    DISABLED: judges.filter((judge) => judge.status === 'DISABLED').length,
+  }), [judges]);
 
   const filteredJudges = useMemo(() => {
     const normalizedSearch = search.trim().toLocaleLowerCase('vi-VN');
-    return DEMO_JUDGES.filter((judge) => {
+    return judges.filter((judge) => {
       if (statusFilter !== 'ALL' && judge.status !== statusFilter) return false;
       if (expertiseFilter !== 'ALL' && judge.expertise !== expertiseFilter) return false;
       if (!normalizedSearch) return true;
       return [judge.name, judge.email, judge.id, judge.expertise]
         .some((value) => value.toLocaleLowerCase('vi-VN').includes(normalizedSearch));
     });
-  }, [statusFilter, search, expertiseFilter]);
+  }, [judges, statusFilter, search, expertiseFilter]);
 
   const totalPages = Math.max(1, Math.ceil(filteredJudges.length / PAGE_SIZE));
   const currentPage = Math.min(page, totalPages);
@@ -217,6 +219,22 @@ export function JudgesView({ onNavigate }: JudgesViewProps) {
     setExpertiseFilter('ALL');
     setPage(1);
   };
+
+  const handleChangeStatus = (id: string, nextStatus: JudgeStatus) => {
+    setJudges((prev) => prev.map((j) => (j.id === id ? { ...j, status: nextStatus } : j)));
+    setSelectedJudge((prev) => (prev && prev.id === id ? { ...prev, status: nextStatus } : prev));
+  };
+
+  // NẾU ĐANG CHỌN XEM CHI TIẾT: Hiển thị trang chi tiết giám khảo thay vì modal
+  if (selectedJudge) {
+    return (
+      <AdminJudgeDetailPage
+        judge={selectedJudge}
+        onBack={() => setSelectedJudge(null)}
+        onChangeStatus={handleChangeStatus}
+      />
+    );
+  }
 
   return (
     <section aria-label="Danh sách giám khảo" className="space-y-4">
@@ -359,8 +377,6 @@ export function JudgesView({ onNavigate }: JudgesViewProps) {
         <ShieldCheck className="mt-0.5 shrink-0" size={18} aria-hidden="true" />
         <p>Trang Admin dùng để tra cứu và giám sát tài khoản giám khảo. Phân công giám khảo, chấm điểm và xác nhận vòng chấm thuộc quy trình nghiệp vụ khác; mọi thông tin trên trang hiện là dữ liệu minh họa.</p>
       </div>
-
-      {selectedJudge && <JudgeDetailModal judge={selectedJudge} onClose={() => setSelectedJudge(null)} />}
     </section>
   );
 }

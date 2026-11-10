@@ -1,8 +1,10 @@
 import { useState } from 'react';
-import { CircleCheck, Lock } from 'lucide-react';
+import { AlertCircle, CircleCheck, Lock } from 'lucide-react';
+import { Toast, type ToastNotice } from '../../../components/Toast';
 import type { Evaluation, EvaluationRequest, JudgingCriterion } from '../../../types/judge';
 import { calculateWeightedScore } from '../../../utils/calculateScore';
 import { formatDate } from '../../../utils/formatDate';
+import { getJudgingDeadlineInfo } from '../../../utils/judgingDeadline';
 
 const MAX_COMMENT_LENGTH = 1000;
 const SCORE_STEP = 0.5;
@@ -14,6 +16,8 @@ interface ScoringPanelProps {
   criteria: JudgingCriterion[];
   evaluation: Evaluation | null;
   onSave: (request: EvaluationRequest) => Promise<void>;
+  roundEndDate?: string | null;
+  contestId?: string;
 }
 
 function toScoreMap(criteria: JudgingCriterion[], evaluation: Evaluation | null): ScoreMap {
@@ -26,14 +30,16 @@ function toScoreMap(criteria: JudgingCriterion[], evaluation: Evaluation | null)
 }
 
 /** Parent phải truyền key theo submission để state được khởi tạo lại khi chuyển bài. */
-export function ScoringPanel({ criteria, evaluation, onSave }: ScoringPanelProps) {
+export function ScoringPanel({ criteria, evaluation, onSave, roundEndDate, contestId }: ScoringPanelProps) {
   const [scores, setScores] = useState<ScoreMap>(() => toScoreMap(criteria, evaluation));
   const [comment, setComment] = useState(evaluation?.comment ?? '');
   const [recommendNextRound, setRecommendNextRound] = useState(evaluation?.recommendNextRound ?? false);
   const [isSaving, setIsSaving] = useState(false);
-  const [message, setMessage] = useState<{ type: 'success' | 'error'; text: string } | null>(null);
+  const [toast, setToast] = useState<ToastNotice | null>(null);
 
-  const isLocked = evaluation?.status === 'FINALIZED';
+  const deadlineInfo = getJudgingDeadlineInfo(roundEndDate, contestId);
+  const isExpired = deadlineInfo.isExpired;
+  const isLocked = evaluation?.status === 'FINALIZED' || isExpired;
   const scoreList = criteria.flatMap((criterion) => {
     const score = scores[criterion.id];
     return score === null || score === undefined ? [] : [{ criterionId: criterion.id, score }];
@@ -45,7 +51,6 @@ export function ScoringPanel({ criteria, evaluation, onSave }: ScoringPanelProps
   const handleScoreChange = (criterion: JudgingCriterion, rawValue: string) => {
     const value = rawValue === '' ? null : Math.min(criterion.maxScore, Math.max(MIN_SCORE, Number(rawValue)));
     setScores((current) => ({ ...current, [criterion.id]: value }));
-    setMessage(null);
   };
 
   const handleSave = async (isFinal: boolean) => {
@@ -53,19 +58,19 @@ export function ScoringPanel({ criteria, evaluation, onSave }: ScoringPanelProps
       return;
     }
     setIsSaving(true);
-    setMessage(null);
     try {
       await onSave({ scores: scoreList, comment: comment.trim(), recommendNextRound, isFinal });
-      setMessage({ type: 'success', text: isFinal ? 'Đã gửi đánh giá chính thức.' : 'Đã lưu nháp.' });
+      setToast({ id: Date.now(), type: 'success', message: isFinal ? 'Đã gửi đánh giá chính thức thành công.' : 'Đã lưu nháp đánh giá.' });
     } catch (err) {
-      setMessage({ type: 'error', text: err instanceof Error ? err.message : 'Không thể lưu phiếu chấm' });
+      setToast({ id: Date.now(), type: 'error', message: err instanceof Error ? err.message : 'Không thể lưu phiếu chấm' });
     } finally {
       setIsSaving(false);
     }
   };
 
   return (
-    <div className="flex h-full flex-col">
+    <div className="relative flex h-full flex-col">
+      <Toast toast={toast} onClose={() => setToast(null)} />
       <div className="flex items-center justify-between">
         <h3 className="font-semibold text-slate-900">Tiêu chí chấm điểm</h3>
         <span className="text-xs text-slate-500">Thang điểm: 1 - {maxScale}</span>
@@ -141,20 +146,24 @@ export function ScoringPanel({ criteria, evaluation, onSave }: ScoringPanelProps
         Đánh dấu vào vòng tiếp theo
       </label>
 
-      {message && (
-        <p className={`mt-3 rounded-lg px-3 py-2 text-sm ${message.type === 'success' ? 'bg-emerald-50 text-emerald-700' : 'bg-rose-50 text-rose-700'}`} role="status">
-          {message.text}
-        </p>
-      )}
-
-      {isLocked ? (
+      {isExpired ? (
+        <div className="mt-auto space-y-2 rounded-xl border border-rose-200 bg-rose-50 p-4 text-sm text-rose-800">
+          <div className="flex items-center gap-2 font-semibold">
+            <AlertCircle className="h-5 w-5 shrink-0 text-rose-600" />
+            <span>Hết thời hạn chấm điểm</span>
+          </div>
+          <p className="text-xs leading-relaxed text-rose-700">
+            {deadlineInfo.message} Ban tổ chức đã khóa chức năng nhập điểm cho cuộc thi này.
+          </p>
+        </div>
+      ) : isLocked ? (
         <p className="mt-auto flex items-center gap-2 rounded-lg bg-slate-100 px-3 py-3 text-sm text-slate-600">
           <Lock className="h-4 w-4 shrink-0" />
           Phiếu chấm đã gửi{evaluation?.updatedAt ? ` ngày ${formatDate(evaluation.updatedAt)}` : ''}. Liên hệ ban tổ chức nếu cần mở lại.
         </p>
       ) : (
         <div className="mt-auto grid grid-cols-2 gap-3 pt-5">
-          <button type="button" onClick={() => void handleSave(false)} disabled={isSaving} className="judge-btn-outline">
+          <button type="button" onClick={() => void handleSave(false)} disabled={isSaving} className="judge-btn-outline cursor-pointer">
             Lưu nháp
           </button>
           <button
@@ -162,7 +171,7 @@ export function ScoringPanel({ criteria, evaluation, onSave }: ScoringPanelProps
             onClick={() => void handleSave(true)}
             disabled={isSaving || !isComplete}
             title={isComplete ? undefined : 'Cần chấm đủ tiêu chí và nhập nhận xét'}
-            className="judge-btn-primary"
+            className="judge-btn-primary cursor-pointer"
           >
             <CircleCheck className="h-4 w-4" />
             Gửi đánh giá

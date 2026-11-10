@@ -1,3 +1,4 @@
+import { useEffect } from "react";
 import { Calendar, Images, Trophy, UserCheck, Users, type LucideIcon } from "lucide-react";
 import { StateMessage } from "../../../components/StateMessage";
 import { StatusBadge } from "../../../components/StatusBadge";
@@ -28,6 +29,21 @@ export function OverviewView({ onNavigate }: OrganizerViewProps) {
   const stats = useFetch(contestService.getOverviewStats);
   const contests = useFetch(contestService.getContests);
 
+  useEffect(() => {
+    const handleUpdate = () => {
+      void stats.refetch();
+      void contests.refetch();
+    };
+    window.addEventListener("filmcontest:contests-updated", handleUpdate);
+    window.addEventListener("filmcontest:submissions-updated", handleUpdate);
+    window.addEventListener("storage", handleUpdate);
+    return () => {
+      window.removeEventListener("filmcontest:contests-updated", handleUpdate);
+      window.removeEventListener("filmcontest:submissions-updated", handleUpdate);
+      window.removeEventListener("storage", handleUpdate);
+    };
+  }, [stats.refetch, contests.refetch]);
+
   return (
     <section aria-label="Tổng quan ban tổ chức" className="space-y-5">
       <OrganizerPageHeader title="Tổng quan" description="Theo dõi nhanh cuộc thi, thí sinh, bài dự thi và giám khảo." />
@@ -54,20 +70,20 @@ export function OverviewView({ onNavigate }: OrganizerViewProps) {
         <div className="space-y-5">
           {contests.data[0] && (
             <article className="group relative min-h-64 overflow-hidden rounded-2xl bg-[#0B356B] shadow-sm">
-              <ContestCover title={contests.data[0].name} seed={0} className="absolute inset-0 h-full w-full transition-transform duration-700 group-hover:scale-105" />
+              <ContestCover title={contests.data[0].name || "Cuộc thi nổi bật"} seed={0} className="absolute inset-0 h-full w-full transition-transform duration-700 group-hover:scale-105" />
               <div className="absolute inset-0 bg-gradient-to-r from-slate-950/85 via-slate-950/45 to-transparent" />
               <div className="relative flex min-h-64 flex-col items-start justify-end gap-4 p-6 text-white sm:p-9">
-                <StatusBadge {...CONTEST_STATUS[contests.data[0].status]} />
+                <StatusBadge {...CONTEST_STATUS[contests.data[0].status || "ONGOING"]} />
                 <div>
                   <p className="text-sm font-semibold text-blue-100">CUỘC THI NỔI BẬT</p>
-                  <h2 className="mt-1 text-2xl font-extrabold sm:text-3xl">{contests.data[0].name}</h2>
+                  <h2 className="mt-1 text-2xl font-extrabold sm:text-3xl">{contests.data[0].name || "Cuộc thi nổi bật"}</h2>
                   <p className="mt-2 flex flex-wrap gap-x-5 gap-y-2 text-sm text-white/90">
                     <span className="inline-flex items-center gap-2"><Calendar size={16} aria-hidden />{formatDate(contests.data[0].startDate)} – {formatDate(contests.data[0].endDate)}</span>
-                    <span className="inline-flex items-center gap-2"><Users size={16} aria-hidden />{contests.data[0].participantCount.toLocaleString("vi-VN")} thí sinh</span>
-                    <span className="inline-flex items-center gap-2"><Images size={16} aria-hidden />{contests.data[0].submissionCount.toLocaleString("vi-VN")} bài dự thi</span>
+                    <span className="inline-flex items-center gap-2"><Users size={16} aria-hidden />{(contests.data[0].participantCount ?? 0).toLocaleString("vi-VN")} thí sinh</span>
+                    <span className="inline-flex items-center gap-2"><Images size={16} aria-hidden />{(contests.data[0].submissionCount ?? 0).toLocaleString("vi-VN")} bài dự thi</span>
                   </p>
                 </div>
-                <button type="button" className="rounded-xl bg-blue-600 px-5 py-2.5 text-sm font-semibold text-white shadow-sm transition hover:bg-blue-500" onClick={() => onNavigate({ view: "CONTEST_DETAIL", id: contests.data![0].id })}>
+                <button type="button" className="rounded-xl bg-blue-600 px-5 py-2.5 text-sm font-semibold text-white shadow-sm transition hover:bg-blue-500 cursor-pointer" onClick={() => onNavigate({ view: "CONTEST_DETAIL", id: contests.data![0].id })}>
                   Xem chi tiết
                 </button>
               </div>
@@ -78,13 +94,13 @@ export function OverviewView({ onNavigate }: OrganizerViewProps) {
             {contests.data.slice(1).map((contest, index) => (
               <article key={contest.id} className="group flex h-full flex-col overflow-hidden rounded-2xl border border-slate-200 bg-white shadow-sm transition hover:-translate-y-0.5 hover:shadow-md">
                 <div className="relative">
-                  <ContestCover title={contest.name} seed={index} className="h-48 w-full transition-transform duration-500 group-hover:scale-105" />
+                  <ContestCover title={contest.name || "Cuộc thi"} seed={index} className="h-48 w-full transition-transform duration-500 group-hover:scale-105" />
                   <div className="absolute left-3 top-3">
-                    <StatusBadge {...CONTEST_STATUS[contest.status]} />
+                    <StatusBadge {...CONTEST_STATUS[contest.status || "ONGOING"]} />
                   </div>
                 </div>
                 <div className="flex flex-1 flex-col gap-4 p-4">
-                  <h3 className="min-h-7 text-lg font-bold text-[#0B356B]">{contest.name}</h3>
+                  <h3 className="min-h-7 text-lg font-bold text-[#0B356B]">{contest.name || "Cuộc thi"}</h3>
                   <div className="flex items-center justify-between text-sm text-slate-500">
                     <span className="flex items-center gap-2">
                       <Calendar size={16} aria-hidden />
@@ -92,7 +108,7 @@ export function OverviewView({ onNavigate }: OrganizerViewProps) {
                     </span>
                     <span className="flex items-center gap-1.5 rounded-lg bg-slate-100 px-2.5 py-1 font-semibold">
                       <Users size={14} aria-hidden />
-                      {contest.participantCount}
+                      {contest.participantCount ?? 0}
                     </span>
                   </div>
                   <div className="flex min-h-12 flex-wrap content-start gap-2">
@@ -104,7 +120,7 @@ export function OverviewView({ onNavigate }: OrganizerViewProps) {
                   </div>
                   <button
                     type="button"
-                    className="mt-auto inline-flex w-full items-center justify-center rounded-xl bg-blue-600 px-4 py-2.5 text-sm font-semibold text-white transition hover:bg-blue-700"
+                    className="mt-auto inline-flex w-full items-center justify-center rounded-xl bg-blue-600 px-4 py-2.5 text-sm font-semibold text-white transition hover:bg-blue-700 cursor-pointer"
                     onClick={() => onNavigate({ view: "CONTEST_DETAIL", id: contest.id })}
                   >
                     Xem chi tiết

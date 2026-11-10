@@ -1,9 +1,9 @@
-import React, { useState, useMemo } from 'react';
+import React, { useState, useMemo, useEffect } from 'react';
 import type { Portal } from '../../../../types/portal';
 import { Navbar } from '../Navbar';
 import { Footer } from '../Footer';
 import type { ArticleItem } from './data';
-import { ALL_ARTICLES_LIST } from './data';
+import { getAllUnifiedArticles } from './data';
 import {
   Search,
   Calendar,
@@ -34,9 +34,23 @@ export function AllArticlesPage({
 }: AllArticlesPageProps) {
   const [searchQuery, setSearchQuery] = useState('');
   const [selectedCategory, setSelectedCategory] = useState<string>('all');
+  const [allArticles, setAllArticles] = useState<ArticleItem[]>(getAllUnifiedArticles);
+
+  useEffect(() => {
+    const handleSync = () => {
+      setAllArticles(getAllUnifiedArticles());
+    };
+    window.addEventListener('filmcontest:articles-updated', handleSync);
+    window.addEventListener('storage', handleSync);
+    return () => {
+      window.removeEventListener('filmcontest:articles-updated', handleSync);
+      window.removeEventListener('storage', handleSync);
+    };
+  }, []);
 
   const categories = [
     { id: 'all', label: 'Tất cả chủ đề' },
+    { id: 'Góc nhìn giám khảo', label: 'Góc nhìn giám khảo' },
     { id: 'Cơ bản', label: 'Cơ bản nhập môn' },
     { id: 'Film Stock', label: 'Film Stock & Đánh giá' },
     { id: 'Hậu kỳ & Scan', label: 'Hậu kỳ & Scan' },
@@ -48,7 +62,7 @@ export function AllArticlesPage({
 
   // Filter articles based on category and search query
   const filteredArticles = useMemo(() => {
-    return ALL_ARTICLES_LIST.filter((article) => {
+    return allArticles.filter((article) => {
       const matchesCategory =
         selectedCategory === 'all' || article.category === selectedCategory;
 
@@ -61,9 +75,9 @@ export function AllArticlesPage({
 
       return matchesCategory && matchesSearch;
     });
-  }, [selectedCategory, searchQuery]);
+  }, [allArticles, selectedCategory, searchQuery]);
 
-  const featuredArticle = ALL_ARTICLES_LIST[0]; // Hero article
+  const featuredArticle = allArticles[0] || filteredArticles[0]; // Hero article
 
   return (
     <div className="min-h-screen bg-[#F8FAFC] text-slate-800 flex flex-col font-sans">
@@ -99,7 +113,7 @@ export function AllArticlesPage({
             </div>
 
             <div className="text-xs text-slate-500 font-medium hidden sm:block">
-              Tổng số <span className="font-bold text-blue-600">{ALL_ARTICLES_LIST.length}</span> bài viết chuyên đề
+              Tổng số <span className="font-bold text-blue-600">{allArticles.length}</span> bài viết chuyên đề
             </div>
           </div>
         </div>
@@ -201,11 +215,11 @@ export function AllArticlesPage({
                       </div>
                     </div>
 
-                    <h3 className="text-xl sm:text-2xl font-bold text-slate-900 group-hover:text-blue-600 transition-colors mb-3 leading-snug">
+                    <h3 className="text-xl sm:text-2xl font-bold text-slate-900 group-hover:text-blue-600 transition-colors mb-3 leading-snug min-w-0 break-words [overflow-wrap:anywhere] [word-break:break-word]">
                       {featuredArticle.title}
                     </h3>
 
-                    <p className="text-sm text-slate-600 line-clamp-3 leading-relaxed mb-4">
+                    <p className="text-sm text-slate-600 line-clamp-3 leading-relaxed mb-4 min-w-0 break-words [overflow-wrap:anywhere] [word-break:break-word]">
                       {featuredArticle.excerpt}
                     </p>
                   </div>
@@ -276,11 +290,11 @@ export function AllArticlesPage({
                         <span>{article.readTime}</span>
                       </div>
 
-                      <h3 className="text-sm sm:text-base font-bold text-slate-900 line-clamp-2 leading-snug group-hover:text-blue-600 transition-colors mb-2">
+                      <h3 className="text-sm sm:text-base font-bold text-slate-900 line-clamp-2 leading-snug group-hover:text-blue-600 transition-colors mb-2 min-w-0 break-words [overflow-wrap:anywhere] [word-break:break-word]">
                         {article.title}
                       </h3>
 
-                      <p className="text-xs text-slate-500 line-clamp-2 leading-relaxed">
+                      <p className="text-xs text-slate-500 line-clamp-2 leading-relaxed min-w-0 break-words [overflow-wrap:anywhere] [word-break:break-word]">
                         {article.excerpt}
                       </p>
                     </div>

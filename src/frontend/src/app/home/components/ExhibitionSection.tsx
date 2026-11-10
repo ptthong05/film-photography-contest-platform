@@ -1,5 +1,6 @@
-import React from 'react';
-import { Award, ArrowRight, Eye, Heart } from 'lucide-react';
+import React, { useEffect, useState } from 'react';
+import { Award, ArrowRight, Eye, Heart, Sparkles } from 'lucide-react';
+import { getPublishedWinningPhotos, type PublishedWinningPhoto } from '../../../services/publishedAwardService';
 
 const STORAGE_LIKED_KEY = 'film_contest_liked_photos';
 const STORAGE_LIKES_COUNT_KEY = 'film_contest_photo_likes_counts';
@@ -29,44 +30,16 @@ export function ExhibitionSection({
     }
   });
 
-  const winningPhotos = [
-    {
-      id: 'p1',
-      title: 'Khoảnh khắc bình minh',
-      author: 'Nguyễn Văn A',
-      award: 'Giải Nhất - Analog Moments 2025',
-      image: 'https://images.unsplash.com/photo-1506744038136-46273834b3fb?auto=format&fit=crop&w=600&q=80',
-      views: 1420,
-      likes: 382,
-    },
-    {
-      id: 'p2',
-      title: 'Đường về',
-      author: 'Trần Thị Bình',
-      award: 'Giải Nhì - Film & City',
-      image: 'https://images.unsplash.com/photo-1514565131-fce0801e5785?auto=format&fit=crop&w=600&q=80',
-      views: 980,
-      likes: 245,
-    },
-    {
-      id: 'p3',
-      title: 'Nắng cuối ngày',
-      author: 'Lê Minh Cường',
-      award: 'Giải Ba - The Vintage Look',
-      image: 'https://images.unsplash.com/photo-1507525428034-b723cf961d3e?auto=format&fit=crop&w=600&q=80',
-      views: 870,
-      likes: 210,
-    },
-    {
-      id: 'p4',
-      title: 'Góc phố cũ',
-      author: 'Phạm Thị Dung',
-      award: 'Giải Khuyến khích - Film & City',
-      image: 'https://images.unsplash.com/photo-1495745966610-2a67f2297e5e?auto=format&fit=crop&w=600&q=80',
-      views: 650,
-      likes: 189,
-    },
-  ];
+  const [publishedPhotos, setPublishedPhotos] = useState<PublishedWinningPhoto[]>(getPublishedWinningPhotos);
+
+  useEffect(() => {
+    setPublishedPhotos(getPublishedWinningPhotos());
+    const handleStorage = () => setPublishedPhotos(getPublishedWinningPhotos());
+    window.addEventListener('storage', handleStorage);
+    return () => window.removeEventListener('storage', handleStorage);
+  }, []);
+
+  const winningPhotos = publishedPhotos.slice(0, 4);
 
   const handleToggleLike = (e: React.MouseEvent, photoId: string, baseLikes: number) => {
     e.stopPropagation();

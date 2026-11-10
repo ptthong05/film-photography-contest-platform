@@ -20,7 +20,8 @@ import AdminPage from './admin/page';
 import OrganizerPage from './organizer/page';
 import JudgePage from './judge/page';
 import ParticipantPage from './participant/page';
-import { BackButton } from '../components/BackButton';
+import { ErrorBoundary } from '../components/ErrorBoundary';
+
 
 const PORTAL_STORAGE_KEY = 'film_contest_active_portal';
 const CONTEST_ID_STORAGE_KEY = 'film_contest_selected_contest_id';
@@ -28,7 +29,7 @@ const PHOTO_ID_STORAGE_KEY = 'film_contest_selected_photo_id';
 const AUTHOR_NAME_STORAGE_KEY = 'film_contest_selected_author_name';
 const ARTICLE_ID_STORAGE_KEY = 'film_contest_selected_article_id';
 
-function parseHashRoute(): {
+function parseRoute(): {
   portal: Portal | null;
   contestId?: string;
   photoId?: string;
@@ -36,68 +37,48 @@ function parseHashRoute(): {
   articleId?: string;
 } {
   if (typeof window === 'undefined') return { portal: null };
-  const rawHash = window.location.hash.replace(/^#\/?/, '').trim();
-  if (!rawHash) return { portal: null };
+  const rawHash = window.location.hash.replace(/^#\/?/, '').split('?')[0].replace(/\/+$/, '').trim();
+  const rawPath = window.location.pathname.replace(/^\/+|\/+$/g, '').split('?')[0].replace(/\/+$/, '').trim();
 
-  if (rawHash === 'leaderboard' || rawHash === 'bang-xep-hang') {
-    return { portal: 'LEADERBOARD' };
-  }
-  if (rawHash === 'contests' || rawHash === 'cuoc-thi') {
-    return { portal: 'CONTESTS' };
-  }
-  if (rawHash === 'winning-photos' || rawHash === 'kho-anh-dat-giai') {
-    return { portal: 'WINNING_PHOTOS' };
-  }
-  if (rawHash === 'articles' || rawHash === 'tin-tuc') {
-    return { portal: 'ARTICLES' };
-  }
-  if (rawHash === 'guide' || rawHash === 'huong-dan') {
-    return { portal: 'GUIDE' };
-  }
-  if (rawHash === 'auth' || rawHash === 'dang-nhap' || rawHash === 'dang-ky') {
-    return { portal: 'AUTH' };
-  }
-  if (rawHash === 'admin') return { portal: 'ADMIN' };
-  if (rawHash === 'organizer') return { portal: 'ORGANIZER' };
-  if (rawHash === 'judge') return { portal: 'JUDGE' };
-  if (rawHash === 'participant') return { portal: 'PARTICIPANT' };
-  if (rawHash === 'about' || rawHash === 'gioi-thieu') {
-    return { portal: 'ABOUT' };
-  }
-  if (rawHash === 'terms' || rawHash === 'dieu-khoan' || rawHash === 'dieu-khoan-su-dung') {
-    return { portal: 'TERMS' };
-  }
-  if (rawHash === 'privacy' || rawHash === 'chinh-sach' || rawHash === 'chinh-sach-bao-mat') {
-    return { portal: 'PRIVACY' };
-  }
-  if (rawHash === 'contact' || rawHash === 'lien-he' || rawHash === 'lien-he-ho-tro' || rawHash === 'support') {
-    return { portal: 'CONTACT' };
-  }
-  if (rawHash === 'events' || rawHash === 'su-kien') {
-    return { portal: 'EVENTS' };
-  }
-  if (rawHash === 'community' || rawHash === 'cong-dong' || rawHash === 'ket-noi-cong-dong') {
-    return { portal: 'HOME' };
-  }
-  if (rawHash === 'faq' || rawHash === 'faq-section' || rawHash === 'cau-hoi-thuong-gap') {
-    return { portal: 'HOME' };
-  }
-  if (rawHash === 'home' || rawHash === 'trang-chu') return { portal: 'HOME' };
+  // Ưu tiên hash nếu có, nếu không có hash thì nhận diện theo pathname URL
+  const route = rawHash || rawPath;
+  if (!route) return { portal: null };
 
-  if (rawHash.startsWith('contest/')) {
-    const id = rawHash.replace('contest/', '');
+  const lower = route.toLowerCase();
+
+  if (lower === 'admin' || lower === 'quan-tri') return { portal: 'ADMIN' };
+  if (lower === 'organizer' || lower === 'organzier' || lower === 'orginier' || lower === 'orginzer' || lower === 'ban-to-chuc') return { portal: 'ORGANIZER' };
+  if (lower === 'judge' || lower === 'giam-khao') return { portal: 'JUDGE' };
+  if (lower === 'participant' || lower === 'thi-sinh' || lower === 'nguoi-tham-gia') return { portal: 'PARTICIPANT' };
+  if (lower === 'leaderboard' || lower === 'bang-xep-hang') return { portal: 'LEADERBOARD' };
+  if (lower === 'contests' || lower === 'cuoc-thi') return { portal: 'CONTESTS' };
+  if (lower === 'winning-photos' || lower === 'kho-anh-dat-giai') return { portal: 'WINNING_PHOTOS' };
+  if (lower === 'articles' || lower === 'tin-tuc') return { portal: 'ARTICLES' };
+  if (lower === 'guide' || lower === 'huong-dan') return { portal: 'GUIDE' };
+  if (lower === 'auth' || lower === 'dang-nhap' || lower === 'dang-ky') return { portal: 'AUTH' };
+  if (lower === 'about' || lower === 'gioi-thieu') return { portal: 'ABOUT' };
+  if (lower === 'terms' || lower === 'dieu-khoan' || lower === 'dieu-khoan-su-dung') return { portal: 'TERMS' };
+  if (lower === 'privacy' || lower === 'chinh-sach' || lower === 'chinh-sach-bao-mat') return { portal: 'PRIVACY' };
+  if (lower === 'contact' || lower === 'lien-he' || lower === 'lien-he-ho-tro' || lower === 'support') return { portal: 'CONTACT' };
+  if (lower === 'events' || lower === 'su-kien') return { portal: 'EVENTS' };
+  if (lower === 'community' || lower === 'cong-dong' || lower === 'ket-noi-cong-dong') return { portal: 'HOME' };
+  if (lower === 'faq' || lower === 'faq-section' || lower === 'cau-hoi-thuong-gap') return { portal: 'HOME' };
+  if (lower === 'home' || lower === 'trang-chu') return { portal: 'HOME' };
+
+  if (lower.startsWith('contest/')) {
+    const id = route.replace(/^contest\//i, '');
     return { portal: 'CONTEST_DETAIL', contestId: id };
   }
-  if (rawHash.startsWith('photo/')) {
-    const id = rawHash.replace('photo/', '');
+  if (lower.startsWith('photo/')) {
+    const id = route.replace(/^photo\//i, '');
     return { portal: 'PHOTO_DETAIL', photoId: id };
   }
-  if (rawHash.startsWith('author/')) {
-    const name = decodeURIComponent(rawHash.replace('author/', ''));
+  if (lower.startsWith('author/')) {
+    const name = decodeURIComponent(route.replace(/^author\//i, ''));
     return { portal: 'AUTHOR_PROFILE', authorName: name };
   }
-  if (rawHash.startsWith('article/')) {
-    const id = rawHash.replace('article/', '');
+  if (lower.startsWith('article/')) {
+    const id = route.replace(/^article\//i, '');
     return { portal: 'ARTICLE_DETAIL', articleId: id };
   }
 
@@ -158,7 +139,7 @@ function getPortalHash(
 }
 
 export default function RootPage() {
-  const initialRoute = parseHashRoute();
+  const initialRoute = parseRoute();
   const savedPortal = (() => {
     try {
       return localStorage.getItem(PORTAL_STORAGE_KEY) as Portal | null;
@@ -230,10 +211,10 @@ export default function RootPage() {
     }
   };
 
-  // Sync hash changes (e.g. browser back/forward buttons or direct URL change)
+  // Sync route changes (cả hash và URL pathname trực tiếp như /admin, /judge...)
   useEffect(() => {
-    const handleHashChange = () => {
-      const route = parseHashRoute();
+    const handleRouteChange = () => {
+      const route = parseRoute();
       if (route.portal) {
         setActivePortalState(route.portal);
         try {
@@ -243,7 +224,10 @@ export default function RootPage() {
         if (route.photoId) setSelectedPhotoId(route.photoId);
         if (route.authorName) setSelectedAuthorName(route.authorName);
         if (route.articleId) setSelectedArticleId(route.articleId);
-      } else if (!window.location.hash || window.location.hash === '#' || window.location.hash === '#/') {
+      } else if (
+        (!window.location.hash || window.location.hash === '#' || window.location.hash === '#/') &&
+        (!window.location.pathname || window.location.pathname === '/')
+      ) {
         setActivePortalState('HOME');
         try {
           localStorage.setItem(PORTAL_STORAGE_KEY, 'HOME');
@@ -258,30 +242,48 @@ export default function RootPage() {
       }
     };
 
-    window.addEventListener('hashchange', handleHashChange);
-    return () => window.removeEventListener('hashchange', handleHashChange);
+    window.addEventListener('hashchange', handleRouteChange);
+    window.addEventListener('popstate', handleRouteChange);
+    return () => {
+      window.removeEventListener('hashchange', handleRouteChange);
+      window.removeEventListener('popstate', handleRouteChange);
+    };
   }, []);
 
-  // Update hash on first load if missing
+  // Update hash on first load if missing, accessing via pathname like /admin, or if misspelled alias
   useEffect(() => {
     const currentHash = window.location.hash;
+    const currentPath = window.location.pathname.replace(/^\/+|\/+$/g, '').trim();
+    const canonicalHash = getPortalHash(
+      activePortal,
+      selectedContestId,
+      selectedPhotoId,
+      selectedAuthorName,
+      selectedArticleId
+    );
+
     if (!currentHash || currentHash === '#' || currentHash === '#/') {
       if (activePortal !== 'HOME') {
-        const hash = getPortalHash(
-          activePortal,
-          selectedContestId,
-          selectedPhotoId,
-          selectedAuthorName,
-          selectedArticleId
-        );
-        window.history.replaceState(null, '', hash);
+        window.history.replaceState(null, '', canonicalHash);
+      } else if (currentPath) {
+        window.history.replaceState(null, '', '#/');
       }
+    } else if (
+      activePortal !== 'HOME' &&
+      currentHash.toLowerCase() !== canonicalHash.toLowerCase()
+    ) {
+      // Chuẩn hóa URL nếu người dùng gõ alias sai chính tả (ví dụ #/organzier, #/orginier -> #/organizer)
+      window.history.replaceState(null, '', canonicalHash);
     }
   }, [activePortal, selectedContestId, selectedPhotoId, selectedAuthorName, selectedArticleId]);
 
   const goHome = () => {
     setActivePortal('HOME');
-    window.location.hash = '#/';
+    if (window.location.pathname !== '/') {
+      window.history.pushState(null, '', '/#/');
+    } else {
+      window.location.hash = '#/';
+    }
   };
 
   const goContests = () => {
@@ -541,14 +543,16 @@ export default function RootPage() {
 
 
   return (
-    <div className="relative min-h-screen bg-slate-50 text-slate-800">
-      {activePortal !== 'PARTICIPANT' && activePortal !== 'ORGANIZER' && activePortal !== 'JUDGE' && (
-        <BackButton label="Về Trang Chủ" onClick={goHome} />
-      )}
-      {activePortal === 'ADMIN' && <AdminPage />}
-      {activePortal === 'ORGANIZER' && <OrganizerPage onGoHome={goHome} />}
-      {activePortal === 'JUDGE' && <JudgePage onExit={goHome} />}
-      {activePortal === 'PARTICIPANT' && <ParticipantPage onGoHome={goHome} />}
-    </div>
+    <ErrorBoundary portalName="FilmContest" onReset={goHome}>
+      <div className="relative min-h-screen bg-slate-50 text-slate-800">
+        {activePortal === 'ADMIN' && <AdminPage />}
+        {activePortal === 'ORGANIZER' && <OrganizerPage onGoHome={goHome} />}
+        {activePortal === 'JUDGE' && <JudgePage onExit={goHome} />}
+        {activePortal === 'PARTICIPANT' && <ParticipantPage onGoHome={goHome} />}
+        {!['ADMIN', 'ORGANIZER', 'JUDGE', 'PARTICIPANT'].includes(activePortal) && (
+          <OrganizerPage onGoHome={goHome} />
+        )}
+      </div>
+    </ErrorBoundary>
   );
 }

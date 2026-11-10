@@ -23,4 +23,5 @@ export interface Submission {
   submittedAt: string;
   status: SubmissionStatus;
   metadata: FilmMetadata;
+  imageUrl?: string;
 }

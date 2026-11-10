@@ -89,7 +89,7 @@ export function MyEntriesList() {
     window.dispatchEvent(new Event('storage'));
   };
 
-  useEffect(() => {
+  const loadEntries = () => {
     try {
       const savedTrash = localStorage.getItem('participant_trash_entries');
       const trashList: EntryDetail[] = savedTrash ? JSON.parse(savedTrash) : [];
@@ -110,6 +110,18 @@ export function MyEntriesList() {
     } catch (err) {
       console.error(err);
     }
+  };
+
+  useEffect(() => {
+    loadEntries();
+    window.addEventListener('filmcontest:submissions-updated', loadEntries);
+    window.addEventListener('entrySubmitted', loadEntries);
+    window.addEventListener('storage', loadEntries);
+    return () => {
+      window.removeEventListener('filmcontest:submissions-updated', loadEntries);
+      window.removeEventListener('entrySubmitted', loadEntries);
+      window.removeEventListener('storage', loadEntries);
+    };
   }, []);
 
   const showToast = (msg: string) => {
@@ -121,8 +133,8 @@ export function MyEntriesList() {
     e.preventDefault();
     if (!editingEntry) return;
 
-    if (editingEntry.status === 'Đã chấm') {
-      alert('Bài dự thi đã được chấm điểm chính thức, không thể thay đổi thông tin!');
+    if (editingEntry.status !== 'Đang chờ duyệt' && editingEntry.status !== 'Chờ duyệt') {
+      alert('Bài dự thi đã được Ban tổ chức phê duyệt hoặc chấm điểm, không thể thay đổi thông tin!');
       setEditingEntry(null);
       return;
     }
@@ -131,6 +143,8 @@ export function MyEntriesList() {
     setEntries(updated);
     localStorage.setItem('participant_entries', JSON.stringify(updated));
     syncCountToDashboard(updated);
+    window.dispatchEvent(new Event('filmcontest:submissions-updated'));
+    window.dispatchEvent(new Event('storage'));
     setEditingEntry(null);
     showToast('Đã lưu và cập nhật toàn bộ thông tin bài dự thi thành công!');
   };
@@ -230,7 +244,7 @@ export function MyEntriesList() {
               type="text"
               value={editingEntry.title || ''}
               onChange={(e) => setEditingEntry({ ...editingEntry, title: e.target.value })}
-              className="w-full text-3xl md:text-4xl font-black text-slate-900 px-6 py-4 rounded-2xl border-2 border-indigo-200 focus:outline-none focus:border-indigo-600 bg-slate-50"
+              className="w-full text-xl font-bold text-slate-900 px-4 py-2.5 rounded-xl border border-indigo-200 focus:outline-none focus:border-indigo-600 bg-slate-50"
               required
             />
           </div>
@@ -359,12 +373,12 @@ export function MyEntriesList() {
           </span>
         </div>
 
-        <div className="bg-white p-8 md:p-10 rounded-3xl border border-slate-200/90 shadow-sm space-y-3">
-          <span className="text-xs font-black text-blue-600 uppercase tracking-widest bg-blue-50 px-3.5 py-1.5 rounded-full inline-block border border-blue-200">
+        <div className="bg-white p-5 sm:p-6 rounded-2xl border border-slate-200 shadow-sm space-y-1.5">
+          <span className="text-[11px] font-semibold text-blue-600 uppercase tracking-wider bg-blue-50 px-2.5 py-0.5 rounded-full inline-block border border-blue-200">
             {selectedEntry.contestTitle || 'CUỘC THI PHIM'}
           </span>
-          <h1 className="text-3xl md:text-5xl font-black text-slate-900 tracking-tight">{selectedEntry.title}</h1>
-          <p className="text-xs md:text-sm font-bold text-slate-400">📅 Ngày nộp chính thức: {selectedEntry.submittedAt} • Mã hồ sơ tác phẩm: <strong className="text-slate-700">{selectedEntry.id}</strong></p>
+          <h1 className="text-xl md:text-2xl font-bold text-[#0B356B] tracking-tight">{selectedEntry.title}</h1>
+          <p className="text-xs text-slate-400 font-medium">📅 Ngày nộp chính thức: {selectedEntry.submittedAt} • Mã hồ sơ tác phẩm: <strong className="text-slate-700">{selectedEntry.id}</strong></p>
         </div>
 
         {/* NẾU LÀ BÀI BỊ TỪ CHỐI -> HIỂN THỊ KHUNG NGUYÊN NHÂN VÀ AI PHÂN TÍCH ẢNH NGAY TRONG TRANG CHI TIẾT */}
@@ -459,7 +473,7 @@ export function MyEntriesList() {
   }
 
   return (
-    <div className="space-y-8 max-w-[1800px] mx-auto pb-20 relative font-sans text-slate-900">
+    <div className="space-y-5 w-full pb-16 relative font-sans text-slate-900">
       {toastMessage && (
         <div className="fixed top-5 right-5 z-50 bg-slate-900 text-white px-6 py-4 rounded-2xl shadow-2xl flex items-center gap-3 border border-slate-700 animate-bounce text-sm font-bold">
           <Sparkles className="w-5 h-5 text-amber-400" />
@@ -467,119 +481,127 @@ export function MyEntriesList() {
         </div>
       )}
 
+      {/* Banner xác nhận xóa inline (Không popup modal ở giữa) */}
       {deleteId && (
-        <div className="fixed inset-0 z-50 bg-black/70 backdrop-blur-md flex items-center justify-center p-6">
-          <div className="bg-white w-full max-w-md rounded-[28px] shadow-2xl border border-slate-200 p-8 space-y-6 animate-fade-in text-center">
-            <div className="w-16 h-16 bg-red-100 text-red-600 rounded-full flex items-center justify-center mx-auto">
-              <Trash2 className="w-8 h-8" />
+        <div className="bg-rose-50 border border-rose-200 rounded-2xl p-4 sm:p-5 flex flex-col sm:flex-row items-start sm:items-center justify-between gap-4 animate-fade-in shadow-sm">
+          <div className="flex items-center gap-3">
+            <div className="w-10 h-10 rounded-xl bg-rose-100 text-rose-600 flex items-center justify-center shrink-0">
+              <Trash2 className="w-5 h-5" />
             </div>
-            <div className="space-y-2">
-              <h3 className="text-xl font-black text-slate-900">Xác Nhận Xóa Bài Dự Thi</h3>
-              <p className="text-sm font-medium text-slate-500">Bài dự thi sẽ được chuyển vào mục Lịch sử xóa (Thùng rác).</p>
+            <div>
+              <h4 className="text-sm font-bold text-rose-900">Xác nhận xóa bài dự thi?</h4>
+              <p className="text-xs text-rose-700">
+                Bài dự thi sẽ được chuyển vào mục <strong>Lịch sử xóa (Thùng rác)</strong> và có thể khôi phục bất cứ lúc nào.
+              </p>
             </div>
-            <div className="flex gap-3">
-              <button onClick={() => setDeleteId(null)} className="flex-1 py-3 bg-slate-100 text-slate-700 font-black text-xs rounded-xl cursor-pointer">
-                Hủy bỏ
-              </button>
-              <button onClick={() => handleDeleteEntry(deleteId)} className="flex-1 py-3 bg-red-600 hover:bg-red-700 text-white font-black text-xs rounded-xl shadow cursor-pointer">
-                Chuyển vào thùng rác
-              </button>
-            </div>
+          </div>
+          <div className="flex items-center gap-2 self-end sm:self-auto shrink-0">
+            <button
+              onClick={() => setDeleteId(null)}
+              className="px-4 py-2 bg-white hover:bg-slate-50 text-slate-700 font-semibold text-xs rounded-xl border border-slate-200 transition cursor-pointer"
+            >
+              Hủy bỏ
+            </button>
+            <button
+              onClick={() => handleDeleteEntry(deleteId)}
+              className="px-4 py-2 bg-rose-600 hover:bg-rose-700 text-white font-bold text-xs rounded-xl shadow-xs transition cursor-pointer"
+            >
+              Chuyển vào thùng rác
+            </button>
           </div>
         </div>
       )}
 
-      <div className="bg-white p-8 md:p-10 rounded-3xl border border-slate-200/90 shadow-sm space-y-2">
-        <span className="text-xs font-black text-blue-600 uppercase tracking-widest bg-blue-50 px-3.5 py-1.5 rounded-full border border-blue-200">
+      <div className="bg-white p-5 sm:p-6 rounded-2xl border border-slate-200 shadow-sm space-y-1.5">
+        <span className="text-[11px] font-semibold text-blue-600 uppercase tracking-wider bg-blue-50 px-2.5 py-0.5 rounded-full border border-blue-200 inline-block">
           ● PARTICIPANT PORTAL
         </span>
-        <h1 className="text-3xl md:text-4xl font-black text-slate-900 tracking-tight">Bài Dự Thi Của Tôi</h1>
-        <p className="text-sm text-slate-500">Quản lý, theo dõi, xem chi tiết nguyên nhân từ chối và báo cáo AI phân tích ảnh</p>
+        <h1 className="text-xl md:text-2xl font-bold text-[#0B356B] tracking-tight">Bài Dự Thi Của Tôi</h1>
+        <p className="text-xs sm:text-sm text-slate-500 leading-relaxed">Quản lý, theo dõi, xem chi tiết nguyên nhân từ chối và báo cáo AI phân tích ảnh</p>
       </div>
 
-      <div className="bg-white p-5 rounded-3xl border border-slate-200/90 shadow-sm flex items-center gap-3 overflow-x-auto">
+      <div className="bg-white p-3 sm:p-3.5 rounded-xl border border-slate-200 shadow-sm flex items-center gap-2 overflow-x-auto">
         <button
           onClick={() => setFilterTab('Tất cả')}
-          className={`px-6 py-3 rounded-2xl text-xs font-black transition whitespace-nowrap cursor-pointer ${
-            filterTab === 'Tất cả' ? 'bg-blue-600 text-white shadow-md' : 'bg-slate-100 hover:bg-slate-200 text-slate-700'
+          className={`px-3.5 py-1.5 rounded-lg text-xs font-semibold transition whitespace-nowrap cursor-pointer ${
+            filterTab === 'Tất cả' ? 'bg-blue-600 text-white shadow-sm' : 'bg-slate-100 hover:bg-slate-200 text-slate-700'
           }`}
         >
           Tất cả ({countAll})
         </button>
         <button
           onClick={() => setFilterTab('Đang chờ duyệt')}
-          className={`px-6 py-3 rounded-2xl text-xs font-black transition whitespace-nowrap cursor-pointer ${
-            filterTab === 'Đang chờ duyệt' ? 'bg-blue-600 text-white shadow-md' : 'bg-slate-100 hover:bg-slate-200 text-slate-700'
+          className={`px-3.5 py-1.5 rounded-lg text-xs font-semibold transition whitespace-nowrap cursor-pointer ${
+            filterTab === 'Đang chờ duyệt' ? 'bg-blue-600 text-white shadow-sm' : 'bg-slate-100 hover:bg-slate-200 text-slate-700'
           }`}
         >
           Đang chờ duyệt ({countPending})
         </button>
         <button
           onClick={() => setFilterTab('Đã duyệt / Đã chấm')}
-          className={`px-6 py-3 rounded-2xl text-xs font-black transition whitespace-nowrap cursor-pointer ${
-            filterTab === 'Đã duyệt / Đã chấm' ? 'bg-blue-600 text-white shadow-md' : 'bg-slate-100 hover:bg-slate-200 text-slate-700'
+          className={`px-3.5 py-1.5 rounded-lg text-xs font-semibold transition whitespace-nowrap cursor-pointer ${
+            filterTab === 'Đã duyệt / Đã chấm' ? 'bg-blue-600 text-white shadow-sm' : 'bg-slate-100 hover:bg-slate-200 text-slate-700'
           }`}
         >
           Đã duyệt / Đã chấm ({countApproved})
         </button>
         <button
           onClick={() => setFilterTab('Từ chối')}
-          className={`px-6 py-3 rounded-2xl text-xs font-black transition whitespace-nowrap cursor-pointer ${
-            filterTab === 'Từ chối' ? 'bg-blue-600 text-white shadow-md' : 'bg-slate-100 hover:bg-slate-200 text-slate-700'
+          className={`px-3.5 py-1.5 rounded-lg text-xs font-semibold transition whitespace-nowrap cursor-pointer ${
+            filterTab === 'Từ chối' ? 'bg-blue-600 text-white shadow-sm' : 'bg-slate-100 hover:bg-slate-200 text-slate-700'
           }`}
         >
           Từ chối ({countRejected})
         </button>
         <button
           onClick={() => setFilterTab('Lịch sử xóa')}
-          className={`px-6 py-3 rounded-2xl text-xs font-black transition whitespace-nowrap cursor-pointer flex items-center gap-2 ${
-            filterTab === 'Lịch sử xóa' ? 'bg-rose-600 text-white shadow-md' : 'bg-rose-50 hover:bg-rose-100 text-rose-700 border border-rose-200'
+          className={`px-3.5 py-1.5 rounded-lg text-xs font-semibold transition whitespace-nowrap cursor-pointer flex items-center gap-1.5 ${
+            filterTab === 'Lịch sử xóa' ? 'bg-rose-600 text-white shadow-sm' : 'bg-rose-50 hover:bg-rose-100 text-rose-700 border border-rose-200'
           }`}
         >
           <Trash2 className="w-3.5 h-3.5" /> Lịch sử xóa ({countTrash})
         </button>
       </div>
 
-      <div className="space-y-6">
+      <div className="space-y-4">
         {filteredEntries.length === 0 ? (
-          <div className="bg-white p-16 rounded-3xl border border-slate-200 text-center space-y-3">
-            <AlertCircle className="w-12 h-12 text-slate-300 mx-auto" />
-            <p className="text-base font-black text-slate-700">Không có bài dự thi nào trong mục này</p>
+          <div className="bg-white p-10 rounded-xl border border-slate-200 text-center space-y-2">
+            <AlertCircle className="w-10 h-10 text-slate-300 mx-auto" />
+            <p className="text-sm font-bold text-slate-700">Không có bài dự thi nào trong mục này</p>
           </div>
         ) : (
           filteredEntries.map((entry) => (
             <div
               key={entry.id}
-              className="bg-white p-8 md:p-9 rounded-3xl border border-slate-200/90 shadow-sm hover:border-blue-400 hover:shadow-md transition space-y-6"
+              className="bg-white p-3.5 sm:p-4 rounded-xl border border-slate-200 shadow-xs hover:border-blue-400 hover:shadow-md transition"
             >
-              <div className="flex flex-col md:flex-row items-start md:items-center justify-between gap-6">
-
-                <div className="flex items-center gap-6">
+              <div className="flex flex-col md:flex-row items-start md:items-center justify-between gap-4">
+                <div className="flex items-center gap-3.5 min-w-0">
                   <img
                     src={entry.photoUrl}
                     alt={entry.title}
-                    className="w-36 h-36 md:w-40 md:h-40 object-cover rounded-2xl shadow-md border border-slate-200 flex-shrink-0 bg-slate-100"
+                    className="w-20 h-20 sm:w-24 sm:h-24 object-cover rounded-lg shadow-xs border border-slate-200 shrink-0 bg-slate-100"
                   />
-                  <div className="space-y-2">
-                    <span className="text-xs font-black text-blue-600 uppercase tracking-widest">{entry.contestTitle || 'CUỘC THI PHIM'}</span>
-                    <h3 className="font-black text-slate-900 text-xl md:text-2xl">{entry.title}</h3>
-                    <p className="text-xs md:text-sm text-slate-600 line-clamp-2 max-w-4xl leading-relaxed font-medium">{entry.description}</p>
+                  <div className="space-y-1 min-w-0">
+                    <span className="text-[10px] font-bold text-blue-600 uppercase tracking-wider">{entry.contestTitle || 'CUỘC THI PHIM'}</span>
+                    <h3 className="font-bold text-slate-900 text-sm sm:text-base truncate" title={entry.title}>{entry.title}</h3>
+                    <p className="text-xs text-slate-500 line-clamp-1 max-w-2xl leading-relaxed">{entry.description}</p>
 
                     {entry.status === 'Từ chối' && (
-                      <div className="p-3 bg-rose-50 rounded-2xl border border-rose-200 flex items-start gap-2.5 max-w-3xl">
-                        <AlertTriangle className="w-4 h-4 text-rose-600 flex-shrink-0 mt-0.5" />
-                        <p className="text-xs font-bold text-rose-900 leading-relaxed">
-                          <strong className="uppercase">Nguyên nhân từ chối:</strong> {entry.rejectReason || 'Không đạt tiêu chuẩn kỹ thuật quét ảnh phim.'}
+                      <div className="p-2 bg-rose-50 rounded-lg border border-rose-200 flex items-start gap-1.5 max-w-2xl">
+                        <AlertTriangle className="w-3.5 h-3.5 text-rose-600 shrink-0 mt-0.5" />
+                        <p className="text-[11px] font-medium text-rose-900 leading-tight">
+                          <strong className="uppercase">Từ chối:</strong> {entry.rejectReason || 'Không đạt tiêu chuẩn kỹ thuật.'}
                         </p>
                       </div>
                     )}
 
-                    <p className="text-xs font-bold text-slate-400 pt-1">📅 Nộp ngày: {entry.submittedAt} • Mã: {entry.id}</p>
+                    <p className="text-[11px] text-slate-400 font-medium">📅 {entry.submittedAt} • Mã: {entry.id}</p>
                   </div>
                 </div>
 
-                <div className="flex items-center gap-3 w-full md:w-auto justify-between md:justify-end pt-3 md:pt-0 border-t md:border-t-0 border-slate-100 flex-wrap">
-                  <span className={`px-5 py-2.5 rounded-full text-xs font-black shadow-sm ${
+                <div className="flex items-center gap-2 w-full md:w-auto justify-between md:justify-end pt-2 md:pt-0 border-t md:border-t-0 border-slate-100 shrink-0 flex-wrap">
+                  <span className={`px-2.5 py-1 rounded-full text-[11px] font-semibold ${
                     entry.status === 'Đã duyệt'
                       ? 'bg-emerald-100 text-emerald-800'
                       : entry.status === 'Đã chấm'
@@ -593,26 +615,27 @@ export function MyEntriesList() {
 
                   <button
                     onClick={() => setSelectedEntry(entry)}
-                    className="flex items-center gap-1.5 px-5 py-3 bg-blue-50 hover:bg-blue-100 text-blue-700 font-extrabold text-xs rounded-2xl transition cursor-pointer active:scale-95 shadow-sm"
+                    className="flex items-center gap-1 px-3 py-1.5 bg-blue-50 hover:bg-blue-100 text-blue-700 font-semibold text-xs rounded-lg transition cursor-pointer active:scale-95 shadow-xs"
                   >
-                    <Eye className="w-4 h-4" /> Xem chi tiết
+                    <Eye className="w-3.5 h-3.5" /> Chi tiết
                   </button>
 
-                  {entry.status !== 'Đã chấm' && entry.status !== 'Từ chối' && (
+                  {/* Chỉ cho phép sửa khi bài dự thi chưa duyệt (Đang chờ duyệt) */}
+                  {(entry.status === 'Đang chờ duyệt' || entry.status === 'Chờ duyệt') && (
                     <button
                       onClick={() => setEditingEntry(entry)}
-                      className="flex items-center gap-1.5 px-5 py-3 bg-indigo-50 hover:bg-indigo-100 text-indigo-700 font-extrabold text-xs rounded-2xl transition cursor-pointer active:scale-95 shadow-sm"
+                      className="flex items-center gap-1 px-3 py-1.5 bg-indigo-50 hover:bg-indigo-100 text-indigo-700 font-semibold text-xs rounded-lg transition cursor-pointer active:scale-95 shadow-xs"
                     >
-                      <Edit3 className="w-4 h-4" /> Sửa
+                      <Edit3 className="w-3.5 h-3.5" /> Sửa
                     </button>
                   )}
 
                   <button
                     onClick={() => setDeleteId(entry.id)}
-                    className="p-3 bg-rose-50 hover:bg-rose-100 text-rose-600 rounded-2xl transition cursor-pointer active:scale-95 shadow-sm"
+                    className="p-1.5 bg-rose-50 hover:bg-rose-100 text-rose-600 rounded-lg transition cursor-pointer active:scale-95 shadow-xs"
                     title="Xóa bài dự thi"
                   >
-                    <Trash2 className="w-4 h-4" />
+                    <Trash2 className="w-3.5 h-3.5" />
                   </button>
                 </div>
               </div>

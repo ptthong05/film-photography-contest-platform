@@ -1,4 +1,4 @@
-import { Camera, ChevronRight, ClipboardList, House, Mail, PenLine, Trophy, UserRound, Calendar } from 'lucide-react';
+import { Camera, ChevronRight, ClipboardList, Database, House, Mail, PenLine, Trophy, UserRound, Calendar, PenSquare } from 'lucide-react';
 import type { LucideIcon } from 'lucide-react';
 import type { JudgeProfile, JudgeView } from '../../../types/judge';
 import { Avatar } from './Avatar';
@@ -15,6 +15,8 @@ const NAV_ITEMS: NavItem[] = [
   { view: 'ASSIGNED', label: 'Bài dự thi được phân công', icon: ClipboardList },
   { view: 'SCORING', label: 'Đánh giá', icon: PenLine },
   { view: 'RESULTS', label: 'Kết quả', icon: Trophy },
+  { view: 'ARCHIVE', label: 'Kho dữ liệu', icon: Database },
+  { view: 'ARTICLES', label: 'Viết bài', icon: PenSquare },
   { view: 'MESSAGES', label: 'Tin nhắn', icon: Mail },
   { view: 'PROFILE', label: 'Hồ sơ cá nhân', icon: UserRound },
 ];
@@ -69,7 +71,10 @@ export function JudgeSidebar({ activeView, profile, isOpen, onNavigate, onClose 
           onClick={() => onNavigate('PROFILE')}
           className="m-3 flex cursor-pointer items-center gap-3 rounded-xl border-t border-white/10 p-3 text-left transition-colors hover:bg-white/10"
         >
-          {profile && <Avatar name={profile.fullName} imageUrl={profile.avatarUrl} />}
+          <Avatar
+            name={profile?.fullName ?? 'Giám khảo'}
+            imageUrl={profile?.avatarUrl || (typeof window !== 'undefined' ? localStorage.getItem('judge_avatar') || '' : '')}
+          />
           <div className="min-w-0 flex-1">
             <p className="truncate text-sm font-semibold text-white">{profile?.fullName ?? '...'}</p>
             <p className="text-xs text-slate-400">Giám khảo</p>

@@ -1,6 +1,7 @@
 import {
   ChevronLeft,
   ChevronRight,
+  Eye,
   LockKeyhole,
   MoreVertical,
   Pencil,
@@ -21,6 +22,7 @@ interface UserManagementTableProps {
   onTogglePageSelection: () => void;
   onToggleSelected: (id: string) => void;
   onToggleMenu: (id: string) => void;
+  onViewDetail: (user: AdminUser) => void;
   onEdit: (user: AdminUser) => void;
   onChangeStatus: (id: string, status: UserStatus) => void;
   onDelete: (user: AdminUser) => void;
@@ -52,6 +54,7 @@ export function UserManagementTable({
   onTogglePageSelection,
   onToggleSelected,
   onToggleMenu,
+  onViewDetail,
   onEdit,
   onChangeStatus,
   onDelete,
@@ -114,6 +117,9 @@ export function UserManagementTable({
                     </button>
                     {openMenuId === user.id && (
                       <div className="absolute right-10 top-9 z-20 w-44 rounded-lg border border-slate-200 bg-white p-1 text-left shadow-xl">
+                        <button type="button" onClick={() => onViewDetail(user)} className="flex w-full items-center gap-2 rounded-md px-3 py-2 text-xs font-semibold text-[#0B356B] hover:bg-slate-100">
+                          <Eye size={15} /> Xem chi tiết
+                        </button>
                         <button type="button" onClick={() => onEdit(user)} className="flex w-full items-center gap-2 rounded-md px-3 py-2 text-xs hover:bg-slate-100">
                           <Pencil size={15} /> Chỉnh sửa
                         </button>

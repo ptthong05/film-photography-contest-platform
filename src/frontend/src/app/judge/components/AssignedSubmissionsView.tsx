@@ -1,8 +1,9 @@
-import { useMemo, useState } from 'react';
+import { useEffect, useMemo, useState } from 'react';
 import { Filter, Search } from 'lucide-react';
 import { judgeService } from '../../../services/judgeService';
 import { useFetch } from '../../../hooks/useFetch';
 import type { AssignedSubmission, EvaluationStatus } from '../../../types/judge';
+import { isJudgingExpired } from '../../../utils/judgingDeadline';
 import { AsyncState } from './AsyncState';
 import { Pagination } from './Pagination';
 import { SubmissionTable } from './SubmissionTable';
@@ -39,6 +40,32 @@ export function AssignedSubmissionsView({ initialContestId, onStartScoring, onVi
   const [pageSize, setPageSize] = useState(PAGE_SIZE_OPTIONS[0]);
   const [page, setPage] = useState(1);
   const { data, isLoading, error, refetch } = useFetch(judgeService.getAssignedSubmissions);
+  const contests = useFetch(judgeService.getContests);
+
+  useEffect(() => {
+    const handleSync = () => {
+      void refetch();
+      void contests.refetch();
+    };
+    window.addEventListener('filmcontest:submissions-updated', handleSync);
+    window.addEventListener('assignmentChanged', handleSync);
+    window.addEventListener('filmcontest:judging-updated', handleSync);
+    window.addEventListener('storage', handleSync);
+    return () => {
+      window.removeEventListener('filmcontest:submissions-updated', handleSync);
+      window.removeEventListener('assignmentChanged', handleSync);
+      window.removeEventListener('filmcontest:judging-updated', handleSync);
+      window.removeEventListener('storage', handleSync);
+    };
+  }, [refetch, contests]);
+
+  const contestDeadlines = useMemo(() => {
+    const map = new Map<string, string>();
+    (contests.data ?? []).forEach((c) => {
+      if (c.currentRound?.endDate) map.set(c.id, c.currentRound.endDate);
+    });
+    return map;
+  }, [contests.data]);
 
   const submissions = useMemo(() => data ?? [], [data]);
   const contestOptions = useMemo(
@@ -154,6 +181,7 @@ export function AssignedSubmissionsView({ initialContestId, onStartScoring, onVi
             startIndex={startIndex}
             onStartScoring={onStartScoring}
             onViewDetail={onViewDetail}
+            contestDeadlines={contestDeadlines}
           />
         )}
       </div>

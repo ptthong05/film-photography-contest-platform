@@ -8,6 +8,7 @@ export type OrganizerView =
   | "ARCHIVE"
   | "RESULTS"
   | "REPORTS"
+  | "SCORING_PUBLISH"
   | "PROFILE"
   | "CREATE_CONTEST"
   | "CONTEST_DETAIL"
