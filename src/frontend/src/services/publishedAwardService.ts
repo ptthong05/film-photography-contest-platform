@@ -500,6 +500,36 @@ export function getTop10RankedPhotographers(): PhotographerRankItem[] {
  * - Show 3 tác phẩm lên chỗ Kho Ảnh Đạt Giải của Trang Chủ
  * - Hiện 10 thí sinh đạt giải lên Trang Chủ chỗ Bảng Xếp Hạng
  */
+export interface EvaluatedSubmissionInput {
+  id: string;
+  title: string;
+  authorName?: string | null;
+  submittedAt?: string | null;
+  totalScore?: number | string | null;
+  evaluation?: {
+    totalScore?: number | string | null;
+    comment?: string | null;
+  } | null;
+  imageUrls?: string[] | null;
+  thumbnailUrls?: string[] | null;
+  metadata?: {
+    filmStock?: string | null;
+    iso?: string | number | null;
+    cameraBody?: string | null;
+    camera?: string | null;
+    lens?: string | null;
+    filmFormat?: string | null;
+    format?: string | null;
+    frameNumber?: string | null;
+    frame?: string | null;
+    developingLab?: string | null;
+    lab?: string | null;
+    scanSpec?: string | null;
+    scan?: string | null;
+    shootingLocation?: string | null;
+  } | null;
+}
+
 export function publishContestResultsToAllPlatforms({
   contestId,
   contestTitle,
@@ -507,8 +537,8 @@ export function publishContestResultsToAllPlatforms({
 }: {
   contestId: string;
   contestTitle: string;
-  evaluatedSubmissions: any[];
-}): { top3Winners: any[]; top10Photographers: PhotographerRankItem[] } {
+  evaluatedSubmissions: EvaluatedSubmissionInput[];
+}): { top3Winners: EvaluatedSubmissionInput[]; top10Photographers: PhotographerRankItem[] } {
   // 1. Lọc và sắp xếp các bài thi đã có điểm theo thứ tự giảm dần
   const sorted = [...evaluatedSubmissions]
     .filter((sub) => sub.evaluation?.totalScore || sub.totalScore)

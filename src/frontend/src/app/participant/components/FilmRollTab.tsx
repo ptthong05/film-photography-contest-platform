@@ -79,9 +79,9 @@ export function FilmRollTab() {
     try {
       const saved = localStorage.getItem('participant_film_rolls');
       if (saved) {
-        const parsed = JSON.parse(saved);
+        const parsed: FilmRollItem[] = JSON.parse(saved);
         if (Array.isArray(parsed) && parsed.length > 0) {
-          return parsed.map((item: any) => ({
+          return parsed.map((item) => ({
             ...item,
             usedFrameNumbers: Array.isArray(item.usedFrameNumbers) ? item.usedFrameNumbers : [],
             frameNotes: item.frameNotes || {}

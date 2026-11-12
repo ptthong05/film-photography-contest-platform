@@ -33,6 +33,61 @@ const JUDGE_NOTIFS_STORAGE_KEY = 'filmcontest.judge.notifications.v1';
 const JUDGE_PROFILE_STORAGE_KEY = 'judge_profile';
 const JUDGE_EVALUATIONS_STORAGE_KEY = 'filmcontest.judge.evaluations.v1';
 
+interface ContestSettingRecord {
+  judgeNames?: string[];
+  criteria?: string[];
+}
+
+interface AssignmentRecord {
+  contestId?: string;
+  judgeId?: string;
+  submissionIds?: string[];
+}
+
+interface PublishedResultRecord {
+  contestId?: string;
+  contestTitle?: string;
+  title: string;
+  authorName?: string;
+  score: number;
+  awardLabel?: string;
+}
+
+interface ParticipantEntryRecord {
+  id: string;
+  contestId?: string;
+  contestTitle?: string;
+  contestName?: string;
+  status?: string;
+  photoUrl?: string;
+  imageUrl?: string;
+  title?: string;
+  authorName?: string;
+  category?: string;
+  description?: string;
+  submittedAt?: string;
+  filmBrand?: string;
+  iso?: number | string;
+  cameraBody?: string;
+  lens?: string;
+  filmFormat?: string;
+  frameNumber?: string | number;
+  shootingLocation?: string;
+  location?: string;
+  developingLab?: string;
+  lab?: string;
+  scanningSpecs?: string;
+  scanSpec?: string;
+  metadata?: {
+    filmStock?: string;
+    iso?: number | string;
+    cameraBody?: string;
+    lens?: string;
+    filmFormat?: string;
+    frameNumber?: string | number;
+  };
+}
+
 export function loadStoredEvaluations(): Evaluation[] {
   try {
     const raw = localStorage.getItem(JUDGE_EVALUATIONS_STORAGE_KEY);
@@ -244,7 +299,7 @@ function getAssignedContestsForJudge(): JudgeContest[] {
     }
   } catch {}
 
-  let settingsMap: Record<string, any> = {};
+  let settingsMap: Record<string, ContestSettingRecord> = {};
   try {
     const rawSettings = localStorage.getItem("filmcontest.organizer.contest-settings.v1");
     if (rawSettings) settingsMap = JSON.parse(rawSettings);
@@ -261,9 +316,9 @@ function getAssignedContestsForJudge(): JudgeContest[] {
       try {
         const rawAsg = localStorage.getItem("filmcontest.organizer.assignments.v1");
         if (rawAsg) {
-          const asgList: any[] = JSON.parse(rawAsg);
-          isAssigned = asgList.some((a) => 
-            a.contestId === oc.id && 
+          const asgList: AssignmentRecord[] = JSON.parse(rawAsg);
+          isAssigned = asgList.some((a) =>
+            a.contestId === oc.id &&
             (a.judgeId === currentProfile.id || a.judgeId === 'j-binh' || a.judgeId === 'judge-01' || a.judgeId?.toLowerCase().includes('binh'))
           );
         }
@@ -283,8 +338,8 @@ function getAssignedContestsForJudge(): JudgeContest[] {
       }
       const rawRes = localStorage.getItem('filmcontest.published_results.v2');
       if (rawRes) {
-        const parsedRes = JSON.parse(rawRes);
-        if (Array.isArray(parsedRes) && parsedRes.some((p: any) => p.contestId === oc.id || p.contestTitle === oc.name)) {
+        const parsedRes: PublishedResultRecord[] = JSON.parse(rawRes);
+        if (Array.isArray(parsedRes) && parsedRes.some((p) => p.contestId === oc.id || p.contestTitle === oc.name)) {
           isPub = true;
         }
       }
@@ -297,13 +352,14 @@ function getAssignedContestsForJudge(): JudgeContest[] {
       const base = { ...matchedMock, status: contestStatus, isResultPublished: isPub };
       result.push(buildContest(base));
     } else {
-      const criteria: JudgingCriterion[] = (setting?.criteria && Array.isArray(setting.criteria) && setting.criteria.length > 0)
-        ? setting.criteria.map((c: string, idx: number) => ({
+      const settingCriteria = setting?.criteria;
+      const criteria: JudgingCriterion[] = (settingCriteria && Array.isArray(settingCriteria) && settingCriteria.length > 0)
+        ? settingCriteria.map((c: string, idx: number) => ({
             id: `cr-gen-${idx}`,
             name: c,
             description: `Tiêu chí đánh giá chuyên môn: ${c}`,
             maxScore: 10,
-            weight: Math.round(100 / setting.criteria.length),
+            weight: Math.round(100 / settingCriteria.length),
           }))
         : [
             { id: 'cr-1', name: 'Bố cục & Ánh sáng', description: 'Đường dẫn, cân bằng khung hình và kiểm soát ánh sáng', maxScore: 10, weight: 30 },
@@ -369,7 +425,7 @@ function getAllAssignedSubmissions(): AssignedSubmission[] {
   try {
     const rawAsg = localStorage.getItem("filmcontest.organizer.assignments.v1");
     if (rawAsg) {
-      const asgList: any[] = JSON.parse(rawAsg);
+      const asgList: AssignmentRecord[] = JSON.parse(rawAsg);
       for (const a of asgList) {
         if (a.judgeId === currentProfile.id || a.judgeId === 'j-binh' || a.judgeId === 'judge-01' || a.judgeId?.toLowerCase().includes('binh')) {
           if (Array.isArray(a.submissionIds)) {
@@ -386,10 +442,10 @@ function getAllAssignedSubmissions(): AssignedSubmission[] {
   try {
     const raw = localStorage.getItem('participant_entries');
     if (raw) {
-      const pEntries: any[] = JSON.parse(raw);
+      const pEntries: ParticipantEntryRecord[] = JSON.parse(raw);
       for (const p of pEntries) {
         if (!p || !p.id) continue;
-        const matchesContest = contestIds.has(p.contestId) || contestTitles.has((p.contestTitle || p.contestName || '').toLowerCase());
+        const matchesContest = contestIds.has(p.contestId ?? '') || contestTitles.has((p.contestTitle || p.contestName || '').toLowerCase());
         const isDirectlyAssigned = directlyAssignedSubIds.has(p.id);
         const isApproved = p.status === 'Đã duyệt' || p.status === 'Hợp lệ';
 
@@ -612,19 +668,19 @@ export const judgeService = {
     try {
       const raw = localStorage.getItem('filmcontest.published_results.v2');
       if (raw) {
-        const parsed = JSON.parse(raw);
+        const parsed: PublishedResultRecord[] = JSON.parse(raw);
         if (Array.isArray(parsed) && parsed.length > 0) {
           const contestMatches = parsed.filter(
-            (p: any) => p.contestId === contestId || p.contestTitle?.toLowerCase() === contestId.toLowerCase()
+            (p) => p.contestId === contestId || p.contestTitle?.toLowerCase() === contestId.toLowerCase()
           );
           if (contestMatches.length > 0) {
-            const top4 = [...contestMatches].sort((a: any, b: any) => b.score - a.score).slice(0, 4);
+            const top4 = [...contestMatches].sort((a, b) => Number(b.score ?? 0) - Number(a.score ?? 0)).slice(0, 4);
             const awardLabels = ['Giải Nhất', 'Giải Nhì', 'Giải Ba', 'Giải Khuyến khích'];
-            const entries: ContestResultEntry[] = top4.map((item: any, idx: number) => ({
+            const entries: ContestResultEntry[] = top4.map((item, idx) => ({
               rank: idx + 1,
-              submissionTitle: item.title,
+              submissionTitle: item.title || 'Tác phẩm',
               authorName: item.authorName || 'Thí sinh',
-              averageScore: item.score,
+              averageScore: Number(item.score ?? 0),
               award: item.awardLabel || awardLabels[idx] || `Giải ${idx + 1}`,
             }));
             return respond(entries);

@@ -24,7 +24,7 @@ const REVIEW_TABS: { id: ReviewFilter; label: string }[] = [
 function reviewStatus(submission: Submission, contestId: string | undefined): Exclude<ReviewFilter, "ALL"> {
   const saved = contestId ? readContestSubmissionReview(contestId, submission.id) : undefined;
   if (saved) return saved;
-  const directReview = (submission as any).reviewStatus;
+  const directReview = submission.reviewStatus;
   if (directReview === "APPROVED" || directReview === "REJECTED" || directReview === "PENDING") {
     return directReview;
   }
@@ -53,9 +53,9 @@ export function SubmissionsView({ onNavigate }: OrganizerViewProps) {
   const rows = submissions.data ?? [];
   const contestNames = [...new Set(rows.map((row) => row.contestName))].sort((a, b) => a.localeCompare(b, "vi"));
   const contestIdOf = (submission: Submission) => {
-    const directId = (submission as any).contestId;
+    const directId = submission.contestId;
     if (directId) return directId;
-    return contests.data?.find((contest) => 
+    return contests.data?.find((contest) =>
       contest.name.trim().toLowerCase() === (submission.contestName ?? "").trim().toLowerCase() ||
       contest.id === directId
     )?.id || contests.data?.[0]?.id || "CT-2026-001";
@@ -154,7 +154,7 @@ export function SubmissionsView({ onNavigate }: OrganizerViewProps) {
               <tbody className="divide-y divide-slate-100">
                 {visibleRows.map((submission) => {
                   const status = statusOf(submission);
-                  const imgUrl = (submission as any).imageUrl || (submission as any).thumbnailUrls?.[0] || (submission as any).imageUrls?.[0];
+                  const imgUrl = submission.imageUrl || submission.thumbnailUrls?.[0] || submission.imageUrls?.[0];
                   const hasCustomImg = imgUrl && (imgUrl.startsWith("data:image") || imgUrl.startsWith("http"));
 
                   return (

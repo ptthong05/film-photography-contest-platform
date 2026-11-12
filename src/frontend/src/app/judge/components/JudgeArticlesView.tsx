@@ -560,4 +560,3 @@ export function JudgeArticlesView({ profile, onViewArticleDetail }: JudgeArticle
     </div>
   );
 }
-

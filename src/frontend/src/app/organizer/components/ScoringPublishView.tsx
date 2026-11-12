@@ -165,7 +165,7 @@ export function ScoringPublishView() {
     // Đồng bộ sang participant_entries để tất cả thí sinh đã nộp bài đều thấy kết quả
     try {
       const existingEntriesRaw = localStorage.getItem(PARTICIPANT_ENTRIES_KEY);
-      let participantEntries: any[] = existingEntriesRaw ? JSON.parse(existingEntriesRaw) : [];
+      const participantEntries: Array<{ id?: string; title?: string; [key: string]: unknown }> = existingEntriesRaw ? JSON.parse(existingEntriesRaw) : [];
 
       evaluatedSorted.forEach((item, index) => {
         const rank = index + 1;
@@ -528,4 +528,3 @@ export function ScoringPublishView() {
     </section>
   );
 }
-

@@ -86,7 +86,7 @@ export function getAllUnifiedContests(): Contest[] {
       status = 'ENDED';
     }
 
-    const safeName = c.name || (c as any).title || "Cuộc thi nhiếp ảnh phim";
+    const safeName = c.name || c.title || "Cuộc thi nhiếp ảnh phim";
 
     return {
       ...c,
@@ -208,18 +208,62 @@ export function createNewUnifiedContest(draft: ContestDraft, judgeIds: string[])
   return newContest;
 }
 
+export interface StoredParticipantEntry {
+  id: string;
+  code?: string;
+  title?: string;
+  authorName?: string;
+  contestId?: string;
+  contestTitle?: string;
+  contestName?: string;
+  submittedAt?: string;
+  createdAt?: string;
+  status?: string;
+  photoUrl?: string;
+  imageUrl?: string;
+  category?: string;
+  description?: string;
+  filmBrand?: string;
+  iso?: string | number;
+  cameraBody?: string;
+  lens?: string;
+  filmFormat?: string;
+  filmRoll?: string;
+  frameNumber?: string | number;
+  shootingLocation?: string;
+  location?: string;
+  developingLab?: string;
+  lab?: string;
+  scanningSpecs?: string;
+  scan?: string;
+  scanSpec?: string;
+  negativeContactSheet?: string;
+  similarityScore?: string;
+  metadata?: {
+    filmStock?: string;
+    iso?: string | number;
+    camera?: string;
+    cameraBody?: string;
+    lens?: string;
+    format?: string;
+    filmFormat?: string;
+    frame?: string | number;
+    frameNumber?: string | number;
+  };
+}
+
 /**
  * ĐỌC TẤT CẢ BÀI DỰ THI ĐỒNG BỘ CHO TOÀN BỘ HỆ THỐNG
  * (Kết hợp bài nộp của Participant + Mẫu kiểm thử + Đã phân công)
  */
-export function getAllUnifiedSubmissions(): any[] {
-  const map = new Map<string, any>();
+export function getAllUnifiedSubmissions(): Submission[] {
+  const map = new Map<string, Submission>();
 
   // 1. Bài nộp từ Participant (SubmitEntryForm.tsx)
   try {
     const raw = localStorage.getItem(PARTICIPANT_ENTRIES_KEY);
     if (raw) {
-      const participantEntries: any[] = JSON.parse(raw);
+      const participantEntries: StoredParticipantEntry[] = JSON.parse(raw);
       for (const p of participantEntries) {
         if (!p || !p.id) continue;
         const normStatus = p.status === 'Hợp lệ' || p.status === 'Đã duyệt'
@@ -241,8 +285,8 @@ export function getAllUnifiedSubmissions(): any[] {
           status: normStatus === 'APPROVED' ? 'VALID' : 'PENDING',
           reviewStatus: normStatus,
           imageUrl: p.photoUrl || p.imageUrl || 'https://images.unsplash.com/photo-1514565131-fce0801e5785?auto=format&fit=crop&w=800&q=80',
-          imageUrls: [p.photoUrl || p.imageUrl],
-          thumbnailUrls: [p.photoUrl || p.imageUrl],
+          imageUrls: [p.photoUrl || p.imageUrl || 'https://images.unsplash.com/photo-1514565131-fce0801e5785?auto=format&fit=crop&w=800&q=80'],
+          thumbnailUrls: [p.photoUrl || p.imageUrl || 'https://images.unsplash.com/photo-1514565131-fce0801e5785?auto=format&fit=crop&w=800&q=80'],
           category: p.category || 'Đời sống',
           description: p.description || 'Tác phẩm ảnh phim tham dự cuộc thi.',
           metadata: {
@@ -344,7 +388,7 @@ export function updateSubmissionReviewStatus(
   try {
     const raw = localStorage.getItem(PARTICIPANT_ENTRIES_KEY);
     if (raw) {
-      const list: any[] = JSON.parse(raw);
+      const list: StoredParticipantEntry[] = JSON.parse(raw);
       const found = list.find((item) => item.id === submissionId);
       if (found) {
         found.status = newStatus === 'APPROVED' ? 'Đã duyệt' : newStatus === 'REJECTED' ? 'Từ chối' : 'Đang chờ duyệt';

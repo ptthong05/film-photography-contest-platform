@@ -28,6 +28,11 @@ interface StoredEntryItem {
   contestTitle?: string;
   title?: string;
   status?: string;
+  score?: string | number;
+  prize?: string;
+  rankInfo?: string;
+  judgeName?: string;
+  judgeComment?: string;
   photoUrl?: string;
   submittedAt?: string;
   description?: string;
@@ -72,7 +77,7 @@ export function ResultsTab() {
         if (Array.isArray(parsedEntries)) {
           const gradedEntries = parsedEntries.filter((item: StoredEntryItem) => item.status === 'Đã chấm');
 
-          const convertedGraded: ResultItem[] = gradedEntries.map((item: any, idx: number) => {
+          const convertedGraded: ResultItem[] = gradedEntries.map((item: StoredEntryItem, idx: number) => {
             const rawScore = Number(item.score || 85);
             return {
               id: item.id || `res-graded-${idx}`,

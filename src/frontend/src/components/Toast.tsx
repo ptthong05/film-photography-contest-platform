@@ -56,4 +56,3 @@ export function Toast({ toast, onClose, duration = 3500 }: ToastProps) {
     </div>
   );
 }
-

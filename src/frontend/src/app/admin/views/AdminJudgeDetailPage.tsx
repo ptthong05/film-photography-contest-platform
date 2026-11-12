@@ -186,4 +186,3 @@ export function AdminJudgeDetailPage({ judge, onBack, onChangeStatus }: AdminJud
     </div>
   );
 }
-

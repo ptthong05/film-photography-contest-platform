@@ -66,7 +66,7 @@ export function AdminLogDetailPage({ log, onBack }: AdminLogDetailPageProps) {
         <div className="space-y-6 lg:col-span-5">
           <div className="rounded-2xl border border-slate-200 bg-white p-6 shadow-sm">
             <h2 className="mb-4 text-base font-bold text-[#0B356B]">Người thực hiện & Bối cảnh</h2>
-            
+
             <div className="flex items-center gap-3 rounded-xl border border-slate-100 bg-slate-50 p-4">
               <div className="flex h-12 w-12 shrink-0 items-center justify-center rounded-full bg-blue-100 text-blue-700">
                 <UserRound size={24} />
@@ -109,7 +109,7 @@ export function AdminLogDetailPage({ log, onBack }: AdminLogDetailPageProps) {
         <div className="space-y-6 lg:col-span-7">
           <div className="rounded-2xl border border-slate-200 bg-white p-6 shadow-sm">
             <h2 className="mb-4 text-base font-bold text-[#0B356B]">Mô tả chi tiết sự kiện</h2>
-            
+
             <div className="rounded-xl border border-slate-200 bg-slate-50 p-4">
               <p className="text-sm font-medium text-slate-800 leading-relaxed">{log.description}</p>
             </div>
@@ -131,4 +131,3 @@ export function AdminLogDetailPage({ log, onBack }: AdminLogDetailPageProps) {
     </div>
   );
 }
-

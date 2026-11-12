@@ -160,4 +160,3 @@ export function AdminSubmissionDetailPage({ submission, onBack }: AdminSubmissio
     </div>
   );
 }
-

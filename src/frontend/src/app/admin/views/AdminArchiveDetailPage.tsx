@@ -144,4 +144,3 @@ export function AdminArchiveDetailPage({ item, onBack }: AdminArchiveDetailPageP
     </div>
   );
 }
-

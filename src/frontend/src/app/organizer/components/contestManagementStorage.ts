@@ -166,7 +166,7 @@ export function saveContestSubmissionReview(contestId: string, submissionId: str
 
 export function withContestSettings(contest: Contest): Contest {
   const settings = readContestSettings(contest.id);
-  const baseName = contest.name || (contest as any).title || "Cuộc thi nhiếp ảnh phim";
+  const baseName = contest.name || contest.title || "Cuộc thi nhiếp ảnh phim";
   if (!settings) return { ...contest, name: baseName };
   return {
     ...contest,

@@ -8,6 +8,7 @@ export interface Prize {
 export interface Contest {
   id: string;
   name: string;
+  title?: string;
   startDate: string;
   endDate: string;
   participantCount: number;

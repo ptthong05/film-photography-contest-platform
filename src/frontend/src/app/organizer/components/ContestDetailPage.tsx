@@ -241,10 +241,10 @@ export function ContestDetailPage({ contestId, onBack }: ContestDetailPageProps)
     });
 
     const subs = (submissions.data ?? []).filter(
-      (s: any) => s.contestName === contest.name || s.contestId === contest.id
+      (s) => s.contestName === contest.name || s.contestId === contest.id
     );
 
-    const evaluatedSubs = subs.map((s: any, idx: number) => {
+    const evaluatedSubs = subs.map((s, idx) => {
       const score = evalMap.get(s.id) || Number((9.5 - idx * 0.4).toFixed(1));
       return {
         ...s,
@@ -262,9 +262,9 @@ export function ContestDetailPage({ contestId, onBack }: ContestDetailPageProps)
     // Đồng bộ sang participant_entries để tất cả thí sinh đã nộp bài đều thấy kết quả
     try {
       const existingEntriesRaw = localStorage.getItem("participant_entries");
-      let participantEntries: any[] = existingEntriesRaw ? JSON.parse(existingEntriesRaw) : [];
+      const participantEntries: Array<{ id?: string; title?: string; [key: string]: unknown }> = existingEntriesRaw ? JSON.parse(existingEntriesRaw) : [];
 
-      evaluatedSubs.forEach((item: any, index: number) => {
+      evaluatedSubs.forEach((item, index) => {
         const rank = index + 1;
         const prize = rank === 1 ? "Giải Nhất (Grand Prize)"
           : rank === 2 ? "Giải Nhì"

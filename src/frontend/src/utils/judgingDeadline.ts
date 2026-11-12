@@ -44,4 +44,3 @@ export function getJudgingDeadlineInfo(endDate?: string | null, contestId?: stri
     message: `Thời hạn chấm điểm: đến hết ngày ${formatDate(endDate)}`,
   };
 }
-

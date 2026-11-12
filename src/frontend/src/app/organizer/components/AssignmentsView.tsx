@@ -228,7 +228,7 @@ export function AssignmentsView({ onNavigate }: OrganizerViewProps) {
   const contestAllSubmissions = selectedContest
     ? submissions
         .filter((s) => {
-          const directId = (s as any).contestId;
+          const directId = s.contestId;
           const matchesId = directId === selectedContest.id;
           const sName = (s.contestName ?? "").trim().toLowerCase();
           const cName = (selectedContest.name ?? "").trim().toLowerCase();
