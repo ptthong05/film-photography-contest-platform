@@ -1,7 +1,8 @@
 import { useState } from 'react';
-import { Eye, MoreVertical, PenLine } from 'lucide-react';
+import { Clock, Eye, MoreVertical, PenLine } from 'lucide-react';
 import type { AssignedSubmission } from '../../../types/judge';
 import { formatDate } from '../../../utils/formatDate';
+import { isJudgingExpired } from '../../../utils/judgingDeadline';
 import { StatusBadge } from './StatusBadge';
 
 interface SubmissionTableProps {
@@ -9,9 +10,10 @@ interface SubmissionTableProps {
   startIndex: number;
   onStartScoring: (submissionId: string) => void;
   onViewDetail: (submissionId: string) => void;
+  contestDeadlines?: Map<string, string>;
 }
 
-export function SubmissionTable({ submissions, startIndex, onStartScoring, onViewDetail }: SubmissionTableProps) {
+export function SubmissionTable({ submissions, startIndex, onStartScoring, onViewDetail, contestDeadlines }: SubmissionTableProps) {
   const [openMenuId, setOpenMenuId] = useState<string | null>(null);
 
   const handleMenuAction = (action: (submissionId: string) => void, submissionId: string) => {
@@ -38,6 +40,8 @@ export function SubmissionTable({ submissions, startIndex, onStartScoring, onVie
         <tbody className="divide-y divide-slate-100">
           {submissions.map((submission, index) => {
             const isFinalized = submission.evaluationStatus === 'FINALIZED';
+            const deadline = contestDeadlines?.get(submission.contestId);
+            const isExpired = !isFinalized && isJudgingExpired(deadline);
             return (
               <tr key={submission.id} className="hover:bg-slate-50">
                 <td className="px-3 py-3 text-slate-500">{startIndex + index + 1}</td>
@@ -63,13 +67,24 @@ export function SubmissionTable({ submissions, startIndex, onStartScoring, onVie
                 </td>
                 <td className="px-3 py-3">
                   <div className="flex items-center justify-center gap-1">
-                    <button
-                      type="button"
-                      onClick={() => (isFinalized ? onViewDetail(submission.id) : onStartScoring(submission.id))}
-                      className={`${isFinalized ? 'judge-btn-outline' : 'judge-btn-primary'} w-28 py-1.5`}
-                    >
-                      {isFinalized ? 'Xem' : 'Chấm điểm'}
-                    </button>
+                    {isExpired ? (
+                      <button
+                        type="button"
+                        onClick={() => onViewDetail(submission.id)}
+                        className="judge-btn-outline w-28 py-1.5 text-xs text-rose-700 border-rose-200 bg-rose-50 hover:bg-rose-100"
+                        title="Đã hết thời hạn chấm điểm cho cuộc thi này"
+                      >
+                        Hết hạn
+                      </button>
+                    ) : (
+                      <button
+                        type="button"
+                        onClick={() => (isFinalized ? onViewDetail(submission.id) : onStartScoring(submission.id))}
+                        className={`${isFinalized ? 'judge-btn-outline' : 'judge-btn-primary'} w-28 py-1.5`}
+                      >
+                        {isFinalized ? 'Xem' : 'Chấm điểm'}
+                      </button>
+                    )}
                     <div className="relative">
                       <button
                         type="button"
@@ -87,7 +102,7 @@ export function SubmissionTable({ submissions, startIndex, onStartScoring, onVie
                             <button type="button" role="menuitem" onClick={() => handleMenuAction(onViewDetail, submission.id)} className="flex w-full cursor-pointer items-center gap-2 px-3 py-2 text-sm text-slate-700 hover:bg-slate-50">
                               <Eye className="h-4 w-4" /> Xem chi tiết
                             </button>
-                            {!isFinalized && (
+                            {!isFinalized && !isExpired && (
                               <button type="button" role="menuitem" onClick={() => handleMenuAction(onStartScoring, submission.id)} className="flex w-full cursor-pointer items-center gap-2 px-3 py-2 text-sm text-slate-700 hover:bg-slate-50">
                                 <PenLine className="h-4 w-4" /> Chấm điểm
                               </button>

@@ -4,6 +4,7 @@ import { Navbar } from '../Navbar';
 import { Footer } from '../Footer';
 import type { ContestDetailData } from './data';
 import { ALL_CONTESTS, DEFAULT_PRIZES_TEMPLATE } from './data';
+import { getAllUnifiedContests } from '../../../../services/contestSyncService';
 import {
   Calendar,
   Users,
@@ -49,7 +50,42 @@ export function ContestDetailPage({
   };
 
   // Find contest data by id or fallback to the first contest
-  const contest = ALL_CONTESTS.find((c) => c.id === contestId) || ALL_CONTESTS[0];
+  const unifiedList = getAllUnifiedContests();
+  const matchedUnified = unifiedList.find((c) => c.id === contestId || c.name.toLowerCase() === contestId.toLowerCase());
+  const fallbackContest = ALL_CONTESTS.find((c) => c.id === contestId) || ALL_CONTESTS[0];
+
+  const contest: ContestDetailData = matchedUnified
+    ? {
+        id: matchedUnified.id,
+        title: matchedUnified.name,
+        status: matchedUnified.status === 'ENDED' ? 'ended' : matchedUnified.status === 'UPCOMING' ? 'upcoming' : 'active',
+        statusLabel: matchedUnified.status === 'ENDED' ? 'Đã kết thúc' : matchedUnified.status === 'UPCOMING' ? 'Sắp diễn ra' : 'Đang diễn ra',
+        image: matchedUnified.image || fallbackContest.image,
+        startDate: matchedUnified.startDate,
+        endDate: matchedUnified.endDate,
+        participantsCount: matchedUnified.participantCount || 250,
+        categories: matchedUnified.tags || ['Nhiếp ảnh phim'],
+        description: matchedUnified.description || fallbackContest.description,
+        organizer: fallbackContest.organizer,
+        judges: fallbackContest.judges,
+        rules: fallbackContest.rules,
+        prizes: matchedUnified.prizes && matchedUnified.prizes.length > 0
+          ? matchedUnified.prizes.map((p, i) => ({
+              rank: i === 0 ? '🥇' : i === 1 ? '🥈' : i === 2 ? '🥉' : '🏅',
+              name: p.name,
+              reward: p.reward,
+            }))
+          : fallbackContest.prizes,
+        timeline: [
+          { title: 'Bắt đầu nhận bài', date: matchedUnified.startDate },
+          { title: 'Hạn cuối nhận bài', date: matchedUnified.endDate },
+          { title: 'Chấm điểm', date: `${matchedUnified.endDate} - 10 ngày sau` },
+          { title: 'Công bố kết quả', date: 'Sau khi hoàn tất chấm' },
+        ],
+        pastPhotos: fallbackContest.pastPhotos,
+        faqs: fallbackContest.faqs,
+      }
+    : fallbackContest;
 
   const handleRegisterContest = () => {
     onOpenAuth('REGISTER');

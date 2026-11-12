@@ -1,8 +1,9 @@
-import { useCallback } from 'react';
-import { ArrowLeft, ArrowRight, ChevronRight, Image } from 'lucide-react';
+import { useCallback, useEffect } from 'react';
+import { AlertTriangle, ArrowLeft, ArrowRight, ChevronRight, Clock, Image } from 'lucide-react';
 import { judgeService } from '../../../services/judgeService';
 import { useFetch } from '../../../hooks/useFetch';
 import type { EvaluationRequest } from '../../../types/judge';
+import { getJudgingDeadlineInfo } from '../../../utils/judgingDeadline';
 import { AsyncState } from './AsyncState';
 import { ImageGallery } from './ImageGallery';
 import { ScoringPanel } from './ScoringPanel';
@@ -20,6 +21,23 @@ interface ScoringViewProps {
 export function ScoringView({ submissionId, onSelectSubmission, onViewDetail, onBackToList }: ScoringViewProps) {
   const submissions = useFetch(judgeService.getAssignedSubmissions);
   const contests = useFetch(judgeService.getContests);
+
+  useEffect(() => {
+    const handleSync = () => {
+      void submissions.refetch();
+      void contests.refetch();
+    };
+    window.addEventListener('filmcontest:submissions-updated', handleSync);
+    window.addEventListener('assignmentChanged', handleSync);
+    window.addEventListener('filmcontest:judging-updated', handleSync);
+    window.addEventListener('storage', handleSync);
+    return () => {
+      window.removeEventListener('filmcontest:submissions-updated', handleSync);
+      window.removeEventListener('assignmentChanged', handleSync);
+      window.removeEventListener('filmcontest:judging-updated', handleSync);
+      window.removeEventListener('storage', handleSync);
+    };
+  }, [submissions, contests]);
 
   const allSubmissions = submissions.data ?? [];
   const current =
@@ -58,6 +76,7 @@ export function ScoringView({ submissionId, onSelectSubmission, onViewDetail, on
   }
 
   const contest = contests.data?.find((item) => item.id === current.contestId);
+  const deadlineInfo = getJudgingDeadlineInfo(contest?.currentRound?.endDate, contest?.id);
   const siblings = allSubmissions.filter((item) => item.contestId === current.contestId);
   const position = siblings.findIndex((item) => item.id === current.id);
   const previous = siblings[position - 1];
@@ -78,6 +97,15 @@ export function ScoringView({ submissionId, onSelectSubmission, onViewDetail, on
           <ChevronRight className="h-4 w-4" />
           <span className="font-medium text-slate-800">Bài {position + 1}/{siblings.length}</span>
           <span className="ml-2"><StatusBadge kind="custom" label={current.roundName} tone="sky" /></span>
+          {deadlineInfo.isExpired ? (
+            <span className="ml-2 inline-flex items-center gap-1 rounded-md bg-rose-100 px-2.5 py-0.5 text-xs font-bold text-rose-700">
+              <AlertTriangle size={13} /> Đã hết hạn chấm
+            </span>
+          ) : (
+            <span className="ml-2 inline-flex items-center gap-1 rounded-md bg-slate-100 px-2.5 py-0.5 text-xs text-slate-600">
+              <Clock size={13} /> {deadlineInfo.message}
+            </span>
+          )}
         </nav>
         <div className="flex gap-2">
           <button type="button" disabled={!previous} onClick={() => previous && onSelectSubmission(previous.id)} className="judge-btn-outline py-1.5">
@@ -104,7 +132,14 @@ export function ScoringView({ submissionId, onSelectSubmission, onViewDetail, on
 
         <aside className="judge-card p-5">
           {isEvaluationReady && contest ? (
-            <ScoringPanel key={current.id} criteria={contest.criteria} evaluation={evaluation.data?.evaluation ?? null} onSave={handleSave} />
+            <ScoringPanel
+              key={current.id}
+              criteria={contest.criteria}
+              evaluation={evaluation.data?.evaluation ?? null}
+              onSave={handleSave}
+              roundEndDate={contest.currentRound?.endDate}
+              contestId={contest.id}
+            />
           ) : (
             <AsyncState
               isLoading={!isEvaluationReady && !evaluation.error}

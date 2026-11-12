@@ -1,5 +1,6 @@
 import { useState } from 'react';
 import { CheckCircle2, Info, RotateCcw, Save, ShieldAlert, WifiOff } from 'lucide-react';
+import { Toast, type ToastNotice } from '../../../components/Toast';
 import {
   AI_TABS,
   AiSettingsControls,
@@ -53,8 +54,12 @@ export function AiSettingsView() {
   const [tab, setTab] = useState<AiTab>('general');
   const [saved, setSaved] = useState<AiSettings>(readSavedSettings);
   const [draft, setDraft] = useState<AiSettings>(saved);
-  const [notice, setNotice] = useState('');
+  const [toast, setToast] = useState<ToastNotice | null>(null);
   const [showConnectionInfo, setShowConnectionInfo] = useState(false);
+
+  const showToast = (message: string, type: 'success' | 'error' | 'info' = 'success') => {
+    setToast({ id: Date.now(), message, type });
+  };
 
   const hasUnsavedChanges = JSON.stringify(draft) !== JSON.stringify(saved);
 
@@ -63,7 +68,6 @@ export function AiSettingsView() {
       ...previous,
       features: { ...previous.features, [key]: !previous.features[key] },
     }));
-    setNotice('');
   };
 
   const handleThresholdChange = (key: AiThresholdKey, value: number) => {
@@ -71,22 +75,21 @@ export function AiSettingsView() {
       ...previous,
       thresholds: { ...previous.thresholds, [key]: value },
     }));
-    setNotice('');
   };
 
   const handleSave = () => {
     try {
       window.localStorage.setItem(STORAGE_KEY, JSON.stringify(draft));
       setSaved(draft);
-      setNotice('Đã lưu cấu hình mẫu trên trình duyệt này. Chưa gửi thiết lập đến máy chủ AI.');
+      showToast('Đã lưu cấu hình AI thành công.', 'success');
     } catch {
-      setNotice('Không lưu được dữ liệu mẫu vào trình duyệt. Vui lòng kiểm tra quyền lưu trữ.');
+      showToast('Không lưu được dữ liệu mẫu vào trình duyệt. Vui lòng kiểm tra quyền lưu trữ.', 'error');
     }
   };
 
   const handleCancel = () => {
     setDraft(saved);
-    setNotice('Đã hoàn tác các thay đổi chưa lưu.');
+    showToast('Đã hoàn tác các thay đổi chưa lưu.', 'info');
   };
 
   const handleReset = () => {
@@ -94,11 +97,12 @@ export function AiSettingsView() {
       features: { ...DEFAULT_AI_SETTINGS.features },
       thresholds: { ...DEFAULT_AI_SETTINGS.thresholds },
     });
-    setNotice('Đã đưa về giá trị mẫu ban đầu. Bấm Lưu cấu hình để ghi lại trên trình duyệt.');
+    showToast('Đã đưa về giá trị mặc định. Bấm Lưu cấu hình để áp dụng.', 'info');
   };
 
   return (
-    <div className="space-y-5">
+    <div className="relative space-y-5">
+      <Toast toast={toast} onClose={() => setToast(null)} />
       <div className="rounded-xl border border-amber-200 bg-amber-50 p-3 text-sm text-amber-950" role="status">
         <div className="flex items-start gap-2">
           <Info size={18} className="mt-0.5 shrink-0" aria-hidden="true" />
@@ -152,11 +156,6 @@ export function AiSettingsView() {
         </div>
       </div>
 
-      {notice && (
-        <p role="status" className="flex items-start gap-2 rounded-lg border border-blue-100 bg-blue-50 px-4 py-3 text-sm text-blue-900">
-          <CheckCircle2 size={18} className="mt-0.5 shrink-0" aria-hidden="true" />{notice}
-        </p>
-      )}
       <div className="flex flex-wrap items-center justify-between gap-3">
         <span className="text-xs text-slate-500">{hasUnsavedChanges ? 'Có thay đổi chưa lưu' : 'Không có thay đổi chưa lưu'}</span>
         <div className="flex flex-wrap gap-2">

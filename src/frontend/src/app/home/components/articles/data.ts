@@ -224,3 +224,51 @@ export const ARTICLES_DATA: Record<string, ArticleItem> = {
 };
 
 export const ALL_ARTICLES_LIST: ArticleItem[] = Object.values(ARTICLES_DATA);
+
+export const CUSTOM_ARTICLES_KEY = 'filmcontest_custom_articles_v1';
+
+export function getCustomArticles(): ArticleItem[] {
+  if (typeof window === 'undefined') return [];
+  try {
+    const raw = localStorage.getItem(CUSTOM_ARTICLES_KEY);
+    if (!raw) return [];
+    const list = JSON.parse(raw);
+    return Array.isArray(list) ? list : [];
+  } catch {
+    return [];
+  }
+}
+
+export function saveCustomArticle(article: ArticleItem): void {
+  const current = getCustomArticles();
+  const existingIdx = current.findIndex((a) => a.id === article.id);
+  if (existingIdx >= 0) {
+    current[existingIdx] = article;
+  } else {
+    current.unshift(article);
+  }
+  localStorage.setItem(CUSTOM_ARTICLES_KEY, JSON.stringify(current));
+  window.dispatchEvent(new Event('filmcontest:articles-updated'));
+  window.dispatchEvent(new Event('storage'));
+}
+
+export function deleteCustomArticle(id: string): void {
+  const current = getCustomArticles().filter((a) => a.id !== id);
+  localStorage.setItem(CUSTOM_ARTICLES_KEY, JSON.stringify(current));
+  window.dispatchEvent(new Event('filmcontest:articles-updated'));
+  window.dispatchEvent(new Event('storage'));
+}
+
+export function getAllUnifiedArticles(): ArticleItem[] {
+  const custom = getCustomArticles();
+  const customIds = new Set(custom.map((c) => c.id));
+  const base = ALL_ARTICLES_LIST.filter((a) => !customIds.has(a.id));
+  return [...custom, ...base];
+}
+
+export function getUnifiedArticleById(id: string): ArticleItem | undefined {
+  const custom = getCustomArticles();
+  const found = custom.find((a) => a.id === id);
+  if (found) return found;
+  return ARTICLES_DATA[id] || ALL_ARTICLES_LIST.find((a) => a.id === id);
+}

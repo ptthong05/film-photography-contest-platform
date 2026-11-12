@@ -1,4 +1,4 @@
-import React, { useState, useMemo } from 'react';
+import React, { useState, useMemo, useEffect } from 'react';
 import type { Portal } from '../../../../types/portal';
 import { Navbar } from '../Navbar';
 import { Footer } from '../Footer';
@@ -8,6 +8,7 @@ import {
   type PhotographerRankItem,
   type PhotoRankItem,
 } from './data';
+import { getTop10RankedPhotographers } from '../../../../services/publishedAwardService';
 import {
   Trophy,
   ChevronDown,
@@ -129,8 +130,17 @@ export function LeaderboardPage({
   };
 
   // Filter Authors
+  const [authorList, setAuthorList] = useState<PhotographerRankItem[]>(getTop10RankedPhotographers);
+
+  useEffect(() => {
+    setAuthorList(getTop10RankedPhotographers());
+    const handleStorage = () => setAuthorList(getTop10RankedPhotographers());
+    window.addEventListener('storage', handleStorage);
+    return () => window.removeEventListener('storage', handleStorage);
+  }, []);
+
   const filteredAuthors = useMemo(() => {
-    return LEADERBOARD_AUTHORS.filter((author) => {
+    return authorList.filter((author) => {
       const matchSearch =
         searchQuery.trim() === '' ||
         author.name.toLowerCase().includes(searchQuery.toLowerCase());
@@ -138,7 +148,7 @@ export function LeaderboardPage({
       const matchContest = contestFilter === 'all' || author.contestId === contestFilter;
       return matchSearch && matchTime && matchContest;
     });
-  }, [searchQuery, timeFilter, contestFilter]);
+  }, [authorList, searchQuery, timeFilter, contestFilter]);
 
   // Filter Photos
   const filteredPhotos = useMemo(() => {

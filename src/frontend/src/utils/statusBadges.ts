@@ -21,6 +21,5 @@ export const ACCOUNT_STATUS: Record<AccountStatus, BadgeConfig> = {
 
 export const SUBMISSION_STATUS: Record<SubmissionStatus, BadgeConfig> = {
   VALID: { label: "Hợp lệ", tone: "success" },
-  SUSPECT_AI: { label: "Nghi ngờ AI", tone: "danger" },
   PENDING: { label: "Chờ xác minh", tone: "warning" },
 };

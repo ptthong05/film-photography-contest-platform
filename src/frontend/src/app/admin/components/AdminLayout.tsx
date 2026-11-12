@@ -14,6 +14,8 @@ export interface AdminLayoutProps {
   actions?: ReactNode;
   adminName?: string;
   className?: string;
+  overrideTitle?: string;
+  overrideDescription?: string;
 }
 
 export function AdminLayout({
@@ -23,6 +25,8 @@ export function AdminLayout({
   actions,
   adminName = 'Quản trị viên',
   className = '',
+  overrideTitle,
+  overrideDescription,
 }: AdminLayoutProps) {
   const [isMobileMenuOpen, setIsMobileMenuOpen] = useState(false);
   const mobileCloseButtonRef = useRef<HTMLButtonElement>(null);
@@ -71,7 +75,7 @@ export function AdminLayout({
 
       <div className="min-w-0 flex-1">
         {/* Trên màn hình nhỏ, dùng nút để mở menu dạng ngăn kéo. */}
-        <div className="flex items-center gap-3 border-b border-slate-200 bg-white px-4 pb-3 pt-[4.5rem] md:hidden">
+        <div className="flex items-center gap-3 border-b border-slate-200 bg-white px-4 py-3 md:hidden">
           <button
             type="button"
             onClick={() => setIsMobileMenuOpen(true)}
@@ -91,8 +95,15 @@ export function AdminLayout({
           </span>
         </div>
 
-        {/* Header tự đổi tiêu đề theo activeView. */}
-        <AdminHeader activeView={activeView} actions={actions} />
+        {/* Header tự đổi tiêu đề theo activeView hoặc overrideTitle. */}
+        <AdminHeader
+          activeView={activeView}
+          actions={actions}
+          overrideTitle={overrideTitle}
+          overrideDescription={overrideDescription}
+          adminName={adminName}
+          onNavigate={handleNavigate}
+        />
 
         <main id="admin-main-content" tabIndex={-1} className="min-w-0 outline-none">
           <div className="mx-auto w-full max-w-[1700px] px-4 py-5 sm:px-6 lg:px-8">

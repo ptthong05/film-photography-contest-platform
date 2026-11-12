@@ -31,6 +31,8 @@ export function OverviewView({ profile, notifications, onNavigate, onOpenContest
   const contests = useFetch(judgeService.getContests);
 
   const activeContests = (contests.data ?? []).filter((item) => item.status !== 'COMPLETED');
+  const bioText = (profile?.bio ?? '').trim() || 'Mỗi bức ảnh phim là một câu chuyện. Hãy cùng tìm kiếm những câu chuyện xứng đáng được tỏa sáng.';
+  const displayBio = bioText.startsWith('“') || bioText.startsWith('"') ? bioText : `“${bioText}”`;
 
   return (
     <div className="space-y-6">
@@ -41,7 +43,7 @@ export function OverviewView({ profile, notifications, onNavigate, onOpenContest
         <p className="text-sm text-blue-200">Giám khảo cuộc thi nhiếp ảnh phim</p>
         <h2 className="mt-2 text-2xl font-bold sm:text-3xl">Chào mừng trở lại, {profile?.fullName ?? 'Giám khảo'}!</h2>
         <p className="mt-3 max-w-lg text-blue-100 italic">
-          “Mỗi bức ảnh phim là một câu chuyện. Hãy cùng tìm kiếm những câu chuyện xứng đáng được tỏa sáng.”
+          {displayBio}
         </p>
       </section>
 

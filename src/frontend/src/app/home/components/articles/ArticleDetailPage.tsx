@@ -3,7 +3,7 @@ import type { Portal } from '../../../../types/portal';
 import { Navbar } from '../Navbar';
 import { Footer } from '../Footer';
 import type { ArticleItem } from './data';
-import { ARTICLES_DATA, ALL_ARTICLES_LIST } from './data';
+import { ARTICLES_DATA, ALL_ARTICLES_LIST, getUnifiedArticleById } from './data';
 import {
   ChevronRight,
   Calendar,
@@ -45,7 +45,7 @@ export function ArticleDetailPage({
   onOpenAuth,
   onSelectPortal,
 }: ArticleDetailPageProps) {
-  const article: ArticleItem = ARTICLES_DATA[articleId] || ARTICLES_DATA['5-meo-chup-phim'];
+  const article: ArticleItem = getUnifiedArticleById(articleId) || ARTICLES_DATA[articleId] || ARTICLES_DATA['5-meo-chup-phim'];
 
   const [activeTocId, setActiveTocId] = useState<string>(article.toc[0]?.id || '');
   const [likesCount, setLikesCount] = useState<number>(article.likes);
@@ -229,7 +229,7 @@ export function ArticleDetailPage({
         <div className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 mt-6 lg:mt-8">
           <div className="grid grid-cols-1 lg:grid-cols-12 gap-10">
             {/* MAIN ARTICLE BODY (8 Columns) */}
-            <article className="lg:col-span-8 bg-white rounded-2xl border border-slate-200/80 p-6 sm:p-8 lg:p-10 shadow-xs">
+            <article className="lg:col-span-8 bg-white rounded-2xl border border-slate-200/80 p-6 sm:p-8 lg:p-10 shadow-xs min-w-0 max-w-full overflow-hidden break-words">
               {/* Category badge & Read time */}
               <div className="flex flex-wrap items-center gap-3 mb-4">
                 <span className="inline-flex items-center px-3 py-1 rounded-full text-xs font-semibold bg-blue-50 text-blue-700 border border-blue-200/60">
@@ -252,12 +252,12 @@ export function ArticleDetailPage({
               </div>
 
               {/* Title */}
-              <h1 className="text-2xl sm:text-3xl lg:text-4xl font-extrabold text-slate-900 tracking-tight leading-tight sm:leading-snug mb-5">
+              <h1 className="text-2xl sm:text-3xl lg:text-4xl font-extrabold text-slate-900 tracking-tight leading-tight sm:leading-snug mb-5 break-words [overflow-wrap:anywhere] [word-break:break-word]">
                 {article.title}
               </h1>
 
               {/* Excerpt / Lead */}
-              <p className="text-base sm:text-lg text-slate-600 leading-relaxed font-normal mb-8 border-l-4 border-blue-600 pl-4 bg-blue-50/30 py-2 rounded-r-lg">
+              <p className="text-base sm:text-lg text-slate-600 leading-relaxed font-normal mb-8 border-l-4 border-blue-600 pl-4 bg-blue-50/30 py-2 rounded-r-lg break-words [overflow-wrap:anywhere] [word-break:break-word] text-justify">
                 {article.excerpt}
               </p>
 
@@ -410,7 +410,13 @@ export function ArticleDetailPage({
               </div>
 
               {/* Editorial Structured Sections */}
-              <div className={`space-y-10 text-slate-700 ${contentFontSizeClass}`}>
+              {article.contentHtml ? (
+                <div
+                  className={`space-y-6 text-slate-800 leading-relaxed font-sans min-w-0 max-w-full overflow-hidden break-words [overflow-wrap:anywhere] [word-break:break-word] text-justify ${contentFontSizeClass}`}
+                  dangerouslySetInnerHTML={{ __html: article.contentHtml }}
+                />
+              ) : (
+              <div className={`space-y-10 text-slate-700 min-w-0 max-w-full overflow-hidden break-words [overflow-wrap:anywhere] [word-break:break-word] text-justify ${contentFontSizeClass}`}>
                 {/* Section 1 */}
                 <section id={article.toc[0]?.id || 'sec-1'} className="scroll-mt-28">
                   <h2 className="text-xl sm:text-2xl font-bold text-slate-900 mb-4 pb-2 border-b border-slate-100 flex items-center gap-2.5">
@@ -552,6 +558,7 @@ export function ArticleDetailPage({
                   </section>
                 )}
               </div>
+              )}
 
               {/* Tags List */}
               <div className="mt-10 pt-6 border-t border-slate-100">

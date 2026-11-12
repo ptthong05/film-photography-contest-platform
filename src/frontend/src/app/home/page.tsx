@@ -6,6 +6,7 @@ import { StatsSection } from './components/StatsSection';
 import { LiveContestsSection, type ContestItem } from './components/LiveContestsSection';
 import { FeaturedArticlesSection } from './components/FeaturedArticlesSection';
 import { ExhibitionSection } from './components/ExhibitionSection';
+import { LeaderboardSection } from './components/LeaderboardSection';
 import { AiTechSection } from './components/AiTechSection';
 import { FaqSection } from './components/FaqSection';
 import { ContestStepsGuideSection } from './components/ContestStepsGuideSection';
@@ -139,6 +140,19 @@ export default function HomePage({
             onSelectPhoto={onOpenPhotoDetail}
             onExploreMore={() => {
               onSelectPortal('WINNING_PHOTOS');
+            }}
+          />
+        </div>
+
+        {/* 6.5. Bảng xếp hạng 10 thí sinh đạt giải xuất sắc */}
+        <div id="home-leaderboard">
+          <LeaderboardSection
+            onViewAll={() => onSelectPortal('LEADERBOARD')}
+            onSelectAuthor={(authorName) => {
+              try {
+                localStorage.setItem('film_contest_selected_author_name', authorName);
+              } catch {}
+              onSelectPortal('AUTHOR_PROFILE');
             }}
           />
         </div>

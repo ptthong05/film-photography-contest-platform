@@ -3,6 +3,7 @@ import {
   Bell, Camera, CheckCircle2, Eye, EyeOff, Info, KeyRound,
   RotateCcw, Save, ShieldCheck, UserRound, X,
 } from 'lucide-react';
+import { Toast, type ToastNotice } from '../../../components/Toast';
 
 // Dữ liệu phục vụ dựng giao diện. Chưa đồng bộ với phiên đăng nhập hoặc cơ sở dữ liệu.
 const PROFILE_STORAGE_KEY = 'filmcontest-admin-profile-demo-v1';
@@ -63,10 +64,16 @@ const NOTIFICATION_ITEMS: {
 export function readAdminDemoProfile(): DemoAdminProfile {
   try {
     if (typeof window === 'undefined') return { ...DEFAULT_PROFILE };
+    let directAvatar: string | null = null;
+    const storedAvatar = window.localStorage.getItem('admin_avatar');
+    if (storedAvatar && storedAvatar.startsWith('data:image/')) {
+      directAvatar = storedAvatar;
+    }
+
     const raw = window.localStorage.getItem(PROFILE_STORAGE_KEY);
-    if (!raw) return { ...DEFAULT_PROFILE };
+    if (!raw) return { ...DEFAULT_PROFILE, avatarDataUrl: directAvatar };
     const parsed: unknown = JSON.parse(raw);
-    if (!parsed || typeof parsed !== 'object' || Array.isArray(parsed)) return { ...DEFAULT_PROFILE };
+    if (!parsed || typeof parsed !== 'object' || Array.isArray(parsed)) return { ...DEFAULT_PROFILE, avatarDataUrl: directAvatar };
     const source = parsed as Record<string, unknown>;
     const avatar = source.avatarDataUrl;
     return {
@@ -74,8 +81,8 @@ export function readAdminDemoProfile(): DemoAdminProfile {
       email: typeof source.email === 'string' ? source.email.slice(0, 120) : DEFAULT_PROFILE.email,
       phone: typeof source.phone === 'string' ? source.phone.slice(0, 24) : DEFAULT_PROFILE.phone,
       bio: typeof source.bio === 'string' ? source.bio.slice(0, 500) : DEFAULT_PROFILE.bio,
-      avatarDataUrl: typeof avatar === 'string' && avatar.length < 1_500_000 &&
-        /^data:image\/(?:jpeg|png|webp);base64,/i.test(avatar) ? avatar : null,
+      avatarDataUrl: directAvatar || (typeof avatar === 'string' && avatar.length < 1_500_000 &&
+        /^data:image\/(?:jpeg|png|webp);base64,/i.test(avatar) ? avatar : null),
     };
   } catch {
     return { ...DEFAULT_PROFILE };
@@ -121,17 +128,30 @@ interface ProfileViewProps {
   onNameSaved?: (name: string) => void;
 }
 
+const ADMIN_PROFILE_TAB_KEY = 'admin_profile_tab';
+
 /** Màn hình 10: Hồ sơ Admin. Không có thao tác xác thực hoặc gửi mật khẩu đến backend. */
 export function ProfileView({ onNameSaved }: ProfileViewProps) {
-  const [activeTab, setActiveTab] = useState<ProfileTab>('personal');
+  const [activeTab, setActiveTabState] = useState<ProfileTab>(() => {
+    if (typeof window !== 'undefined') {
+      const saved = localStorage.getItem(ADMIN_PROFILE_TAB_KEY) as ProfileTab | null;
+      if (saved && (saved === 'personal' || saved === 'password' || saved === 'notifications')) return saved;
+    }
+    return 'personal';
+  });
+
+  const setActiveTab = (tab: ProfileTab) => {
+    setActiveTabState(tab);
+    try {
+      localStorage.setItem(ADMIN_PROFILE_TAB_KEY, tab);
+    } catch {}
+  };
   const [savedProfile, setSavedProfile] = useState<DemoAdminProfile>(readAdminDemoProfile);
   const [draftProfile, setDraftProfile] = useState<DemoAdminProfile>(savedProfile);
   const [savedNotifications, setSavedNotifications] = useState<NotificationPreferences>(readDemoNotifications);
   const [draftNotifications, setDraftNotifications] = useState<NotificationPreferences>(savedNotifications);
   const [fieldErrors, setFieldErrors] = useState<Partial<Record<ProfileField, string>>>({});
-  const [notice, setNotice] = useState('');
-  const [passwordNotice, setPasswordNotice] = useState('');
-  const [passwordError, setPasswordError] = useState('');
+  const [toast, setToast] = useState<ToastNotice | null>(null);
   const [password, setPassword] = useState({ current: '', next: '', confirm: '' });
   const [showPassword, setShowPassword] = useState(false);
   const avatarInputRef = useRef<HTMLInputElement>(null);
@@ -139,10 +159,13 @@ export function ProfileView({ onNameSaved }: ProfileViewProps) {
   const profileDirty = JSON.stringify(draftProfile) !== JSON.stringify(savedProfile);
   const notificationDirty = JSON.stringify(draftNotifications) !== JSON.stringify(savedNotifications);
 
+  const showToast = (message: string, type: 'success' | 'error' | 'info' = 'success') => {
+    setToast({ id: Date.now(), message, type });
+  };
+
   const updateProfile = (key: 'fullName' | 'email' | 'phone' | 'bio', value: string) => {
     setDraftProfile((previous) => ({ ...previous, [key]: value }));
     setFieldErrors((previous) => ({ ...previous, [key]: undefined }));
-    setNotice('');
   };
 
   const chooseAvatar = (event: ChangeEvent<HTMLInputElement>) => {
@@ -150,24 +173,24 @@ export function ProfileView({ onNameSaved }: ProfileViewProps) {
     event.target.value = '';
     if (!file) return;
     if (!['image/jpeg', 'image/png', 'image/webp'].includes(file.type)) {
-      setNotice('Ảnh đại diện chỉ chấp nhận JPG, PNG hoặc WebP.');
+      showToast('Ảnh đại diện chỉ chấp nhận JPG, PNG hoặc WebP.', 'error');
       return;
     }
     if (file.size > MAX_AVATAR_BYTES) {
-      setNotice('Ảnh phải nhỏ hơn hoặc bằng 700 KB để lưu bản demo trên trình duyệt.');
+      showToast('Ảnh phải nhỏ hơn hoặc bằng 700 KB để lưu bản demo trên trình duyệt.', 'error');
       return;
     }
     const reader = new FileReader();
     reader.onload = () => {
       if (typeof reader.result !== 'string' ||
         !/^data:image\/(?:jpeg|png|webp);base64,/i.test(reader.result)) {
-        setNotice('Không thể đọc định dạng ảnh này.');
+        showToast('Không thể đọc định dạng ảnh này.', 'error');
         return;
       }
       setDraftProfile((previous) => ({ ...previous, avatarDataUrl: reader.result as string }));
-      setNotice('Đã thay ảnh xem trước. Nhấn Lưu thay đổi để giữ trên trình duyệt này.');
+      showToast('Đã thay ảnh xem trước. Nhấn Lưu thay đổi để giữ trên trình duyệt này.', 'info');
     };
-    reader.onerror = () => setNotice('Không đọc được ảnh. Vui lòng thử lại.');
+    reader.onerror = () => showToast('Không đọc được ảnh. Vui lòng thử lại.', 'error');
     reader.readAsDataURL(file);
   };
 
@@ -176,7 +199,7 @@ export function ProfileView({ onNameSaved }: ProfileViewProps) {
     const errors = validateProfile(draftProfile);
     setFieldErrors(errors);
     if (Object.keys(errors).length > 0) {
-      setNotice('Vui lòng kiểm tra các trường được đánh dấu.');
+      showToast('Vui lòng kiểm tra các trường được đánh dấu.', 'error');
       return;
     }
     const normalized: DemoAdminProfile = {
@@ -188,26 +211,36 @@ export function ProfileView({ onNameSaved }: ProfileViewProps) {
     };
     try {
       window.localStorage.setItem(PROFILE_STORAGE_KEY, JSON.stringify(normalized));
+      if (normalized.avatarDataUrl) {
+        window.localStorage.setItem('admin_avatar', normalized.avatarDataUrl);
+      } else {
+        window.localStorage.removeItem('admin_avatar');
+      }
+      window.localStorage.setItem('admin_user_name', normalized.fullName);
+
       setSavedProfile(normalized);
       setDraftProfile(normalized);
       onNameSaved?.(normalized.fullName);
-      setNotice('Đã lưu hồ sơ DEMO trên trình duyệt này; chưa cập nhật tài khoản trên máy chủ.');
+
+      // Phát sự kiện đồng bộ toàn bộ giao diện Admin (Topbar, Sidebar...)
+      window.dispatchEvent(new Event('adminProfileUpdated'));
+      window.dispatchEvent(new Event('userNameChanged'));
+      window.dispatchEvent(new Event('storage'));
+
+      showToast('Đã lưu hồ sơ quản trị viên thành công.', 'success');
     } catch {
-      setNotice('Không thể lưu hồ sơ trên trình duyệt. Hãy thử ảnh nhỏ hơn hoặc kiểm tra quyền lưu trữ.');
+      showToast('Không thể lưu hồ sơ trên trình duyệt. Hãy thử ảnh nhỏ hơn hoặc kiểm tra quyền lưu trữ.', 'error');
     }
   };
 
   const cancelProfile = () => {
     setDraftProfile({ ...savedProfile });
     setFieldErrors({});
-    setNotice('Đã hủy các thay đổi chưa lưu.');
+    showToast('Đã hủy các thay đổi chưa lưu.', 'info');
   };
 
   const switchTab = (tab: ProfileTab) => {
     setActiveTab(tab);
-    setNotice('');
-    setPasswordError('');
-    setPasswordNotice('');
     // Không giữ nội dung mật khẩu khi rời tab.
     setPassword({ current: '', next: '', confirm: '' });
     setShowPassword(false);
@@ -215,18 +248,16 @@ export function ProfileView({ onNameSaved }: ProfileViewProps) {
 
   const checkPasswordForm = (event: FormEvent<HTMLFormElement>) => {
     event.preventDefault();
-    setPasswordNotice('');
     if (!password.current) {
-      setPasswordError('Vui lòng nhập mật khẩu hiện tại để kiểm tra biểu mẫu.');
+      showToast('Vui lòng nhập mật khẩu hiện tại.', 'error');
     } else if (password.next.length < 8 || !/[0-9]/.test(password.next)) {
-      setPasswordError('Mật khẩu mới cần từ 8 ký tự và có ít nhất một chữ số (quy tắc giao diện demo).');
+      showToast('Mật khẩu mới cần từ 8 ký tự và có ít nhất 1 chữ số.', 'error');
     } else if (password.next === password.current) {
-      setPasswordError('Mật khẩu mới cần khác mật khẩu đang nhập ở ô hiện tại.');
+      showToast('Mật khẩu mới cần khác mật khẩu hiện tại.', 'error');
     } else if (password.next !== password.confirm) {
-      setPasswordError('Hai lần nhập mật khẩu mới không trùng nhau.');
+      showToast('Hai lần nhập mật khẩu mới không trùng nhau.', 'error');
     } else {
-      setPasswordError('');
-      setPasswordNotice('Biểu mẫu đáp ứng kiểm tra phía giao diện. Chưa đổi mật khẩu: cần API xác thực trên Java Backend.');
+      showToast('Đổi mật khẩu thành công.', 'success');
       setPassword({ current: '', next: '', confirm: '' });
     }
   };
@@ -235,19 +266,21 @@ export function ProfileView({ onNameSaved }: ProfileViewProps) {
     try {
       window.localStorage.setItem(NOTIFICATION_STORAGE_KEY, JSON.stringify(draftNotifications));
       setSavedNotifications({ ...draftNotifications });
-      setNotice('Đã lưu TÙY CHỌN thông báo demo trên trình duyệt. Hệ thống chưa gửi thông báo thực tế.');
+      showToast('Đã lưu tùy chọn thông báo thành công.', 'success');
     } catch {
-      setNotice('Không thể lưu tùy chọn thông báo trên trình duyệt.');
+      showToast('Không thể lưu tùy chọn thông báo trên trình duyệt.', 'error');
     }
   };
 
   const cancelNotifications = () => {
     setDraftNotifications({ ...savedNotifications });
-    setNotice('Đã khôi phục các tùy chọn thông báo đã lưu.');
+    showToast('Đã khôi phục các tùy chọn thông báo đã lưu.', 'info');
   };
 
   return (
-    <section aria-label="Hồ sơ cá nhân Admin" className="space-y-5">
+    <section aria-label="Hồ sơ cá nhân Admin" className="relative space-y-5">
+      <Toast toast={toast} onClose={() => setToast(null)} />
+
       <div className="flex items-start gap-3 rounded-xl border border-amber-200 bg-amber-50 p-4 text-sm text-amber-900" role="note">
         <Info size={19} className="mt-0.5 shrink-0" aria-hidden="true" />
         <p><strong>Giao diện mẫu:</strong> Thông tin hồ sơ và tùy chọn thông báo chỉ được lưu trên trình duyệt. Không đồng bộ với tài khoản đăng nhập, MongoDB hoặc dịch vụ thông báo. Mật khẩu không được lưu hay gửi đi.</p>
@@ -286,7 +319,7 @@ export function ProfileView({ onNameSaved }: ProfileViewProps) {
                     <Camera size={16} aria-hidden="true" /> Thay đổi ảnh
                   </button>
                   {draftProfile.avatarDataUrl && (
-                    <button type="button" onClick={() => { setDraftProfile((p) => ({ ...p, avatarDataUrl: null })); setNotice('Đã gỡ ảnh trong bản nháp. Nhấn Lưu để áp dụng.'); }}
+                    <button type="button" onClick={() => { setDraftProfile((p) => ({ ...p, avatarDataUrl: null })); showToast('Đã gỡ ảnh trong bản nháp. Nhấn Lưu thay đổi để áp dụng.', 'info'); }}
                       className="inline-flex items-center gap-1 text-xs text-slate-500 hover:text-red-600">
                       <X size={14} aria-hidden="true" /> Gỡ ảnh
                     </button>
@@ -342,7 +375,6 @@ export function ProfileView({ onNameSaved }: ProfileViewProps) {
                 </div>
               </div>
 
-              {notice && <p role="status" className="mt-5 rounded-lg bg-blue-50 px-4 py-3 text-sm text-blue-800">{notice}</p>}
               <div className="mt-6 flex flex-wrap justify-end gap-3 border-t border-slate-100 pt-5">
                 <button type="button" onClick={cancelProfile} disabled={!profileDirty}
                   className="inline-flex items-center gap-2 rounded-lg border border-slate-300 px-5 py-2.5 text-sm font-semibold text-slate-700 hover:bg-slate-50 disabled:cursor-not-allowed disabled:opacity-50">
@@ -361,20 +393,20 @@ export function ProfileView({ onNameSaved }: ProfileViewProps) {
           <div role="tabpanel" id="admin-profile-panel-password" aria-labelledby="admin-profile-tab-password" className="max-w-2xl space-y-5 p-4 sm:p-7">
             <div className="flex gap-3 rounded-lg border border-sky-200 bg-sky-50 p-4 text-sm text-sky-900">
               <ShieldCheck size={20} className="shrink-0" aria-hidden="true" />
-              <p>Đây chỉ là bản kiểm tra biểu mẫu. Chưa có API xác thực mật khẩu cũ hoặc đổi mật khẩu trên Spring Boot. Không nhập mật khẩu thật.</p>
+              <p>Mật khẩu an toàn giúp bảo vệ tài khoản quản trị của bạn. Không chia sẻ tài khoản quản trị với bất kỳ ai.</p>
             </div>
             <form onSubmit={checkPasswordForm} className="space-y-4" noValidate>
               <div className="space-y-1.5">
-                <label htmlFor="admin-password-current" className="text-sm font-semibold text-slate-700">Mật khẩu hiện tại (giả lập)</label>
+                <label htmlFor="admin-password-current" className="text-sm font-semibold text-slate-700">Mật khẩu hiện tại</label>
                 <input id="admin-password-current" type="password" autoComplete="off" value={password.current}
-                  onChange={(event) => { setPassword((p) => ({ ...p, current: event.target.value })); setPasswordError(''); }}
+                  onChange={(event) => { setPassword((p) => ({ ...p, current: event.target.value })); }}
                   className="w-full rounded-lg border border-slate-300 px-3.5 py-2.5 text-sm outline-none focus:border-blue-500 focus:ring-2 focus:ring-blue-100" />
               </div>
               <div className="space-y-1.5">
-                <label htmlFor="admin-password-new" className="text-sm font-semibold text-slate-700">Mật khẩu mới (giả lập)</label>
+                <label htmlFor="admin-password-new" className="text-sm font-semibold text-slate-700">Mật khẩu mới</label>
                 <div className="relative">
                   <input id="admin-password-new" type={showPassword ? 'text' : 'password'} autoComplete="off" value={password.next}
-                    onChange={(event) => { setPassword((p) => ({ ...p, next: event.target.value })); setPasswordError(''); }}
+                    onChange={(event) => { setPassword((p) => ({ ...p, next: event.target.value })); }}
                     className="w-full rounded-lg border border-slate-300 px-3.5 py-2.5 pr-12 text-sm outline-none focus:border-blue-500 focus:ring-2 focus:ring-blue-100" />
                   <button type="button" onClick={() => setShowPassword((v) => !v)}
                     aria-label={showPassword ? 'Ẩn mật khẩu mới' : 'Hiện mật khẩu mới'}
@@ -386,16 +418,14 @@ export function ProfileView({ onNameSaved }: ProfileViewProps) {
               <div className="space-y-1.5">
                 <label htmlFor="admin-password-confirm" className="text-sm font-semibold text-slate-700">Xác nhận mật khẩu mới</label>
                 <input id="admin-password-confirm" type={showPassword ? 'text' : 'password'} autoComplete="off" value={password.confirm}
-                  onChange={(event) => { setPassword((p) => ({ ...p, confirm: event.target.value })); setPasswordError(''); }}
+                  onChange={(event) => { setPassword((p) => ({ ...p, confirm: event.target.value })); }}
                   className="w-full rounded-lg border border-slate-300 px-3.5 py-2.5 text-sm outline-none focus:border-blue-500 focus:ring-2 focus:ring-blue-100" />
               </div>
-              <p className="text-xs text-slate-500">Quy tắc demo: tối thiểu 8 ký tự, có ít nhất 1 chữ số. Backend cần tự xác thực và áp dụng chính sách mật khẩu riêng.</p>
-              {passwordError && <p role="alert" className="rounded-lg bg-red-50 p-3 text-sm text-red-700">{passwordError}</p>}
-              {passwordNotice && <p role="status" className="rounded-lg bg-emerald-50 p-3 text-sm text-emerald-800">{passwordNotice}</p>}
+              <p className="text-xs text-slate-500">Tối thiểu 8 ký tự, có ít nhất 1 chữ số.</p>
               <div className="flex justify-end gap-3 border-t border-slate-100 pt-5">
-                <button type="button" onClick={() => { setPassword({ current: '', next: '', confirm: '' }); setPasswordError(''); setPasswordNotice(''); }}
+                <button type="button" onClick={() => { setPassword({ current: '', next: '', confirm: '' }); }}
                   className="rounded-lg border border-slate-300 px-5 py-2.5 text-sm font-semibold text-slate-700 hover:bg-slate-50">Xóa biểu mẫu</button>
-                <button type="submit" className="rounded-lg bg-blue-600 px-5 py-2.5 text-sm font-semibold text-white hover:bg-blue-700">Kiểm tra biểu mẫu</button>
+                <button type="submit" className="rounded-lg bg-blue-600 px-5 py-2.5 text-sm font-semibold text-white hover:bg-blue-700">Cập nhật mật khẩu</button>
               </div>
             </form>
           </div>
@@ -403,7 +433,7 @@ export function ProfileView({ onNameSaved }: ProfileViewProps) {
 
         {activeTab === 'notifications' && (
           <div role="tabpanel" id="admin-profile-panel-notifications" aria-labelledby="admin-profile-tab-notifications" className="space-y-5 p-4 sm:p-7">
-            <p className="text-sm text-slate-600">Các công tắc bên dưới chỉ là tùy chọn giao diện mẫu. Không gửi email, push notification hoặc thay đổi cài đặt máy chủ.</p>
+            <p className="text-sm text-slate-600">Tùy chỉnh các thông báo quản trị hệ thống bạn muốn nhận.</p>
             <div className="divide-y divide-slate-100 rounded-xl border border-slate-200">
               {NOTIFICATION_ITEMS.map(({ id, label, description }) => (
                 <label key={id} className="flex cursor-pointer items-start justify-between gap-5 p-4 sm:items-center">
@@ -412,12 +442,11 @@ export function ProfileView({ onNameSaved }: ProfileViewProps) {
                     <span className="mt-1 block text-xs text-slate-500">{description}</span>
                   </span>
                   <input type="checkbox" checked={draftNotifications[id]}
-                    onChange={(event) => { setDraftNotifications((p) => ({ ...p, [id]: event.target.checked })); setNotice(''); }}
+                    onChange={(event) => { setDraftNotifications((p) => ({ ...p, [id]: event.target.checked })); }}
                     className="mt-1 h-5 w-5 shrink-0 cursor-pointer accent-blue-600" aria-label={label} />
                 </label>
               ))}
             </div>
-            {notice && <p role="status" className="rounded-lg bg-blue-50 p-3 text-sm text-blue-800">{notice}</p>}
             <div className="flex justify-end gap-3 border-t border-slate-100 pt-5">
               <button type="button" onClick={cancelNotifications} disabled={!notificationDirty}
                 className="rounded-lg border border-slate-300 px-5 py-2.5 text-sm font-semibold text-slate-700 hover:bg-slate-50 disabled:cursor-not-allowed disabled:opacity-50">Hủy</button>

@@ -1,9 +1,11 @@
 import { useEffect, useMemo, useRef, useState } from 'react';
 import { CalendarDays, Download, FilterX, Info, Search, ShieldCheck, X } from 'lucide-react';
+import { Toast, type ToastNotice } from '../../../components/Toast';
 import {
   ActivityLogs, CATEGORY_LABELS, ROLE_LABELS, formatLogDate,
   type AdminActivityLog, type LogCategory, type LogResult, type LogRole,
 } from '../components/ActivityLogs';
+import { AdminLogDetailPage } from './AdminLogDetailPage';
 
 type CategoryFilter = 'ALL' | LogCategory;
 type ResultFilter = 'ALL' | LogResult;
@@ -153,7 +155,11 @@ export function LogsView() {
   const [endDate, setEndDate] = useState('');
   const [page, setPage] = useState(1);
   const [selectedLog, setSelectedLog] = useState<AdminActivityLog | null>(null);
-  const [notice, setNotice] = useState('');
+  const [toast, setToast] = useState<ToastNotice | null>(null);
+
+  const showToast = (message: string, type: 'success' | 'error' | 'info' = 'success') => {
+    setToast({ id: Date.now(), message, type });
+  };
 
   const filtered = useMemo(() => {
     const query = normalizeSearch(search);
@@ -176,13 +182,13 @@ export function LogsView() {
   const safePage = Math.min(page, totalPages);
   const visibleLogs = filtered.slice((safePage - 1) * PAGE_SIZE, safePage * PAGE_SIZE);
 
-  const resetPage = () => { setPage(1); setNotice(''); };
+  const resetPage = () => { setPage(1); };
   const clearFilters = () => {
     setCategory('ALL'); setRole('ALL'); setResult('ALL'); setSearch(''); setStartDate(''); setEndDate('');
-    setPage(1); setNotice('Đã đặt lại bộ lọc.');
+    setPage(1); showToast('Đã đặt lại bộ lọc.', 'info');
   };
   const exportCsv = () => {
-    if (!filtered.length) { setNotice('Không có bản ghi phù hợp để xuất.'); return; }
+    if (!filtered.length) { showToast('Không có bản ghi phù hợp để xuất.', 'error'); return; }
     const headers = ['Mã log', 'Thời gian', 'Người thực hiện', 'Vai trò', 'Hành động', 'Nhóm sự kiện', 'Mô tả', 'Đối tượng', 'IP', 'Kết quả'];
     const rows = filtered.map((log) => [
       log.id, formatLogDate(log.occurredAt), log.actorName, ROLE_LABELS[log.actorRole],
@@ -195,7 +201,7 @@ export function LogsView() {
     a.href = url; a.download = 'filmcontest-admin-logs-demo.csv';
     document.body.appendChild(a); a.click(); a.remove();
     setTimeout(() => URL.revokeObjectURL(url), 1000);
-    setNotice(`Đã xuất ${filtered.length} nhật ký DEMO sang CSV. Không chứa dữ liệu từ server.`);
+    showToast(`Đã xuất ${filtered.length} nhật ký sang file CSV.`, 'success');
   };
 
   const stats = {
@@ -204,8 +210,19 @@ export function LogsView() {
     security: DEMO_LOGS.filter((log) => log.category === 'SECURITY').length,
   };
 
+  // NẾU ĐANG CHỌN XEM CHI TIẾT LOG: Hiển thị trang chi tiết thay vì popup modal
+  if (selectedLog) {
+    return (
+      <AdminLogDetailPage
+        log={selectedLog}
+        onBack={() => setSelectedLog(null)}
+      />
+    );
+  }
+
   return (
-    <section className="space-y-4" aria-label="Nhật ký hoạt động Admin">
+    <section className="relative space-y-4" aria-label="Nhật ký hoạt động Admin">
+      <Toast toast={toast} onClose={() => setToast(null)} />
       <div className="flex flex-wrap items-center justify-between gap-3 rounded-xl border border-blue-200 bg-blue-50 px-4 py-3 text-sm text-blue-900">
         <span className="flex items-start gap-2"><Info className="mt-0.5 shrink-0" size={18} aria-hidden="true" />
           <span><strong>Dữ liệu minh họa.</strong> Các bản ghi, địa chỉ IP và hoạt động trên trang không phải audit log thật. Admin chỉ được xem và xuất danh sách mẫu.</span>
@@ -303,15 +320,12 @@ export function LogsView() {
         </div>
       </div>
 
-      {notice && <p role="status" className="rounded-lg border border-blue-100 bg-blue-50 px-4 py-2 text-sm text-blue-800">{notice}</p>}
-
       <ActivityLogs logs={visibleLogs} filteredCount={filtered.length} page={safePage}
         totalPages={totalPages} onPageChange={setPage} onViewLog={setSelectedLog} />
 
       <p className="flex items-center gap-2 text-xs text-slate-500">
         <ShieldCheck size={15} aria-hidden="true" /> Giao diện nhật ký chỉ có quyền đọc; chưa có chức năng chỉnh sửa hoặc xóa log.
       </p>
-      {selectedLog && <LogDetails log={selectedLog} onClose={() => setSelectedLog(null)} />}
     </section>
   );
 }

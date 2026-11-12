@@ -4,6 +4,7 @@ import { judgeService } from '../../../services/judgeService';
 import { useFetch } from '../../../hooks/useFetch';
 import type { AssignedSubmission } from '../../../types/judge';
 import { formatDate } from '../../../utils/formatDate';
+import { isJudgingExpired } from '../../../utils/judgingDeadline';
 import { AsyncState } from './AsyncState';
 import { EvaluationHistoryList } from './EvaluationHistoryList';
 import { ImageGallery } from './ImageGallery';
@@ -59,8 +60,16 @@ export function SubmissionDetailModal({ submissionId, onClose, onStartScoring }:
               <SubmissionInfo
                 submission={submission}
                 footer={
-                  submission.evaluationStatus !== 'FINALIZED' && (
-                    <button type="button" onClick={() => onStartScoring(submission.id)} className="judge-btn-primary w-full">
+                  submission.evaluationStatus === 'FINALIZED' ? (
+                    <span className="text-xs text-slate-500 font-semibold text-center block py-2">
+                      Đã gửi đánh giá chính thức
+                    </span>
+                  ) : isJudgingExpired(undefined, submission.contestId) ? (
+                    <div className="rounded-lg bg-rose-50 border border-rose-200 p-2.5 text-center text-xs font-bold text-rose-700">
+                      ⏰ Cổng chấm điểm đã khóa do hết thời hạn
+                    </div>
+                  ) : (
+                    <button type="button" onClick={() => onStartScoring(submission.id)} className="judge-btn-primary w-full cursor-pointer">
                       <PenLine className="h-4 w-4" /> Chấm bài này
                     </button>
                   )
@@ -96,7 +105,7 @@ export function SubmissionDetailModal({ submissionId, onClose, onStartScoring }:
   );
 }
 
-// Hàng lỗ răng cưa của dải phim 35mm, vẽ bằng gradient để không cần ảnh nền riêng
+
 const SPROCKET_STYLE = {
   backgroundImage: 'repeating-linear-gradient(90deg, transparent 0 5px, rgb(229 229 229) 5px 11px, transparent 11px 16px)',
 };

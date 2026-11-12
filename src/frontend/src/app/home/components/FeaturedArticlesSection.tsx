@@ -1,6 +1,6 @@
-import React from 'react';
+import React, { useEffect, useState } from 'react';
 import { Newspaper, Calendar, ArrowRight } from 'lucide-react';
-import { ALL_ARTICLES_LIST, type ArticleItem } from './articles/data';
+import { getAllUnifiedArticles, type ArticleItem } from './articles/data';
 
 export type { ArticleItem };
 
@@ -9,12 +9,24 @@ interface FeaturedArticlesSectionProps {
   onViewAll?: () => void;
 }
 
-export const FEATURED_ARTICLES: ArticleItem[] = ALL_ARTICLES_LIST.slice(0, 4);
-
 export function FeaturedArticlesSection({
   onSelectArticle,
   onViewAll,
 }: FeaturedArticlesSectionProps) {
+  const [articles, setArticles] = useState<ArticleItem[]>(() => getAllUnifiedArticles().slice(0, 4));
+
+  useEffect(() => {
+    const handleSync = () => {
+      setArticles(getAllUnifiedArticles().slice(0, 4));
+    };
+    window.addEventListener('filmcontest:articles-updated', handleSync);
+    window.addEventListener('storage', handleSync);
+    return () => {
+      window.removeEventListener('filmcontest:articles-updated', handleSync);
+      window.removeEventListener('storage', handleSync);
+    };
+  }, []);
+
   return (
     <section className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 py-10">
       {/* Section Header */}
@@ -41,7 +53,7 @@ export function FeaturedArticlesSection({
 
       {/* Grid of 4 Article Cards */}
       <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-4 gap-6">
-        {FEATURED_ARTICLES.map((article) => (
+        {articles.map((article) => (
           <article
             key={article.id}
             onClick={() => onSelectArticle?.(article)}
@@ -65,7 +77,7 @@ export function FeaturedArticlesSection({
                   <span>{article.date}</span>
                 </div>
 
-                <h3 className="text-sm sm:text-base font-bold text-slate-900 line-clamp-2 leading-snug group-hover:text-blue-600 transition-colors">
+                <h3 className="text-sm sm:text-base font-bold text-slate-900 line-clamp-2 leading-snug group-hover:text-blue-600 transition-colors min-w-0 break-words [overflow-wrap:anywhere] [word-break:break-word]">
                   {article.title}
                 </h3>
               </div>

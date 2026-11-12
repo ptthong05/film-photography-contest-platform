@@ -1,5 +1,6 @@
-﻿import React, { useState, useEffect, useRef } from 'react';
+import React, { useState, useEffect, useRef } from 'react';
 import { Trophy, Calendar, Users, ArrowRight } from 'lucide-react';
+import { getAllUnifiedContests } from '../../../services/contestSyncService';
 
 export interface ContestItem {
   id: string;
@@ -88,7 +89,54 @@ export const FEATURED_CONTESTS: ContestItem[] = [
   },
 ];
 
+export function getUnifiedFeaturedContests(): ContestItem[] {
+  const unified = getAllUnifiedContests();
+  const map = new Map<string, ContestItem>();
+
+  // Thêm các cuộc thi do Organizer tạo trước (để hiện lên đầu)
+  for (const c of unified) {
+    const status: ContestItem['status'] = c.status === 'ENDED' ? 'ended' : c.status === 'UPCOMING' ? 'upcoming' : 'active';
+    const statusLabel = status === 'active' ? 'Đang diễn ra' : status === 'upcoming' ? 'Sắp diễn ra' : 'Đã kết thúc';
+    map.set(c.id, {
+      id: c.id,
+      title: c.name,
+      status,
+      statusLabel,
+      image: c.image || 'https://images.unsplash.com/photo-1464822759023-fed622ff2c3b?auto=format&fit=crop&w=1000&q=80',
+      startDate: c.startDate,
+      endDate: c.endDate,
+      participantsCount: c.participantCount || 240,
+      categories: c.tags || ['Nhiếp ảnh phim'],
+      description: c.description || 'Cuộc thi nhiếp ảnh phim analog.',
+      prizePool: c.prizes?.[0]?.reward ? `${c.prizes[0].reward} và nhiều phần thưởng khác` : '50.000.000 VNĐ',
+    });
+  }
+
+  // Thêm các cuộc thi mặc định nếu chưa có
+  for (const fc of FEATURED_CONTESTS) {
+    if (!map.has(fc.id)) {
+      map.set(fc.id, fc);
+    }
+  }
+
+  return Array.from(map.values());
+}
+
 export function LiveContestsSection({ onSelectContest, onViewAll }: LiveContestsSectionProps) {
+  const [contestsList, setContestsList] = useState<ContestItem[]>(getUnifiedFeaturedContests);
+
+  useEffect(() => {
+    const handleUpdate = () => {
+      setContestsList(getUnifiedFeaturedContests());
+    };
+    window.addEventListener('filmcontest:contests-updated', handleUpdate);
+    window.addEventListener('storage', handleUpdate);
+    return () => {
+      window.removeEventListener('filmcontest:contests-updated', handleUpdate);
+      window.removeEventListener('storage', handleUpdate);
+    };
+  }, []);
+
   const scrollContainerRef = useRef<HTMLDivElement>(null);
   const [isPaused, setIsPaused] = useState(false);
   const [canScrollLeft, setCanScrollLeft] = useState(false);
@@ -105,7 +153,7 @@ export function LiveContestsSection({ onSelectContest, onViewAll }: LiveContests
     // Compute approximate active card index for dots
     const cardWidth = 380;
     const index = Math.round(scrollLeft / cardWidth);
-    setActiveIndex(Math.min(index, FEATURED_CONTESTS.length - 1));
+    setActiveIndex(Math.min(index, contestsList.length - 1));
   };
 
   const scrollNext = () => {
@@ -166,7 +214,7 @@ export function LiveContestsSection({ onSelectContest, onViewAll }: LiveContests
             <h2 className="text-xl sm:text-2xl font-bold text-slate-900 tracking-tight flex items-center gap-2">
               <span>Cuộc thi nổi bật</span>
               <span className="inline-flex items-center px-2.5 py-0.5 rounded-full text-xs font-semibold bg-blue-50 text-blue-600 border border-blue-200">
-                {FEATURED_CONTESTS.length} cuộc thi
+                {contestsList.length} cuộc thi
               </span>
             </h2>
           </div>
@@ -196,7 +244,7 @@ export function LiveContestsSection({ onSelectContest, onViewAll }: LiveContests
           }}
           className="flex gap-6 overflow-x-auto scroll-smooth pb-4 pt-1 px-1 snap-x snap-mandatory"
         >
-          {FEATURED_CONTESTS.map((contest) => {
+          {contestsList.map((contest) => {
             const isActive = contest.status === 'active';
             return (
               <div
@@ -280,7 +328,7 @@ export function LiveContestsSection({ onSelectContest, onViewAll }: LiveContests
 
         {/* Carousel Progress Dots */}
         <div className="flex items-center justify-center gap-2 mt-4">
-          {FEATURED_CONTESTS.map((_, idx) => (
+          {contestsList.map((_, idx) => (
             <button
               key={idx}
               onClick={() => {

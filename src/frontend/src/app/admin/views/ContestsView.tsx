@@ -1,19 +1,23 @@
-import { useEffect, useMemo, useState } from 'react';
+import { useMemo, useState, useEffect } from 'react';
 import {
   CalendarDays, ChevronLeft, ChevronRight, ClipboardCopy,
   Eye, Filter, ImageOff, MoreVertical, Search, Trophy, Users,
   UserRoundCheck, X,
 } from 'lucide-react';
+import { Toast, type ToastNotice } from '../../../components/Toast';
+import type { AdminView } from '../components/AdminSidebar';
+import { AdminContestDetailPage } from './AdminContestDetailPage';
+import { getAllUnifiedContests } from '../../../services/contestSyncService';
 
 /**
  * Admin > Quản lý cuộc thi.
  * Chỉ xem và giám sát: việc tạo/sửa/công bố cuộc thi thuộc Organizer theo SRS.
  * Tất cả dữ liệu dưới đây là dữ liệu minh họa, CHƯA kết nối Java API.
  */
-type ContestStatus = 'ACTIVE' | 'UPCOMING' | 'COMPLETED';
-type ContestFilter = 'ALL' | ContestStatus;
+export type ContestStatus = 'ACTIVE' | 'UPCOMING' | 'COMPLETED';
+export type ContestFilter = 'ALL' | ContestStatus;
 
-interface AdminContest {
+export interface AdminContest {
   id: string;
   title: string;
   organizer: string;
@@ -39,7 +43,7 @@ const PHOTO = {
 
 // Dữ liệu minh họa được đặt theo những mốc thời gian hợp lý trong 2025–2027.
 // Trạng thái là GIẢ LẬP, không phải trạng thái tự tính từ đồng hồ hệ thống.
-const DEMO_CONTESTS: AdminContest[] = [
+export const DEMO_CONTESTS: AdminContest[] = [
   { id: 'CT-2026-001', title: 'Analog Moments 2026', organizer: 'FilmContest Studio', description: 'Lưu giữ những khoảnh khắc chân thật qua nhiếp ảnh phim.', startDate: '2026-09-01', endDate: '2026-11-30', status: 'ACTIVE', participants: 342, judges: 8, submissions: 568, categories: ['Đời sống', 'Chân dung'], image: PHOTO.mountains },
   { id: 'CT-2026-002', title: 'Film & City 2026', organizer: 'Urban Film Club', description: 'Nhịp sống thành phố nhìn từ máy ảnh phim.', startDate: '2026-08-15', endDate: '2026-10-31', status: 'ACTIVE', participants: 285, judges: 6, submissions: 371, categories: ['Đường phố', 'Kiến trúc'], image: PHOTO.city },
   { id: 'CT-2026-003', title: 'The Vintage Look', organizer: 'Retro Lab', description: 'Tôn vinh phong cách ảnh cổ điển và sắc màu analog.', startDate: '2026-10-01', endDate: '2026-12-15', status: 'ACTIVE', participants: 198, judges: 5, submissions: 294, categories: ['Chân dung', 'Nghệ thuật'], image: PHOTO.streets },
@@ -52,6 +56,7 @@ const DEMO_CONTESTS: AdminContest[] = [
   { id: 'CT-2026-009', title: 'Spring Film Diary', organizer: 'Green Frames', description: 'Nhật ký mùa xuân qua từng khung hình analog.', startDate: '2026-02-01', endDate: '2026-04-30', status: 'COMPLETED', participants: 275, judges: 6, submissions: 390, categories: ['Thiên nhiên'], image: PHOTO.forest },
   { id: 'CT-2025-001', title: 'Classic Street Photography', organizer: 'Urban Film Club', description: 'Khám phá đường phố qua cảm quan nhiếp ảnh phim.', startDate: '2025-08-01', endDate: '2025-10-31', status: 'COMPLETED', participants: 389, judges: 8, submissions: 520, categories: ['Đường phố'], image: PHOTO.city },
   { id: 'CT-2025-002', title: 'Stories in 35mm', organizer: 'Analog Collective', description: 'Tác phẩm kể chuyện qua định dạng phim 35mm.', startDate: '2025-05-01', endDate: '2025-07-30', status: 'COMPLETED', participants: 201, judges: 5, submissions: 296, categories: ['Đời sống', 'Nghệ thuật'], image: PHOTO.coast },
+  { id: 'CT-2026-010', title: 'Khoảnh khắc Analog 2026', organizer: 'FilmContest Studio', description: 'Khám phá chiều sâu tâm hồn đường phố qua những khung hình phim tài liệu.', startDate: '2026-07-01', endDate: '2026-10-15', status: 'ACTIVE', participants: 230, judges: 3, submissions: 310, categories: ['Đường phố', 'Tài liệu'], image: PHOTO.streets },
 ];
 
 const FILTER_TABS: { id: ContestFilter; label: string }[] = [
@@ -63,12 +68,12 @@ const FILTER_TABS: { id: ContestFilter; label: string }[] = [
 const PAGE_SIZE = 5;
 const formatter = new Intl.NumberFormat('vi-VN');
 
-function displayDate(value: string) {
+export function displayDate(value: string) {
   const [year, month, day] = value.split('-');
   return `${day}/${month}/${year}`;
 }
 
-function statusInfo(status: ContestStatus) {
+export function statusInfo(status: ContestStatus) {
   switch (status) {
     case 'ACTIVE': return { label: 'Đang diễn ra', color: 'bg-emerald-100 text-emerald-700' };
     case 'UPCOMING': return { label: 'Sắp diễn ra', color: 'bg-violet-100 text-violet-700' };
@@ -90,104 +95,134 @@ function ContestImage({ contest }: { contest: AdminContest }) {
   );
 }
 
-function ContestDetail({ contest, onClose }: { contest: AdminContest; onClose: () => void }) {
-  useEffect(() => {
-    const onEscape = (event: KeyboardEvent) => { if (event.key === 'Escape') onClose(); };
-    document.addEventListener('keydown', onEscape);
-    return () => document.removeEventListener('keydown', onEscape);
-  }, [onClose]);
-  const status = statusInfo(contest.status);
-  return (
-    <div className="fixed inset-0 z-[70] flex items-center justify-center bg-slate-950/60 p-4"
-      role="presentation" onMouseDown={(event) => { if (event.target === event.currentTarget) onClose(); }}>
-      <section role="dialog" aria-modal="true" aria-labelledby="admin-contest-detail-title"
-        className="max-h-[90vh] w-full max-w-2xl overflow-y-auto rounded-2xl bg-white shadow-2xl">
-        <div className="flex items-start justify-between gap-4 border-b border-slate-200 p-5">
-          <div>
-            <p className="text-xs font-semibold uppercase tracking-wide text-slate-400">Chi tiết cuộc thi · Dữ liệu mẫu</p>
-            <h2 id="admin-contest-detail-title" className="mt-1 text-xl font-bold text-[#0B356B]">{contest.title}</h2>
-            <p className="mt-1 text-xs text-slate-500">Mã: {contest.id}</p>
-          </div>
-          <button type="button" onClick={onClose} aria-label="Đóng chi tiết cuộc thi"
-            className="rounded-lg p-2 text-slate-500 hover:bg-slate-100"><X size={21} /></button>
-        </div>
-        <div className="space-y-5 p-5">
-          <div className="flex flex-wrap items-center gap-3">
-            <span className={`rounded-full px-3 py-1 text-xs font-semibold ${status.color}`}>{status.label}</span>
-            <span className="text-sm text-slate-600">Đơn vị tổ chức: <b>{contest.organizer}</b></span>
-          </div>
-          <p className="text-sm leading-relaxed text-slate-700">{contest.description}</p>
-          <dl className="grid gap-3 sm:grid-cols-2">
-            {[
-              ['Bắt đầu', displayDate(contest.startDate)],
-              ['Kết thúc', displayDate(contest.endDate)],
-              ['Người tham gia', formatter.format(contest.participants)],
-              ['Giám khảo', formatter.format(contest.judges)],
-              ['Bài dự thi', formatter.format(contest.submissions)],
-              ['Hạng mục', contest.categories.join(', ')],
-            ].map(([label, value]) => (
-              <div key={label} className="rounded-lg bg-slate-50 p-3">
-                <dt className="text-xs font-medium text-slate-500">{label}</dt>
-                <dd className="mt-1 text-sm font-semibold text-slate-800">{value}</dd>
-              </div>
-            ))}
-          </dl>
-          <p className="rounded-lg bg-blue-50 p-3 text-xs leading-relaxed text-blue-900">
-            Chế độ giám sát Admin: việc tạo, chỉnh sửa thể lệ hoặc công bố kết quả do Ban tổ chức thực hiện theo SRS.
-          </p>
-        </div>
-        <div className="flex justify-end border-t border-slate-200 px-5 py-4">
-          <button type="button" onClick={onClose}
-            className="rounded-lg bg-blue-600 px-5 py-2 text-sm font-semibold text-white hover:bg-blue-700">Đóng</button>
-        </div>
-      </section>
-    </div>
-  );
+export interface ContestsViewProps {
+  onNavigate?: (view: AdminView) => void;
+  selectedContestId?: string | null;
+  onSelectContestId?: (id: string | null) => void;
+}
+
+export function getAdminUnifiedContests(): AdminContest[] {
+  const all = getAllUnifiedContests();
+  const map = new Map<string, AdminContest>();
+
+  for (const dc of DEMO_CONTESTS) {
+    map.set(dc.id, dc);
+  }
+
+  for (const c of all) {
+    const status: ContestStatus = c.status === 'ENDED' ? 'COMPLETED' : c.status === 'UPCOMING' ? 'UPCOMING' : 'ACTIVE';
+    map.set(c.id, {
+      id: c.id,
+      title: c.name,
+      organizer: c.organizer || 'FilmContest Studio',
+      description: c.description || 'Cuộc thi nhiếp ảnh phim quy mô quốc gia.',
+      startDate: c.startDate || '2026-06-01',
+      endDate: c.endDate || '2026-11-30',
+      status,
+      participants: c.participantCount || 150,
+      judges: (c.judgeNames || []).length || 4,
+      submissions: c.submissionCount || 80,
+      categories: c.tags || ['Nhiếp ảnh phim'],
+      image: c.image || PHOTO.mountains,
+    });
+  }
+
+  return Array.from(map.values());
 }
 
 /** Màn hình số 3 trong giao diện Admin: chỉ xem, lọc và tra cứu cuộc thi. */
-export function ContestsView() {
+export function ContestsView({
+  onNavigate,
+  selectedContestId,
+  onSelectContestId,
+}: ContestsViewProps = {}) {
+  const [allContests, setAllContests] = useState<AdminContest[]>(getAdminUnifiedContests);
+
+  useEffect(() => {
+    const handleUpdate = () => {
+      setAllContests(getAdminUnifiedContests());
+    };
+    window.addEventListener('filmcontest:contests-updated', handleUpdate);
+    window.addEventListener('storage', handleUpdate);
+    return () => {
+      window.removeEventListener('filmcontest:contests-updated', handleUpdate);
+      window.removeEventListener('storage', handleUpdate);
+    };
+  }, []);
+
   const [activeTab, setActiveTab] = useState<ContestFilter>('ALL');
   const [categoryFilter, setCategoryFilter] = useState('ALL');
   const [yearFilter, setYearFilter] = useState('ALL');
   const [search, setSearch] = useState('');
   const [showFilters, setShowFilters] = useState(false);
   const [page, setPage] = useState(1);
-  const [selectedContest, setSelectedContest] = useState<AdminContest | null>(null);
+  const [internalSelectedContest, setInternalSelectedContest] = useState<AdminContest | null>(null);
   const [openMenuId, setOpenMenuId] = useState<string | null>(null);
-  const [notice, setNotice] = useState('');
+  const [toast, setToast] = useState<ToastNotice | null>(null);
 
-  const availableYears = [...new Set(DEMO_CONTESTS.map((contest) => contest.startDate.slice(0, 4)))].sort().reverse();
-  const availableCategories = [...new Set(DEMO_CONTESTS.flatMap((contest) => contest.categories))].sort((a, b) => a.localeCompare(b, 'vi'));
+  const showToast = (message: string, type: 'success' | 'error' | 'info' = 'success') => {
+    setToast({ id: Date.now(), message, type });
+  };
+
+  // Determine active contest detail either from prop or internal state
+  const selectedContest = useMemo(() => {
+    if (selectedContestId) {
+      return allContests.find((c) => c.id === selectedContestId) ?? null;
+    }
+    return internalSelectedContest;
+  }, [selectedContestId, internalSelectedContest, allContests]);
+
+  const handleSelectContest = (contest: AdminContest | null) => {
+    if (onSelectContestId) {
+      onSelectContestId(contest ? contest.id : null);
+    }
+    setInternalSelectedContest(contest);
+    setOpenMenuId(null);
+  };
+
+  const availableYears = [...new Set(allContests.map((contest) => contest.startDate.slice(0, 4)))].sort().reverse();
+  const availableCategories = [...new Set(allContests.flatMap((contest) => contest.categories))].sort((a, b) => a.localeCompare(b, 'vi'));
   const filteredContests = useMemo(() => {
     const term = search.trim().toLocaleLowerCase('vi');
-    return DEMO_CONTESTS.filter((contest) =>
+    return allContests.filter((contest) =>
       (activeTab === 'ALL' || contest.status === activeTab) &&
       (categoryFilter === 'ALL' || contest.categories.includes(categoryFilter)) &&
       (yearFilter === 'ALL' || contest.startDate.startsWith(yearFilter)) &&
       (!term || [contest.title, contest.organizer, contest.id, ...contest.categories]
         .some((value) => value.toLocaleLowerCase('vi').includes(term)))
     ).sort((a, b) => b.startDate.localeCompare(a.startDate));
-  }, [activeTab, categoryFilter, yearFilter, search]);
+  }, [activeTab, categoryFilter, yearFilter, search, allContests]);
 
   const pageCount = Math.max(1, Math.ceil(filteredContests.length / PAGE_SIZE));
   const currentPage = Math.min(page, pageCount);
   const pageItems = filteredContests.slice((currentPage - 1) * PAGE_SIZE, currentPage * PAGE_SIZE);
 
   const resetPage = () => { setPage(1); setOpenMenuId(null); };
-  const showDetail = (contest: AdminContest) => { setSelectedContest(contest); setOpenMenuId(null); };
+  const showDetail = (contest: AdminContest) => { handleSelectContest(contest); };
   const copyId = async (id: string) => {
     setOpenMenuId(null);
     try {
       await navigator.clipboard.writeText(id);
-      setNotice(`Đã sao chép mã cuộc thi ${id}.`);
+      showToast(`Đã sao chép mã cuộc thi ${id}.`, 'success');
     } catch {
-      setNotice(`Không thể sao chép tự động. Mã cuộc thi: ${id}`);
+      showToast(`Không thể sao chép tự động. Mã cuộc thi: ${id}`, 'error');
     }
   };
 
+  // Nếu đang chọn xem chi tiết cuộc thi, hiển thị trang chi tiết đầy đủ thay vì popup modal
+  if (selectedContest) {
+    return (
+      <AdminContestDetailPage
+        contest={selectedContest}
+        onBack={() => handleSelectContest(null)}
+        onNavigate={onNavigate}
+      />
+    );
+  }
+
   return (
-    <section aria-label="Quản lý cuộc thi" className="space-y-4">
+    <section aria-label="Quản lý cuộc thi" className="relative space-y-4">
+      <Toast toast={toast} onClose={() => setToast(null)} />
       <div className="flex flex-wrap items-center justify-between gap-3">
         <span className="rounded-md bg-amber-50 px-3 py-2 text-xs font-semibold text-amber-800">
           Dữ liệu minh họa — chưa kết nối API Java / MongoDB
@@ -197,17 +232,10 @@ export function ContestsView() {
         </span>
       </div>
 
-      {notice && (
-        <div role="status" className="flex items-center justify-between gap-3 rounded-lg border border-blue-200 bg-blue-50 px-4 py-3 text-sm text-blue-900">
-          <span>{notice}</span>
-          <button type="button" onClick={() => setNotice('')} aria-label="Đóng thông báo"><X size={17} /></button>
-        </div>
-      )}
-
       <div className="overflow-hidden rounded-xl border border-slate-200 bg-white shadow-sm">
         <div className="flex gap-1 overflow-x-auto border-b border-slate-200 px-4 pt-3" role="tablist" aria-label="Lọc cuộc thi theo trạng thái">
           {FILTER_TABS.map((tab) => {
-            const count = tab.id === 'ALL' ? DEMO_CONTESTS.length : DEMO_CONTESTS.filter((contest) => contest.status === tab.id).length;
+            const count = tab.id === 'ALL' ? allContests.length : allContests.filter((contest) => contest.status === tab.id).length;
             return (
               <button key={tab.id} type="button" role="tab" aria-selected={activeTab === tab.id}
                 onClick={() => { setActiveTab(tab.id); resetPage(); }}
@@ -338,7 +366,6 @@ export function ContestsView() {
           </div>
         </footer>
       </div>
-      {selectedContest && <ContestDetail contest={selectedContest} onClose={() => setSelectedContest(null)} />}
     </section>
   );
 }
