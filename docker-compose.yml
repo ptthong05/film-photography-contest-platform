@@ -1,0 +1,34 @@
+# MySQL dùng chung cho cả nhóm.
+#   Khởi động:  docker compose up -d
+#   Xóa sạch dữ liệu để chạy lại script khởi tạo:  docker compose down -v
+#
+# Các file .sql trong src/database/init chỉ chạy MỘT LẦN khi volume còn trống,
+# theo thứ tự tên file: 01_tv01_... -> 02_tv02_... -> 03_tv03_... -> 04_tv04_... -> 05_tv05_...
+services:
+  mysql:
+    image: mysql:8.0
+    container_name: film-contest-mysql
+    restart: unless-stopped
+    environment:
+      MYSQL_ROOT_PASSWORD: ${MYSQL_ROOT_PASSWORD:-root}
+      MYSQL_DATABASE: ${MYSQL_DATABASE:-film_photography_contest_management_db}
+      MYSQL_USER: ${MYSQL_USER:-filmcontest}
+      MYSQL_PASSWORD: ${MYSQL_PASSWORD:-filmcontest}
+      TZ: Asia/Ho_Chi_Minh
+    command:
+      - --character-set-server=utf8mb4
+      - --collation-server=utf8mb4_unicode_ci
+      - --default-time-zone=+07:00
+    ports:
+      - "${MYSQL_PORT:-3306}:3306"
+    volumes:
+      - mysql_data:/var/lib/mysql
+      - ./src/database/init:/docker-entrypoint-initdb.d:ro
+    healthcheck:
+      test: ["CMD", "mysqladmin", "ping", "-h", "localhost", "-uroot", "-p${MYSQL_ROOT_PASSWORD:-root}"]
+      interval: 10s
+      timeout: 5s
+      retries: 10
+
+volumes:
+  mysql_data:
