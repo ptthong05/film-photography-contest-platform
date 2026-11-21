@@ -13,22 +13,24 @@ import org.springframework.web.bind.annotation.*;
 import org.springframework.web.method.annotation.MethodArgumentTypeMismatchException;
 import org.springframework.web.multipart.MaxUploadSizeExceededException;
 
-@RestControllerAdvice(basePackages = "com.example.backend.tv3.web")
+@RestControllerAdvice
 @Order(-10)
-@Profile("tv3")
 public class Tv3ExceptionHandler {
     @ExceptionHandler(Tv3Exception.class)
     public ResponseEntity<ErrorResponse> business(Tv3Exception e) {
         return response(e.status(), e.getMessage());
     }
 
-    @ExceptionHandler(BindException.class)
-    public ResponseEntity<ErrorResponse> validation(BindException e) {
+    @ExceptionHandler({BindException.class, org.springframework.web.bind.MethodArgumentNotValidException.class})
+    public ResponseEntity<ErrorResponse> validation(Exception e) {
+        org.springframework.validation.BindingResult result = (e instanceof org.springframework.web.bind.MethodArgumentNotValidException manve)
+                ? manve.getBindingResult()
+                : ((BindException) e).getBindingResult();
         String message =
-                e.getBindingResult().getFieldErrors().stream()
+                result.getFieldErrors().stream()
                         .map(f -> f.getField() + ": " + f.getDefaultMessage())
                         .collect(java.util.stream.Collectors.joining("; "));
-        return response(400, message);
+        return response(400, message.isBlank() ? "Dữ liệu không hợp lệ" : message);
     }
 
     @ExceptionHandler({DataIntegrityViolationException.class, ConcurrencyFailureException.class})
