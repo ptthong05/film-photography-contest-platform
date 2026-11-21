@@ -8,9 +8,18 @@ public record UserResponse(
         String id,
         String name,
         String email,
-        Role role
-) {
+        String phone,
+        Role role,
+        String status,
+        Boolean mustChangePassword) {
     public static UserResponse fromEntity(User user) {
-        return new UserResponse(user.getId(), user.getName(), user.getEmail(), user.getRole());
+        return new UserResponse(
+                user.getId(),
+                user.getName(),
+                user.getEmail(),
+                user.getPhone(),
+                user.getRole(),
+                user.getStatus(),
+                user.getMustChangePassword());
     }
 }

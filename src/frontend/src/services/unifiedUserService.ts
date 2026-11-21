@@ -20,6 +20,15 @@ export interface UnifiedUser extends AdminUser {
 export const INITIAL_UNIFIED_USERS: UnifiedUser[] = [
   // --- QUẢN TRỊ VIÊN (ADMIN) ---
   {
+    id: 'u-admin-01',
+    fullName: 'Quản Trị Viên',
+    email: 'admin@gmail.com',
+    role: 'ADMIN',
+    contestCount: 12,
+    status: 'ACTIVE',
+    joinedAt: '2025-01-01',
+  },
+  {
     id: 'U01',
     fullName: 'Nguyễn Văn A',
     email: 'nguyenvana@example.com',

@@ -21,6 +21,9 @@ import OrganizerPage from './organizer/page';
 import JudgePage from './judge/page';
 import ParticipantPage from './participant/page';
 import { ErrorBoundary } from '../components/ErrorBoundary';
+import { Toast } from '../components/Toast';
+import { ForceChangePasswordModal } from '../components/ForceChangePasswordModal';
+import { authService } from '../services/authService';
 
 
 const PORTAL_STORAGE_KEY = 'film_contest_active_portal';
@@ -138,6 +141,85 @@ function getPortalHash(
   }
 }
 
+function verifyPortalAccess(portal: Portal): { allowed: boolean; redirectTo: Portal; message?: string } {
+  const publicPortals: Portal[] = [
+    'HOME',
+    'AUTH',
+    'CONTESTS',
+    'CONTEST_DETAIL',
+    'PHOTO_DETAIL',
+    'AUTHOR_PROFILE',
+    'WINNING_PHOTOS',
+    'ARTICLES',
+    'ARTICLE_DETAIL',
+    'LEADERBOARD',
+    'GUIDE',
+    'ABOUT',
+    'TERMS',
+    'PRIVACY',
+    'CONTACT',
+    'EVENTS',
+  ];
+
+  if (publicPortals.includes(portal)) {
+    return { allowed: true, redirectTo: portal };
+  }
+
+  const currentUser = authService.getCurrentUser();
+
+  // 1. Chưa đăng nhập -> Chuyển về trang Đăng nhập (Auth)
+  if (!currentUser) {
+    return {
+      allowed: false,
+      redirectTo: 'AUTH',
+      message: 'Vui lòng đăng nhập để truy cập khu vực này!',
+    };
+  }
+
+  // 2. Quyền Quản trị viên (ADMIN)
+  if (portal === 'ADMIN') {
+    if (currentUser.role === 'ADMIN') {
+      return { allowed: true, redirectTo: 'ADMIN' };
+    }
+    return {
+      allowed: false,
+      redirectTo: currentUser.role,
+      message: `Bạn đang đăng nhập với vai trò ${currentUser.role}, không có quyền truy cập trang Quản trị viên (ADMIN)!`,
+    };
+  }
+
+  // 3. Quyền Ban tổ chức (ORGANIZER)
+  if (portal === 'ORGANIZER') {
+    if (currentUser.role === 'ORGANIZER' || currentUser.role === 'ADMIN') {
+      return { allowed: true, redirectTo: 'ORGANIZER' };
+    }
+    return {
+      allowed: false,
+      redirectTo: currentUser.role,
+      message: 'Bạn không có quyền truy cập khu vực Ban tổ chức!',
+    };
+  }
+
+  // 4. Quyền Ban giám khảo (JUDGE)
+  if (portal === 'JUDGE') {
+    if (currentUser.role === 'JUDGE' || currentUser.role === 'ADMIN') {
+      return { allowed: true, redirectTo: 'JUDGE' };
+    }
+    return {
+      allowed: false,
+      redirectTo: currentUser.role,
+      message: 'Bạn không có quyền truy cập khu vực Ban giám khảo!',
+    };
+  }
+
+  // 5. Thí sinh (PARTICIPANT)
+  if (portal === 'PARTICIPANT') {
+    return { allowed: true, redirectTo: 'PARTICIPANT' };
+  }
+
+  return { allowed: true, redirectTo: portal };
+}
+
 export default function RootPage() {
   const initialRoute = parseRoute();
   const savedPortal = (() => {
@@ -149,10 +231,26 @@ export default function RootPage() {
   })();
 
   const [activePortal, setActivePortalState] = useState<Portal>(() => {
-    if (initialRoute.portal) return initialRoute.portal;
-    if (savedPortal) return savedPortal;
-    return 'HOME';
+    const rawTarget = initialRoute.portal || savedPortal || 'HOME';
+    const check = verifyPortalAccess(rawTarget);
+    return check.allowed ? rawTarget : check.redirectTo;
   });
+
+  const [toastNotice, setToastNotice] = useState<{ message: string; type: 'error' | 'success' | 'info' } | null>(null);
+
+  const [currentUser, setCurrentUser] = useState(() => authService.getCurrentUser());
+
+  useEffect(() => {
+    const handleAuthSync = () => {
+      setCurrentUser(authService.getCurrentUser());
+    };
+    window.addEventListener('authChanged', handleAuthSync);
+    window.addEventListener('storage', handleAuthSync);
+    return () => {
+      window.removeEventListener('authChanged', handleAuthSync);
+      window.removeEventListener('storage', handleAuthSync);
+    };
+  }, []);
 
   const [authMode, setAuthMode] = useState<'LOGIN' | 'REGISTER'>('LOGIN');
 
@@ -193,14 +291,23 @@ export default function RootPage() {
   });
 
   const setActivePortal = (portal: Portal) => {
-    setActivePortalState(portal);
+    const check = verifyPortalAccess(portal);
+    let targetPortal = portal;
+    if (!check.allowed) {
+      if (check.message) {
+        setToastNotice({ message: check.message, type: 'error' });
+      }
+      targetPortal = check.redirectTo;
+    }
+
+    setActivePortalState(targetPortal);
     try {
-      localStorage.setItem(PORTAL_STORAGE_KEY, portal);
+      localStorage.setItem(PORTAL_STORAGE_KEY, targetPortal);
     } catch (e) {
       console.error(e);
     }
     const targetHash = getPortalHash(
-      portal,
+      targetPortal,
       selectedContestId,
       selectedPhotoId,
       selectedAuthorName,
@@ -216,9 +323,25 @@ export default function RootPage() {
     const handleRouteChange = () => {
       const route = parseRoute();
       if (route.portal) {
-        setActivePortalState(route.portal);
+        const check = verifyPortalAccess(route.portal);
+        let targetPortal = route.portal;
+        if (!check.allowed) {
+          if (check.message) {
+            setToastNotice({ message: check.message, type: 'error' });
+          }
+          targetPortal = check.redirectTo;
+          window.location.hash = getPortalHash(
+            targetPortal,
+            selectedContestId,
+            selectedPhotoId,
+            selectedAuthorName,
+            selectedArticleId
+          );
+        }
+
+        setActivePortalState(targetPortal);
         try {
-          localStorage.setItem(PORTAL_STORAGE_KEY, route.portal);
+          localStorage.setItem(PORTAL_STORAGE_KEY, targetPortal);
         } catch {}
         if (route.contestId) setSelectedContestId(route.contestId);
         if (route.photoId) setSelectedPhotoId(route.photoId);
@@ -354,26 +477,32 @@ export default function RootPage() {
 
   if (activePortal === 'HOME') {
     return (
-      <HomePage
-        onSelectPortal={setActivePortal}
-        onOpenAuth={handleOpenAuth}
-        onOpenContestDetail={handleOpenContestDetail}
-        onOpenPhotoDetail={handleOpenPhotoDetail}
-        onOpenArticleDetail={handleOpenArticleDetail}
-        onViewAllArticles={handleViewAllArticles}
-      />
+      <>
+        <Toast toast={toastNotice} onClose={() => setToastNotice(null)} />
+        <HomePage
+          onSelectPortal={setActivePortal}
+          onOpenAuth={handleOpenAuth}
+          onOpenContestDetail={handleOpenContestDetail}
+          onOpenPhotoDetail={handleOpenPhotoDetail}
+          onOpenArticleDetail={handleOpenArticleDetail}
+          onViewAllArticles={handleViewAllArticles}
+        />
+      </>
     );
   }
 
 
   if (activePortal === 'AUTH') {
     return (
-      <AuthPage
-        initialMode={authMode}
-        onGoHome={goHome}
-        onSelectPortal={setActivePortal}
-        onLoginSuccess={(dashboardRole) => setActivePortal(dashboardRole)}
-      />
+      <>
+        <Toast toast={toastNotice} onClose={() => setToastNotice(null)} />
+        <AuthPage
+          initialMode={authMode}
+          onGoHome={goHome}
+          onSelectPortal={setActivePortal}
+          onLoginSuccess={(dashboardRole) => setActivePortal(dashboardRole)}
+        />
+      </>
     );
   }
 
@@ -545,12 +674,32 @@ export default function RootPage() {
   return (
     <ErrorBoundary portalName="FilmContest" onReset={goHome}>
       <div className="relative min-h-screen bg-slate-50 text-slate-800">
+        <Toast toast={toastNotice} onClose={() => setToastNotice(null)} />
+        {currentUser && currentUser.mustChangePassword && (
+          <ForceChangePasswordModal
+            user={currentUser}
+            onSuccess={() => {
+              setToastNotice({
+                message: 'Đổi mật khẩu lần đầu thành công! Bạn có thể tiếp tục sử dụng hệ thống.',
+                type: 'success',
+              });
+              setCurrentUser(authService.getCurrentUser());
+            }}
+          />
+        )}
         {activePortal === 'ADMIN' && <AdminPage />}
         {activePortal === 'ORGANIZER' && <OrganizerPage onGoHome={goHome} />}
         {activePortal === 'JUDGE' && <JudgePage onExit={goHome} />}
         {activePortal === 'PARTICIPANT' && <ParticipantPage onGoHome={goHome} />}
         {!['ADMIN', 'ORGANIZER', 'JUDGE', 'PARTICIPANT'].includes(activePortal) && (
-          <OrganizerPage onGoHome={goHome} />
+          <HomePage
+            onSelectPortal={setActivePortal}
+            onOpenAuth={handleOpenAuth}
+            onOpenContestDetail={handleOpenContestDetail}
+            onOpenPhotoDetail={handleOpenPhotoDetail}
+            onOpenArticleDetail={handleOpenArticleDetail}
+            onViewAllArticles={handleViewAllArticles}
+          />
         )}
       </div>
     </ErrorBoundary>

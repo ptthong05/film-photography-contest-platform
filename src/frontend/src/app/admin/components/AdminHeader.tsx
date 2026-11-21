@@ -1,7 +1,8 @@
 import { useState, useEffect, useMemo, type ReactNode } from 'react';
-import { Bell, Check, ChevronDown, Clock, House, ShieldCheck, UserRound } from 'lucide-react';
+import { Bell, Check, ChevronDown, Clock, House, LogOut, ShieldCheck, UserRound } from 'lucide-react';
 import type { AdminView } from './AdminSidebar';
 import { readAdminDemoProfile } from '../views/ProfileView';
+import { authService } from '../../../services/authService';
 
 interface AdminNotificationItem {
   id: string;
@@ -62,11 +63,9 @@ export interface AdminHeaderProps {
 }
 
 function getInitials(name: string): string {
-  const words = name.trim().split(/\s+/).filter(Boolean);
-  if (words.length === 0) return 'A';
-  const first = words[0][0];
-  const last = words.length > 1 ? words[words.length - 1][0] : '';
-  return `${first}${last}`.toUpperCase();
+  const clean = (name || '').trim();
+  if (!clean) return 'A';
+  return clean.slice(0, 1).toUpperCase();
 }
 
 export function AdminHeader({
@@ -361,11 +360,25 @@ export function AdminHeader({
                 <button
                   type="button"
                   role="menuitem"
-                  onClick={() => handleUserMenuAction(() => { window.location.href = '/'; })}
+                  onClick={() => handleUserMenuAction(() => { window.location.hash = '#/'; })}
                   className="flex w-full cursor-pointer items-center gap-2.5 px-3.5 py-2 text-sm text-slate-700 hover:bg-slate-50 hover:text-blue-700 transition"
                 >
                   <House className="h-4 w-4" />
                   <span>Về trang chủ</span>
+                </button>
+                <button
+                  type="button"
+                  role="menuitem"
+                  onClick={() =>
+                    handleUserMenuAction(() => {
+                      authService.logout();
+                      window.location.hash = '#/';
+                    })
+                  }
+                  className="flex w-full cursor-pointer items-center gap-2.5 px-3.5 py-2 text-sm text-rose-600 hover:bg-rose-50 transition border-t border-slate-100"
+                >
+                  <LogOut className="h-4 w-4" />
+                  <span>Đăng xuất</span>
                 </button>
               </div>
             </>

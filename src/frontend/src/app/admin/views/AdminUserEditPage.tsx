@@ -1,6 +1,7 @@
 import { useState } from 'react';
-import { ArrowLeft, CheckCircle2, UserRound } from 'lucide-react';
+import { ArrowLeft, CheckCircle2, Eye, EyeOff } from 'lucide-react';
 import { ROLE_INFO, STATUS_INFO, type AdminUser, type UserDraft, type UserRole, type UserStatus } from '../types/adminUser';
+import { validateVietnamesePhone } from '../../../utils/phoneValidator';
 
 interface AdminUserEditPageProps {
   user?: AdminUser | null; // null if adding new user
@@ -15,15 +16,19 @@ export function AdminUserEditPage({ user, onBack, onSave }: AdminUserEditPagePro
   const [draft, setDraft] = useState<UserDraft>(() => ({
     fullName: user ? user.fullName : '',
     email: user ? user.email : '',
+    phone: user ? (user.phone || '') : '',
+    password: '',
     role: user ? user.role : 'PARTICIPANT',
     status: user ? user.status : 'ACTIVE',
   }));
 
-  const [touched, setTouched] = useState({ fullName: false, email: false });
+  const [showPassword, setShowPassword] = useState(false);
+  const [touched, setTouched] = useState({ fullName: false, email: false, phone: false, password: false });
   const [formError, setFormError] = useState('');
 
   const normalizedName = draft.fullName.trim();
   const normalizedEmail = draft.email.trim();
+  const normalizedPhone = (draft.phone || '').trim();
 
   const nameError = normalizedName.length === 0
     ? 'Vui lòng nhập họ và tên.'
@@ -37,10 +42,21 @@ export function AdminUserEditPage({ user, onBack, onSave }: AdminUserEditPagePro
       ? 'Email không đúng định dạng (ví dụ: user@example.com).'
       : '';
 
+  const phoneCheck = normalizedPhone ? validateVietnamesePhone(normalizedPhone) : { isValid: true, error: '' };
+  const phoneError = !normalizedPhone
+    ? 'Vui lòng nhập số điện thoại.'
+    : !phoneCheck.isValid
+      ? (phoneCheck.error || 'Số điện thoại không hợp lệ.')
+      : '';
+
+  const passwordError = (!isEditing && (!draft.password || draft.password.length < 6))
+    ? 'Mật khẩu phải có ít nhất 6 ký tự.'
+    : '';
+
   const handleSubmit = (e: React.FormEvent) => {
     e.preventDefault();
-    setTouched({ fullName: true, email: true });
-    if (nameError || emailError) return;
+    setTouched({ fullName: true, email: true, phone: true, password: true });
+    if (nameError || emailError || phoneError || passwordError) return;
     onSave(draft);
   };
 
@@ -85,10 +101,6 @@ export function AdminUserEditPage({ user, onBack, onSave }: AdminUserEditPagePro
 
       {/* Form Container */}
       <div className="max-w-2xl rounded-2xl border border-slate-200 bg-white p-6 shadow-sm sm:p-8">
-        <p className="mb-6 rounded-xl border border-amber-200 bg-amber-50 px-4 py-3 text-xs text-amber-800">
-          Lưu ý: Dữ liệu mô phỏng cho giao diện Admin — các thay đổi sẽ được lưu vào bộ nhớ tạm của trang.
-        </p>
-
         <form onSubmit={handleSubmit} noValidate className="space-y-5">
           <div>
             <label className="block text-sm font-semibold text-slate-700">
@@ -110,23 +122,73 @@ export function AdminUserEditPage({ user, onBack, onSave }: AdminUserEditPagePro
             )}
           </div>
 
+          <div className="grid grid-cols-1 gap-4 sm:grid-cols-2">
+            <div>
+              <label className="block text-sm font-semibold text-slate-700">
+                Email đăng nhập <span className="text-red-600">*</span>
+              </label>
+              <input
+                type="email"
+                name="email"
+                autoComplete="email"
+                value={draft.email}
+                maxLength={120}
+                onChange={(e) => setDraft({ ...draft, email: e.target.value })}
+                onBlur={() => setTouched((prev) => ({ ...prev, email: true }))}
+                placeholder="user@example.com"
+                className={`${inputClass} ${touched.email && emailError ? 'border-red-400 focus:border-red-500' : ''}`}
+              />
+              {touched.email && emailError && (
+                <p className="mt-1 text-xs text-red-600">{emailError}</p>
+              )}
+            </div>
+
+            <div>
+              <label className="block text-sm font-semibold text-slate-700">
+                Số điện thoại <span className="text-red-600">*</span>
+              </label>
+              <input
+                type="tel"
+                name="phone"
+                autoComplete="tel"
+                value={draft.phone || ''}
+                maxLength={15}
+                onChange={(e) => setDraft({ ...draft, phone: e.target.value })}
+                onBlur={() => setTouched((prev) => ({ ...prev, phone: true }))}
+                placeholder="Ví dụ: 0912345678"
+                className={`${inputClass} ${touched.phone && phoneError ? 'border-red-400 focus:border-red-500' : ''}`}
+              />
+              {touched.phone && phoneError && (
+                <p className="mt-1 text-xs text-red-600">{phoneError}</p>
+              )}
+            </div>
+          </div>
+
           <div>
             <label className="block text-sm font-semibold text-slate-700">
-              Email đăng nhập <span className="text-red-600">*</span>
+              {isEditing ? 'Mật khẩu mới (Để trống nếu không đổi)' : 'Mật khẩu cấp ban đầu *'}
             </label>
-            <input
-              type="email"
-              name="email"
-              autoComplete="email"
-              value={draft.email}
-              maxLength={120}
-              onChange={(e) => setDraft({ ...draft, email: e.target.value })}
-              onBlur={() => setTouched((prev) => ({ ...prev, email: true }))}
-              placeholder="user@example.com"
-              className={`${inputClass} ${touched.email && emailError ? 'border-red-400 focus:border-red-500' : ''}`}
-            />
-            {touched.email && emailError && (
-              <p className="mt-1 text-xs text-red-600">{emailError}</p>
+            <div className="relative">
+              <input
+                type={showPassword ? 'text' : 'password'}
+                name="password"
+                value={draft.password || ''}
+                onChange={(e) => setDraft({ ...draft, password: e.target.value })}
+                onBlur={() => setTouched((prev) => ({ ...prev, password: true }))}
+                placeholder={isEditing ? 'Nhập mật khẩu mới nếu muốn thay đổi' : 'Nhập mật khẩu cấp ban đầu'}
+                className={`${inputClass} pr-11 ${touched.password && passwordError ? 'border-red-400 focus:border-red-500' : ''}`}
+              />
+              <button
+                type="button"
+                onClick={() => setShowPassword(!showPassword)}
+                className="absolute right-3.5 top-1/2 -translate-y-1/2 text-slate-400 hover:text-slate-600 cursor-pointer"
+                aria-label={showPassword ? 'Ẩn mật khẩu' : 'Hiện mật khẩu'}
+              >
+                {showPassword ? <EyeOff size={18} /> : <Eye size={18} />}
+              </button>
+            </div>
+            {touched.password && passwordError && (
+              <p className="mt-1 text-xs text-red-600">{passwordError}</p>
             )}
           </div>
 
@@ -179,7 +241,7 @@ export function AdminUserEditPage({ user, onBack, onSave }: AdminUserEditPagePro
               className="inline-flex items-center gap-2 rounded-xl bg-blue-600 px-6 py-2.5 text-sm font-semibold text-white shadow-sm hover:bg-blue-700 transition"
             >
               <CheckCircle2 size={16} />
-              {isEditing ? 'Lưu cập nhật' : 'Tạo tài khoản'}
+              {isEditing ? 'Lưu cập nhật' : 'Cấp tài khoản & Lưu CSDL'}
             </button>
           </div>
         </form>
