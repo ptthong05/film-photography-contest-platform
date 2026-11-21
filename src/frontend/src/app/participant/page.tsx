@@ -9,6 +9,7 @@ import { FilmRollTab } from './components/FilmRollTab';
 import { SubmitEntryForm } from './components/SubmitEntryForm';
 import { MyEntriesList } from './components/MyEntriesList';
 import { ResultsTab } from './components/ResultsTab';
+import { authService } from '../../services/authService';
 
 interface ParticipantPageProps {
   onGoHome?: () => void;
@@ -67,7 +68,14 @@ export default function ParticipantPage({ onGoHome }: ParticipantPageProps) {
       localStorage.setItem(PARTICIPANT_TAB_KEY, tab);
     } catch {}
   };
-  const [avatarUrl, setAvatarUrl] = useState<string | null>(() => localStorage.getItem('participant_avatar'));
+  const [avatarUrl, setAvatarUrl] = useState<string | null>(() => {
+    const authUser = authService.getCurrentUser();
+    return authUser?.avatar || authUser?.avatarUrl || null;
+  });
+  const [userName, setUserName] = useState<string>(() => {
+    const authUser = authService.getCurrentUser();
+    return authUser?.fullName || 'Thí sinh';
+  });
   const [isMobileMenuOpen, setIsMobileMenuOpen] = useState(false);
   const mobileCloseButtonRef = useRef<HTMLButtonElement>(null);
 
@@ -97,46 +105,28 @@ export default function ParticipantPage({ onGoHome }: ParticipantPageProps) {
     return () => window.removeEventListener('contestRegistrationChanged', handleRegistrationChange);
   }, []);
 
-  const [userName, setUserName] = useState<string>(() => {
-    try {
-      const savedProfile = localStorage.getItem('participant_profile');
-      if (savedProfile) {
-        const parsed = JSON.parse(savedProfile);
-        if (parsed.name) return parsed.name;
-      }
-    } catch (e) {
-      console.error(e);
-    }
-    return localStorage.getItem('participant_user_name') || 'Hồ Thanh Bình';
-  });
-
   useEffect(() => {
-    const handleNameChange = () => {
-      try {
-        const savedProfile = localStorage.getItem('participant_profile');
-        if (savedProfile) {
-          const parsed = JSON.parse(savedProfile);
-          if (parsed.name) {
-            setUserName(parsed.name);
-            return;
-          }
-        }
-        const savedName = localStorage.getItem('participant_user_name');
-        if (savedName) setUserName(savedName);
-      } catch (e) {
-        console.error(e);
-      }
+    const handleSync = () => {
+      const authUser = authService.getCurrentUser();
+      setUserName(authUser?.fullName || 'Thí sinh');
+      setAvatarUrl(authUser?.avatar || authUser?.avatarUrl || null);
     };
-    window.addEventListener('userNameChanged', handleNameChange);
-    return () => window.removeEventListener('userNameChanged', handleNameChange);
-  }, []);
 
-  useEffect(() => {
-    const handleAvatarChange = () => {
-      setAvatarUrl(localStorage.getItem('participant_avatar'));
+    window.addEventListener('authChanged', handleSync);
+    window.addEventListener('userNameChanged', handleSync);
+    window.addEventListener('avatarChanged', handleSync);
+    window.addEventListener('profileChanged', handleSync);
+    window.addEventListener('participantDraftChanged', handleSync);
+    window.addEventListener('storage', handleSync);
+
+    return () => {
+      window.removeEventListener('authChanged', handleSync);
+      window.removeEventListener('userNameChanged', handleSync);
+      window.removeEventListener('avatarChanged', handleSync);
+      window.removeEventListener('profileChanged', handleSync);
+      window.removeEventListener('participantDraftChanged', handleSync);
+      window.removeEventListener('storage', handleSync);
     };
-    window.addEventListener('avatarChanged', handleAvatarChange);
-    return () => window.removeEventListener('avatarChanged', handleAvatarChange);
   }, []);
 
   // Xử lý phím Escape để đóng mobile drawer
@@ -182,6 +172,7 @@ export default function ParticipantPage({ onGoHome }: ParticipantPageProps) {
           setActiveTab={setActiveTab}
           onGoHome={onGoHome}
           userName={userName}
+          avatarUrl={avatarUrl}
         />
       </div>
 
@@ -285,6 +276,7 @@ export default function ParticipantPage({ onGoHome }: ParticipantPageProps) {
               setActiveTab={handleNavigateTab}
               onGoHome={onGoHome}
               userName={userName}
+              avatarUrl={avatarUrl}
             />
           </div>
           <button

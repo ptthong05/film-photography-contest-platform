@@ -9,13 +9,21 @@ export interface AdminUser {
   id: string;
   fullName: string;
   email: string;
+  phone?: string;
   role: UserRole;
   contestCount: number;
   status: UserStatus;
   joinedAt: string; // yyyy-MM-dd
 }
 
-export type UserDraft = Pick<AdminUser, 'fullName' | 'email' | 'role' | 'status'>;
+export interface UserDraft {
+  fullName: string;
+  email: string;
+  phone?: string;
+  password?: string;
+  role: UserRole;
+  status: UserStatus;
+}
 
 export const ROLE_INFO: Record<UserRole, { label: string; classes: string }> = {
   ADMIN: { label: 'Admin', classes: 'bg-violet-100 text-violet-700' },

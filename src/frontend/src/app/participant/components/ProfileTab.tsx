@@ -4,6 +4,7 @@ import {
   RotateCcw, Save, ShieldCheck, UserRound, X,
 } from 'lucide-react';
 import { Toast, type ToastNotice } from '../../../components/Toast';
+import { authService, validateStrongPassword } from '../../../services/authService';
 
 const PROFILE_STORAGE_KEY = 'participant_profile';
 const USERNAME_STORAGE_KEY = 'participant_user_name';
@@ -81,38 +82,29 @@ function readParticipantProfile(): ParticipantProfile {
   try {
     if (typeof window === 'undefined') return { ...DEFAULT_PROFILE };
 
-    let avatarDataUrl: string | null = null;
-    const directAvatar = window.localStorage.getItem(AVATAR_STORAGE_KEY);
-    if (directAvatar && directAvatar.startsWith('data:image/')) {
-      avatarDataUrl = directAvatar;
-    }
+    const authUser = authService.getCurrentUser();
+    // Ban đầu khi đăng nhập vào mặc định không có avatar
+    const avatarDataUrl: string | null = authUser?.avatar || authUser?.avatarUrl || null;
 
     const raw = window.localStorage.getItem(PROFILE_STORAGE_KEY);
-    if (raw) {
-      const parsed = JSON.parse(raw);
-      if (parsed && typeof parsed === 'object') {
-        const source = parsed as Record<string, unknown>;
-        return {
-          fullName: (typeof source.name === 'string' && source.name.trim()) ||
-                    (typeof source.fullName === 'string' && source.fullName.trim()) ||
-                    window.localStorage.getItem(USERNAME_STORAGE_KEY) ||
-                    DEFAULT_PROFILE.fullName,
-          email: typeof source.email === 'string' ? source.email.slice(0, 120) : DEFAULT_PROFILE.email,
-          phone: typeof source.phone === 'string' ? source.phone.slice(0, 24) : DEFAULT_PROFILE.phone,
-          bio: typeof source.bio === 'string' ? source.bio.slice(0, 500) : DEFAULT_PROFILE.bio,
-          avatarDataUrl: avatarDataUrl || (typeof source.avatarUrl === 'string' && source.avatarUrl.startsWith('data:image/') ? source.avatarUrl : null),
-        };
-      }
-    }
+    const parsed = raw ? JSON.parse(raw) : null;
+    const source = (parsed && typeof parsed === 'object') ? (parsed as Record<string, unknown>) : {};
 
-    const savedName = window.localStorage.getItem(USERNAME_STORAGE_KEY);
     return {
-      ...DEFAULT_PROFILE,
-      fullName: savedName || DEFAULT_PROFILE.fullName,
-      avatarDataUrl,
+      fullName: authUser?.fullName ||
+                (typeof source.name === 'string' && source.name.trim()) ||
+                (typeof source.fullName === 'string' && source.fullName.trim()) ||
+                window.localStorage.getItem(USERNAME_STORAGE_KEY) ||
+                DEFAULT_PROFILE.fullName,
+      email: authUser?.email || (typeof source.email === 'string' ? source.email.slice(0, 120) : DEFAULT_PROFILE.email),
+      phone: (authUser?.phone !== undefined && authUser?.phone !== null && authUser.phone !== '')
+        ? authUser.phone
+        : (typeof source.phone === 'string' ? source.phone.slice(0, 24) : DEFAULT_PROFILE.phone),
+      bio: typeof source.bio === 'string' ? source.bio.slice(0, 500) : DEFAULT_PROFILE.bio,
+      avatarDataUrl: avatarDataUrl,
     };
   } catch {
-    return { ...DEFAULT_PROFILE };
+    return { ...DEFAULT_PROFILE, avatarDataUrl: null };
   }
 }
 
@@ -221,7 +213,7 @@ export function ProfileTab() {
     reader.readAsDataURL(file);
   };
 
-  const saveProfile = (event: FormEvent<HTMLFormElement>) => {
+  const saveProfile = async (event: FormEvent<HTMLFormElement>) => {
     event.preventDefault();
     const errors = validateProfile(draftProfile);
     setFieldErrors(errors);
@@ -239,6 +231,12 @@ export function ProfileTab() {
     };
 
     try {
+      await authService.updateProfile({
+        fullName: normalized.fullName,
+        phone: normalized.phone,
+        avatar: normalized.avatarDataUrl,
+      });
+
       // Lưu vào participant_profile
       const profileToSave = {
         name: normalized.fullName,
@@ -246,7 +244,7 @@ export function ProfileTab() {
         email: normalized.email,
         phone: normalized.phone,
         bio: normalized.bio,
-        role: 'Nhiếp ảnh gia',
+        role: 'Thí sinh (PARTICIPANT)',
         avatarUrl: normalized.avatarDataUrl,
       };
       window.localStorage.setItem(PROFILE_STORAGE_KEY, JSON.stringify(profileToSave));
@@ -265,6 +263,8 @@ export function ProfileTab() {
       window.dispatchEvent(new Event('userNameChanged'));
       window.dispatchEvent(new Event('avatarChanged'));
       window.dispatchEvent(new Event('profileChanged'));
+      window.dispatchEvent(new Event('participantDraftChanged'));
+      window.dispatchEvent(new CustomEvent('authChanged', { detail: authService.getCurrentUser() }));
 
       showToast('Đã lưu hồ sơ cá nhân thí sinh thành công.', 'success');
     } catch {
@@ -284,19 +284,36 @@ export function ProfileTab() {
     setShowPassword(false);
   };
 
-  const checkPasswordForm = (event: FormEvent<HTMLFormElement>) => {
+  const checkPasswordForm = async (event: FormEvent<HTMLFormElement>) => {
     event.preventDefault();
     if (!password.current) {
       showToast('Vui lòng nhập mật khẩu hiện tại.', 'error');
-    } else if (password.next.length < 8 || !/[0-9]/.test(password.next)) {
-      showToast('Mật khẩu mới cần từ 8 ký tự và có ít nhất 1 chữ số.', 'error');
-    } else if (password.next === password.current) {
+      return;
+    }
+    const validation = validateStrongPassword(password.next);
+    if (!validation.isValid) {
+      showToast(validation.error || 'Mật khẩu mới không đạt chuẩn an toàn.', 'error');
+      return;
+    }
+    if (password.next === password.current) {
       showToast('Mật khẩu mới cần khác mật khẩu hiện tại.', 'error');
-    } else if (password.next !== password.confirm) {
+      return;
+    }
+    if (password.next !== password.confirm) {
       showToast('Mật khẩu mới nhập hai lần không trùng khớp.', 'error');
-    } else {
-      showToast('Cập nhật mật khẩu thành công.', 'success');
+      return;
+    }
+
+    try {
+      await authService.changePassword(password.current, password.next);
+      showToast('Cập nhật mật khẩu thành công! Hệ thống sẽ tự động đăng xuất...', 'success');
       setPassword({ current: '', next: '', confirm: '' });
+      setTimeout(() => {
+        authService.logout();
+        window.location.hash = '#/auth';
+      }, 1500);
+    } catch (err: unknown) {
+      showToast(err instanceof Error ? err.message : 'Đổi mật khẩu thất bại.', 'error');
     }
   };
 
@@ -318,12 +335,6 @@ export function ProfileTab() {
   return (
     <section aria-label="Hồ sơ cá nhân Thí sinh" className="relative space-y-5">
       <Toast toast={toast} onClose={() => setToast(null)} />
-
-      {/* Banner thông báo chế độ demo / đồng bộ cục bộ */}
-      <div className="flex items-start gap-3 rounded-xl border border-amber-200 bg-amber-50 p-4 text-sm text-amber-900" role="note">
-        <Info size={19} className="mt-0.5 shrink-0" aria-hidden="true" />
-        <p><strong>Giao diện hồ sơ thí sinh:</strong> Thông tin cá nhân và tùy chọn thông báo được cập nhật trực tiếp trên trình duyệt. Thay đổi tên hoặc ảnh đại diện sẽ tự động đồng bộ trên toàn bộ cổng thí sinh (Sidebar, Topbar). Mật khẩu không được lưu hay gửi đi.</p>
-      </div>
 
       <div className="overflow-hidden rounded-2xl border border-slate-200 bg-white shadow-sm">
         {/* Thanh chuyển tab đồng nhất với Admin */}
@@ -424,76 +435,45 @@ export function ProfileTab() {
 
                   <div className="space-y-1.5">
                     <label htmlFor="participant-profile-email" className="text-sm font-semibold text-slate-700">
-                      Email <span className="text-red-600">*</span>
+                      Email <span className="text-xs font-normal text-slate-500">(Không thể thay đổi)</span>
                     </label>
                     <input
                       id="participant-profile-email"
-                      required
+                      disabled
+                      readOnly
                       type="email"
-                      autoComplete="email"
-                      maxLength={120}
                       value={draftProfile.email}
-                      onChange={(event) => updateProfile('email', event.target.value)}
-                      aria-invalid={Boolean(fieldErrors.email)}
-                      aria-describedby={fieldErrors.email ? 'participant-profile-email-error' : undefined}
-                      className="w-full rounded-lg border border-slate-300 px-3.5 py-2.5 text-sm outline-none focus:border-blue-500 focus:ring-2 focus:ring-blue-100"
+                      className="w-full rounded-lg border border-slate-200 bg-slate-100 px-3.5 py-2.5 text-sm text-slate-500 cursor-not-allowed select-none outline-none"
                     />
-                    {fieldErrors.email && (
-                      <p id="participant-profile-email-error" className="text-xs text-red-600">
-                        {fieldErrors.email}
-                      </p>
-                    )}
                   </div>
 
                   <div className="space-y-1.5">
                     <label htmlFor="participant-profile-phone" className="text-sm font-semibold text-slate-700">
-                      Số điện thoại
+                      Số điện thoại <span className="text-xs font-normal text-slate-500">(Không thể thay đổi)</span>
                     </label>
                     <input
                       id="participant-profile-phone"
+                      disabled
+                      readOnly
                       type="tel"
-                      autoComplete="tel"
-                      maxLength={24}
                       value={draftProfile.phone}
-                      onChange={(event) => updateProfile('phone', event.target.value)}
-                      aria-invalid={Boolean(fieldErrors.phone)}
-                      aria-describedby={fieldErrors.phone ? 'participant-profile-phone-error' : undefined}
-                      className="w-full rounded-lg border border-slate-300 px-3.5 py-2.5 text-sm outline-none focus:border-blue-500 focus:ring-2 focus:ring-blue-100"
+                      className="w-full rounded-lg border border-slate-200 bg-slate-100 px-3.5 py-2.5 text-sm text-slate-500 cursor-not-allowed select-none outline-none"
                     />
-                    {fieldErrors.phone && (
-                      <p id="participant-profile-phone-error" className="text-xs text-red-600">
-                        {fieldErrors.phone}
-                      </p>
-                    )}
                   </div>
 
                   <div className="space-y-1.5 md:col-span-2">
                     <label htmlFor="participant-profile-role" className="text-sm font-semibold text-slate-700">
-                      Chức vụ / Tư cách tham gia
+                      Chức vụ / Tư cách tham gia <span className="text-xs font-normal text-slate-500">(Không thể thay đổi)</span>
                     </label>
                     <input
                       id="participant-profile-role"
-                      value="Thí sinh (Nhiếp ảnh gia phim)"
+                      value="Thí sinh (PARTICIPANT)"
+                      disabled
                       readOnly
                       aria-readonly="true"
-                      className="w-full cursor-not-allowed rounded-lg border border-slate-200 bg-slate-50 px-3.5 py-2.5 text-sm text-slate-600"
+                      className="w-full cursor-not-allowed rounded-lg border border-slate-200 bg-slate-100 px-3.5 py-2.5 text-sm font-medium text-slate-700 select-none opacity-80"
                     />
-                  </div>
-
-                  <div className="space-y-1.5 md:col-span-2">
-                    <label htmlFor="participant-profile-bio" className="text-sm font-semibold text-slate-700">
-                      Tiểu sử & Phong cách nhiếp ảnh
-                    </label>
-                    <textarea
-                      id="participant-profile-bio"
-                      rows={4}
-                      maxLength={500}
-                      value={draftProfile.bio}
-                      onChange={(event) => updateProfile('bio', event.target.value)}
-                      className="w-full resize-y rounded-lg border border-slate-300 px-3.5 py-2.5 text-sm outline-none focus:border-blue-500 focus:ring-2 focus:ring-blue-100"
-                      placeholder="Mô tả ngắn gọn về thiết bị quen thuộc, thể loại ảnh yêu thích hoặc kinh nghiệm nhiếp ảnh..."
-                    />
-                    <p className="text-right text-xs text-slate-400">{draftProfile.bio.length}/500 ký tự</p>
+                    <p className="text-xs text-slate-500">Chức vụ do hệ thống phân quyền, cố định và không thể thay đổi.</p>
                   </div>
                 </div>
               </div>
@@ -580,7 +560,7 @@ export function ProfileTab() {
                 />
               </div>
 
-              <p className="text-xs text-slate-500">Tối thiểu 8 ký tự, có ít nhất 1 chữ số.</p>
+              <p className="text-xs text-slate-500">Tối thiểu 8 ký tự, chữ cái đầu viết hoa, gồm chữ thường, chữ số và ký tự đặc biệt (!@#$%...).</p>
 
               <div className="flex justify-end gap-3 border-t border-slate-100 pt-5">
                 <button

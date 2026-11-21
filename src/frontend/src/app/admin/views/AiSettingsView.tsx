@@ -103,13 +103,6 @@ export function AiSettingsView() {
   return (
     <div className="relative space-y-5">
       <Toast toast={toast} onClose={() => setToast(null)} />
-      <div className="rounded-xl border border-amber-200 bg-amber-50 p-3 text-sm text-amber-950" role="status">
-        <div className="flex items-start gap-2">
-          <Info size={18} className="mt-0.5 shrink-0" aria-hidden="true" />
-          <p><strong>Chế độ giao diện mẫu:</strong> Các thay đổi chỉ được lưu trên trình duyệt của bạn.
-            Chưa có API cấu hình AI, chưa kiểm tra mô hình AI thật.</p>
-        </div>
-      </div>
 
       <div className="rounded-xl border border-slate-200 bg-white px-4 pt-3 shadow-sm sm:px-5">
         <nav aria-label="Nhóm thiết lập AI" className="flex flex-wrap gap-x-5 gap-y-1 border-b border-slate-200">

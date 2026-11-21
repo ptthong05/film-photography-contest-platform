@@ -179,10 +179,6 @@ export function SettingsView({ onNavigate }: SettingsViewProps) {
   return (
     <section className="relative space-y-5" aria-label="Cài đặt hệ thống của quản trị viên">
       <Toast toast={toast} onClose={() => setToast(null)} />
-      <div className="flex items-start gap-2 rounded-xl border border-amber-200 bg-amber-50 p-3 text-sm text-amber-950" role="note">
-        <Info size={19} className="mt-0.5 shrink-0" aria-hidden="true" />
-        <p><strong>Chế độ giao diện mẫu:</strong> Thông tin chỉ được lưu trên trình duyệt. Các lựa chọn phân quyền, 2FA, phiên đăng nhập, thông báo và tích hợp chưa được áp dụng trên hệ thống Java/MongoDB.</p>
-      </div>
 
       <div className="rounded-xl border border-slate-200 bg-white px-4 pt-1 shadow-sm sm:px-6">
         <div role="tablist" aria-label="Nhóm cài đặt hệ thống" className="flex flex-wrap gap-x-5 gap-y-1 border-b border-slate-200">

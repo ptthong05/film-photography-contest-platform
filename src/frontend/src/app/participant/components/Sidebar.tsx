@@ -11,12 +11,14 @@ import {
   Trophy,
   type LucideIcon,
 } from 'lucide-react';
+import { authService } from '../../../services/authService';
 
 interface SidebarProps {
   activeTab: string;
   setActiveTab: (tab: string) => void;
   onGoHome?: () => void;
   userName?: string;
+  avatarUrl?: string | null;
   className?: string;
 }
 
@@ -37,55 +39,57 @@ const NAV_ITEMS: NavItem[] = [
   { id: 'profile', label: 'Hồ sơ cá nhân', icon: CircleUser },
 ];
 
-export function Sidebar({ activeTab, setActiveTab, onGoHome, className = '' }: SidebarProps) {
-  const [avatar, setAvatar] = useState<string>(() => {
-    return localStorage.getItem('participant_avatar') || '';
+export function Sidebar({
+  activeTab,
+  setActiveTab,
+  onGoHome,
+  userName: propUserName,
+  avatarUrl: propAvatarUrl,
+  className = '',
+}: SidebarProps) {
+  const [avatar, setAvatar] = useState<string | null>(() => {
+    if (propAvatarUrl !== undefined) return propAvatarUrl;
+    const authUser = authService.getCurrentUser();
+    return authUser?.avatar || authUser?.avatarUrl || null;
   });
 
   const [currentName, setCurrentName] = useState<string>(() => {
-    try {
-      const savedProfile = localStorage.getItem('participant_profile');
-      if (savedProfile) {
-        const parsed = JSON.parse(savedProfile);
-        if (parsed.name) return parsed.name;
-      }
-    } catch (e) {
-      console.error(e);
-    }
-    return localStorage.getItem('participant_user_name') || 'Hồ Thanh Bình';
+    if (propUserName) return propUserName;
+    const authUser = authService.getCurrentUser();
+    return authUser?.fullName || 'Thí sinh';
   });
 
   const fileInputRef = useRef<HTMLInputElement>(null);
 
   useEffect(() => {
-    const handleAvatarChange = () => {
-      const savedAvatar = localStorage.getItem('participant_avatar');
-      if (savedAvatar) setAvatar(savedAvatar);
+    if (propUserName) setCurrentName(propUserName);
+  }, [propUserName]);
+
+  useEffect(() => {
+    if (propAvatarUrl !== undefined) setAvatar(propAvatarUrl);
+  }, [propAvatarUrl]);
+
+  useEffect(() => {
+    const handleSync = () => {
+      const authUser = authService.getCurrentUser();
+      setAvatar(authUser?.avatar || authUser?.avatarUrl || null);
+      setCurrentName(authUser?.fullName || 'Thí sinh');
     };
 
-    const handleNameChange = () => {
-      try {
-        const savedProfile = localStorage.getItem('participant_profile');
-        if (savedProfile) {
-          const parsed = JSON.parse(savedProfile);
-          if (parsed.name) {
-            setCurrentName(parsed.name);
-            return;
-          }
-        }
-        const savedName = localStorage.getItem('participant_user_name');
-        if (savedName) setCurrentName(savedName);
-      } catch (e) {
-        console.error(e);
-      }
-    };
-
-    window.addEventListener('avatarChanged', handleAvatarChange);
-    window.addEventListener('userNameChanged', handleNameChange);
+    window.addEventListener('authChanged', handleSync);
+    window.addEventListener('avatarChanged', handleSync);
+    window.addEventListener('userNameChanged', handleSync);
+    window.addEventListener('profileChanged', handleSync);
+    window.addEventListener('participantDraftChanged', handleSync);
+    window.addEventListener('storage', handleSync);
 
     return () => {
-      window.removeEventListener('avatarChanged', handleAvatarChange);
-      window.removeEventListener('userNameChanged', handleNameChange);
+      window.removeEventListener('authChanged', handleSync);
+      window.removeEventListener('avatarChanged', handleSync);
+      window.removeEventListener('userNameChanged', handleSync);
+      window.removeEventListener('profileChanged', handleSync);
+      window.removeEventListener('participantDraftChanged', handleSync);
+      window.removeEventListener('storage', handleSync);
     };
   }, []);
 
@@ -93,21 +97,15 @@ export function Sidebar({ activeTab, setActiveTab, onGoHome, className = '' }: S
     const file = e.target.files?.[0];
     if (file) {
       const reader = new FileReader();
-      reader.onloadend = () => {
+      reader.onloadend = async () => {
         const base64String = reader.result as string;
-        localStorage.setItem('participant_avatar', base64String);
         try {
-          const savedProfile = localStorage.getItem('participant_profile');
-          if (savedProfile) {
-            const parsed = JSON.parse(savedProfile);
-            parsed.avatarUrl = base64String;
-            localStorage.setItem('participant_profile', JSON.stringify(parsed));
-          }
-        } catch (err) {
-          console.error(err);
-        }
+          await authService.updateProfile({ avatar: base64String });
+        } catch {}
         setAvatar(base64String);
         window.dispatchEvent(new Event('avatarChanged'));
+        window.dispatchEvent(new Event('profileChanged'));
+        window.dispatchEvent(new Event('userNameChanged'));
       };
       reader.readAsDataURL(file);
     }
@@ -166,18 +164,11 @@ export function Sidebar({ activeTab, setActiveTab, onGoHome, className = '' }: S
             className="group relative flex h-9 w-9 shrink-0 cursor-pointer items-center justify-center overflow-hidden rounded-full border border-white/25 bg-blue-500 text-xs font-bold text-white shadow-sm"
             title="Nhấn để đổi ảnh đại diện"
           >
-            {avatar ? (
+            {avatar && typeof avatar === 'string' && avatar.trim() !== '' && avatar !== 'null' && avatar !== 'undefined' ? (
               <img src={avatar} alt={currentName} className="h-full w-full object-cover" />
             ) : (
-              <span>
-                {currentName
-                  ? currentName
-                      .split(' ')
-                      .map((n) => n[0])
-                      .join('')
-                      .slice(-2)
-                      .toUpperCase()
-                  : 'TS'}
+              <span className="flex h-full w-full items-center justify-center font-bold text-sm bg-gradient-to-br from-blue-600 to-indigo-600 text-white">
+                {(currentName || 'P').trim().slice(0, 1).toUpperCase() || 'P'}
               </span>
             )}
             <div className="absolute inset-0 flex items-center justify-center bg-black/40 opacity-0 transition-opacity group-hover:opacity-100">

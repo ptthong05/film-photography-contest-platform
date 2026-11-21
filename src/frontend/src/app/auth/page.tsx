@@ -35,12 +35,12 @@ export default function AuthPage({
         {mode === 'LOGIN' ? (
           <LoginForm
             onSwitchToRegister={() => setMode('REGISTER')}
-            onSubmitSuccess={() => onLoginSuccess?.('PARTICIPANT')}
+            onSubmitSuccess={(user) => onLoginSuccess?.(user.role as DashboardPortal)}
           />
         ) : (
           <RegisterForm
             onSwitchToLogin={() => setMode('LOGIN')}
-            onSubmitSuccess={() => onLoginSuccess?.('PARTICIPANT')}
+            onSubmitSuccess={() => setMode('LOGIN')}
           />
         )}
       </main>

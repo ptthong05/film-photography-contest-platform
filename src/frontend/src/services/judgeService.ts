@@ -13,6 +13,7 @@ import type {
 import { calculateWeightedScore } from '../utils/calculateScore';
 import { MOCK_CONTESTS } from '../mocks/organizerData';
 import { isJudgingDeadlinePassed } from './contestSyncService';
+import { authService } from './authService';
 import {
   mockContests,
   mockEvaluations,
@@ -124,27 +125,26 @@ function fail(message: string): Promise<never> {
 
 function loadStoredProfile(): JudgeProfile {
   try {
-    let directAvatar: string | null = null;
-    const storedAvatar = localStorage.getItem('judge_avatar');
-    if (storedAvatar && storedAvatar.startsWith('data:image/')) {
-      directAvatar = storedAvatar;
-    }
+    const authUser = authService.getCurrentUser();
+    // Ban đầu khi đăng nhập vào mặc định không có avatar
+    const directAvatar: string | null = authUser?.avatar || authUser?.avatarUrl || null;
     const raw = localStorage.getItem(JUDGE_PROFILE_STORAGE_KEY);
-    if (raw) {
-      const parsed = JSON.parse(raw);
-      return {
-        ...mockProfile,
-        ...parsed,
-        avatarUrl: directAvatar || parsed.avatarUrl || mockProfile.avatarUrl,
-      };
-    }
-    if (directAvatar) {
-      return { ...mockProfile, avatarUrl: directAvatar };
-    }
+    const parsed = raw ? JSON.parse(raw) : {};
+
+    return {
+      ...mockProfile,
+      ...parsed,
+      fullName: authUser?.fullName || parsed.fullName || mockProfile.fullName,
+      email: authUser?.email || parsed.email || mockProfile.email,
+      phone: (authUser?.phone !== undefined && authUser?.phone !== null && authUser.phone !== '')
+        ? authUser.phone
+        : (parsed.phone || mockProfile.phone),
+      avatarUrl: directAvatar || '',
+    };
   } catch {
     // fallback to mockProfile
   }
-  return mockProfile;
+  return { ...mockProfile, avatarUrl: '' };
 }
 
 function loadStoredNotifications(): JudgeNotification[] {
@@ -537,7 +537,14 @@ export const judgeService = {
   },
 
   /** PATCH /judges/me — email do Admin quản lý nên không cho sửa */
-  updateProfile: (changes: Partial<JudgeProfile>): Promise<JudgeProfile> => {
+  updateProfile: async (changes: Partial<JudgeProfile>): Promise<JudgeProfile> => {
+    try {
+      await authService.updateProfile({
+        fullName: changes.fullName,
+        phone: changes.phone,
+        avatar: changes.avatarUrl,
+      });
+    } catch {}
     Object.assign(mockProfile, changes);
     try {
       localStorage.setItem(JUDGE_PROFILE_STORAGE_KEY, JSON.stringify(mockProfile));
