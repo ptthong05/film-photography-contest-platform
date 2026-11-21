@@ -1,6 +1,5 @@
 package com.example.backend.exception;
 
-import com.example.backend.dto.ErrorResponse;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 import org.springframework.http.HttpStatus;
@@ -10,6 +9,8 @@ import org.springframework.validation.FieldError;
 import org.springframework.web.bind.MethodArgumentNotValidException;
 import org.springframework.web.bind.annotation.ExceptionHandler;
 import org.springframework.web.bind.annotation.RestControllerAdvice;
+
+import com.example.backend.dto.ErrorResponse;
 
 /** Xử lý lỗi tập trung. Thêm exception mới → thêm 1 handler tại đây. */
 @RestControllerAdvice
@@ -61,6 +62,11 @@ public class GlobalExceptionHandler {
     @ExceptionHandler(HttpMessageNotReadableException.class)
     public ResponseEntity<ErrorResponse> handleUnreadable(HttpMessageNotReadableException ex) {
         return build(HttpStatus.BAD_REQUEST, "Dữ liệu gửi lên sai định dạng");
+    }
+
+    @ExceptionHandler(IllegalArgumentException.class)
+    public ResponseEntity<ErrorResponse> handleIllegalArgument(IllegalArgumentException ex) {
+        return build(HttpStatus.BAD_REQUEST, ex.getMessage());
     }
 
     @ExceptionHandler(Exception.class)
