@@ -4,7 +4,7 @@ import jakarta.persistence.*;
 
 @Entity
 @Table(name = "frames")
-public class Frame extends Tv3Entity {
+public class Frame extends BaseEntity {
     @ManyToOne(fetch = FetchType.LAZY, optional = false)
     @JoinColumn(name = "film_roll_id", nullable = false)
     private FilmRoll filmRoll;

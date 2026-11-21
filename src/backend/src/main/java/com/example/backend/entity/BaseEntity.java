@@ -6,12 +6,13 @@ import java.time.Instant;
 import java.util.UUID;
 
 @MappedSuperclass
-public abstract class Tv3Entity {
+public abstract class BaseEntity {
     @Id
     @Column(length = 36)
     private String id = UUID.randomUUID().toString();
 
-    @Version private long version;
+    @Version
+    private long version;
 
     @Column(nullable = false, updatable = false)
     private Instant createdAt;

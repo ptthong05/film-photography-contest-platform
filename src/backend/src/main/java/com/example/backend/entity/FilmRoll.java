@@ -4,7 +4,7 @@ import jakarta.persistence.*;
 
 @Entity
 @Table(name = "film_rolls")
-public class FilmRoll extends Tv3Entity {
+public class FilmRoll extends BaseEntity {
     @Column(nullable = false, length = 128)
     private String participantId;
 

@@ -5,7 +5,7 @@ import jakarta.persistence.*;
 
 @Entity
 @Table(name = "submissions")
-public class Submission extends Tv3Entity {
+public class Submission extends BaseEntity {
     @Column(nullable = false, length = 128)
     private String contestId;
 
@@ -37,7 +37,8 @@ public class Submission extends Tv3Entity {
     @Column(length = 255)
     private String negativePublicId;
 
-    @Embedded private FilmMetadata metadata;
+    @Embedded
+    private FilmMetadata metadata;
 
     @Enumerated(EnumType.STRING)
     @Column(nullable = false, length = 16)
