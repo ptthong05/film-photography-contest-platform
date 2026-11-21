@@ -1,7 +1,8 @@
 import React, { useState, useEffect } from 'react';
-import { Camera, Search, Menu, X, LogIn, UserPlus } from 'lucide-react';
+import { Camera, Search, Menu, X, LogIn, UserPlus, LogOut, LayoutDashboard, ShieldCheck } from 'lucide-react';
 import type { Portal } from '../../../types/portal';
 import { HeaderSearchModal } from './search/HeaderSearchModal';
+import { authService, type AuthUser } from '../../../services/authService';
 
 interface NavbarProps {
   activeTab?: string;
@@ -24,6 +25,29 @@ export function Navbar({
 }: NavbarProps) {
   const [mobileMenuOpen, setMobileMenuOpen] = useState(false);
   const [searchOpen, setSearchOpen] = useState(false);
+  const [currentUser, setCurrentUser] = useState<AuthUser | null>(() => authService.getCurrentUser());
+
+  useEffect(() => {
+    const handleAuthChange = () => {
+      setCurrentUser(authService.getCurrentUser());
+    };
+    window.addEventListener('authChanged', handleAuthChange);
+    return () => window.removeEventListener('authChanged', handleAuthChange);
+  }, []);
+
+  const handleLogout = () => {
+    authService.logout();
+    setCurrentUser(null);
+    if (onGoHome) onGoHome();
+    else onSelectPortal?.('HOME');
+    setMobileMenuOpen(false);
+  };
+
+  const handleGoToDashboard = () => {
+    if (!currentUser) return;
+    onSelectPortal?.(currentUser.role);
+    setMobileMenuOpen(false);
+  };
 
   // Lắng nghe phím tắt Ctrl+K hoặc Cmd+K để mở tìm kiếm Spotlight
   useEffect(() => {
@@ -154,23 +178,66 @@ export function Navbar({
               </kbd>
             </button>
 
-            {/* Login Button */}
-            <button
-              onClick={handleLogin}
-              className="px-4 py-2 text-sm font-medium text-slate-700 hover:text-blue-600 hover:bg-blue-50 rounded-lg transition-colors cursor-pointer flex items-center gap-1.5"
-            >
-              <LogIn className="w-4 h-4" />
-              <span>Đăng nhập</span>
-            </button>
+            {/* Authenticated user actions or Login/Register buttons */}
+            {currentUser ? (
+              <div className="flex items-center gap-2.5">
+                <button
+                  onClick={handleGoToDashboard}
+                  className="px-3.5 py-1.5 text-xs font-semibold rounded-lg bg-blue-50 text-blue-700 hover:bg-blue-100 transition-colors flex items-center gap-1.5 cursor-pointer border border-blue-200"
+                  title="Vào khu vực quản lý theo vai trò"
+                >
+                  <LayoutDashboard className="w-3.5 h-3.5" />
+                  <span>
+                    {currentUser.role === 'ADMIN'
+                      ? 'Trang Quản trị'
+                      : currentUser.role === 'ORGANIZER'
+                      ? 'Bàn làm việc BTC'
+                      : currentUser.role === 'JUDGE'
+                      ? 'Chấm thi'
+                      : 'Khu vực thí sinh'}
+                  </span>
+                </button>
 
-            {/* Register Button */}
-            <button
-              onClick={handleRegister}
-              className="px-4 py-2 text-sm font-semibold text-white bg-blue-600 hover:bg-blue-700 active:scale-[0.98] rounded-lg shadow-sm shadow-blue-500/20 transition-all cursor-pointer flex items-center gap-1.5"
-            >
-              <UserPlus className="w-4 h-4" />
-              <span>Đăng ký</span>
-            </button>
+                <div className="flex items-center gap-2 pl-1 border-l border-slate-200">
+                  <div className="text-right">
+                    <p className="text-xs font-bold text-slate-800 leading-tight truncate max-w-[120px]">
+                      {currentUser.fullName}
+                    </p>
+                    <span className="text-[10px] font-medium text-slate-500 uppercase tracking-wide">
+                      {currentUser.role}
+                    </span>
+                  </div>
+
+                  <button
+                    onClick={handleLogout}
+                    title="Đăng xuất"
+                    className="p-1.5 text-slate-400 hover:text-rose-600 hover:bg-rose-50 rounded-lg transition-colors cursor-pointer"
+                  >
+                    <LogOut className="w-4 h-4" />
+                  </button>
+                </div>
+              </div>
+            ) : (
+              <>
+                {/* Login Button */}
+                <button
+                  onClick={handleLogin}
+                  className="px-4 py-2 text-sm font-medium text-slate-700 hover:text-blue-600 hover:bg-blue-50 rounded-lg transition-colors cursor-pointer flex items-center gap-1.5"
+                >
+                  <LogIn className="w-4 h-4" />
+                  <span>Đăng nhập</span>
+                </button>
+
+                {/* Register Button */}
+                <button
+                  onClick={handleRegister}
+                  className="px-4 py-2 text-sm font-semibold text-white bg-blue-600 hover:bg-blue-700 active:scale-[0.98] rounded-lg shadow-sm shadow-blue-500/20 transition-all cursor-pointer flex items-center gap-1.5"
+                >
+                  <UserPlus className="w-4 h-4" />
+                  <span>Đăng ký</span>
+                </button>
+              </>
+            )}
           </div>
 
           {/* Mobile Search & Menu Button */}
@@ -224,18 +291,43 @@ export function Navbar({
           </div>
 
           <div className="pt-3 border-t border-slate-100 flex flex-col gap-2">
-            <button
-              onClick={handleLogin}
-              className="w-full py-2.5 text-center text-sm font-semibold text-slate-700 bg-slate-100 hover:bg-slate-200 rounded-lg cursor-pointer"
-            >
-              Đăng nhập
-            </button>
-            <button
-              onClick={handleRegister}
-              className="w-full py-2.5 text-center text-sm font-semibold text-white bg-blue-600 hover:bg-blue-700 rounded-lg shadow-sm cursor-pointer"
-            >
-              Đăng ký tài khoản
-            </button>
+            {currentUser ? (
+              <>
+                <div className="flex items-center justify-between p-2.5 rounded-xl bg-slate-50 border border-slate-200">
+                  <div>
+                    <p className="text-xs font-bold text-slate-800">{currentUser.fullName}</p>
+                    <p className="text-[11px] text-slate-500 font-medium">Vai trò: {currentUser.role}</p>
+                  </div>
+                  <button
+                    onClick={handleLogout}
+                    className="px-2.5 py-1 text-xs text-rose-600 hover:bg-rose-50 rounded-md font-semibold"
+                  >
+                    Đăng xuất
+                  </button>
+                </div>
+                <button
+                  onClick={handleGoToDashboard}
+                  className="w-full py-2.5 text-center text-sm font-semibold text-white bg-blue-600 hover:bg-blue-700 rounded-lg shadow-sm cursor-pointer"
+                >
+                  Vào trang quản lý ({currentUser.role})
+                </button>
+              </>
+            ) : (
+              <>
+                <button
+                  onClick={handleLogin}
+                  className="w-full py-2.5 text-center text-sm font-semibold text-slate-700 bg-slate-100 hover:bg-slate-200 rounded-lg cursor-pointer"
+                >
+                  Đăng nhập
+                </button>
+                <button
+                  onClick={handleRegister}
+                  className="w-full py-2.5 text-center text-sm font-semibold text-white bg-blue-600 hover:bg-blue-700 rounded-lg shadow-sm cursor-pointer"
+                >
+                  Đăng ký tài khoản
+                </button>
+              </>
+            )}
           </div>
         </div>
       )}

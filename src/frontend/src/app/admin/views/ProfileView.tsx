@@ -4,6 +4,7 @@ import {
   RotateCcw, Save, ShieldCheck, UserRound, X,
 } from 'lucide-react';
 import { Toast, type ToastNotice } from '../../../components/Toast';
+import { authService, validateStrongPassword } from '../../../services/authService';
 
 // Dữ liệu phục vụ dựng giao diện. Chưa đồng bộ với phiên đăng nhập hoặc cơ sở dữ liệu.
 const PROFILE_STORAGE_KEY = 'filmcontest-admin-profile-demo-v1';
@@ -64,28 +65,25 @@ const NOTIFICATION_ITEMS: {
 export function readAdminDemoProfile(): DemoAdminProfile {
   try {
     if (typeof window === 'undefined') return { ...DEFAULT_PROFILE };
-    let directAvatar: string | null = null;
-    const storedAvatar = window.localStorage.getItem('admin_avatar');
-    if (storedAvatar && storedAvatar.startsWith('data:image/')) {
-      directAvatar = storedAvatar;
-    }
+    const authUser = authService.getCurrentUser();
+    // Ban đầu khi đăng nhập vào mặc định không có avatar (chỉ có khi user đã chủ động cập nhật)
+    const directAvatar: string | null = authUser?.avatar || authUser?.avatarUrl || null;
 
     const raw = window.localStorage.getItem(PROFILE_STORAGE_KEY);
-    if (!raw) return { ...DEFAULT_PROFILE, avatarDataUrl: directAvatar };
-    const parsed: unknown = JSON.parse(raw);
-    if (!parsed || typeof parsed !== 'object' || Array.isArray(parsed)) return { ...DEFAULT_PROFILE, avatarDataUrl: directAvatar };
-    const source = parsed as Record<string, unknown>;
-    const avatar = source.avatarDataUrl;
+    const parsed: unknown = raw ? JSON.parse(raw) : null;
+    const source = (parsed && typeof parsed === 'object' && !Array.isArray(parsed)) ? (parsed as Record<string, unknown>) : {};
+
     return {
-      fullName: typeof source.fullName === 'string' ? source.fullName.slice(0, 80) : DEFAULT_PROFILE.fullName,
-      email: typeof source.email === 'string' ? source.email.slice(0, 120) : DEFAULT_PROFILE.email,
-      phone: typeof source.phone === 'string' ? source.phone.slice(0, 24) : DEFAULT_PROFILE.phone,
+      fullName: authUser?.fullName || (typeof source.fullName === 'string' ? source.fullName.slice(0, 80) : DEFAULT_PROFILE.fullName),
+      email: authUser?.email || (typeof source.email === 'string' ? source.email.slice(0, 120) : DEFAULT_PROFILE.email),
+      phone: (authUser?.phone !== undefined && authUser?.phone !== null && authUser.phone !== '')
+        ? authUser.phone
+        : (typeof source.phone === 'string' ? source.phone.slice(0, 24) : DEFAULT_PROFILE.phone),
       bio: typeof source.bio === 'string' ? source.bio.slice(0, 500) : DEFAULT_PROFILE.bio,
-      avatarDataUrl: directAvatar || (typeof avatar === 'string' && avatar.length < 1_500_000 &&
-        /^data:image\/(?:jpeg|png|webp);base64,/i.test(avatar) ? avatar : null),
+      avatarDataUrl: directAvatar,
     };
   } catch {
-    return { ...DEFAULT_PROFILE };
+    return { ...DEFAULT_PROFILE, avatarDataUrl: null };
   }
 }
 
@@ -194,7 +192,7 @@ export function ProfileView({ onNameSaved }: ProfileViewProps) {
     reader.readAsDataURL(file);
   };
 
-  const saveProfile = (event: FormEvent<HTMLFormElement>) => {
+  const saveProfile = async (event: FormEvent<HTMLFormElement>) => {
     event.preventDefault();
     const errors = validateProfile(draftProfile);
     setFieldErrors(errors);
@@ -210,6 +208,12 @@ export function ProfileView({ onNameSaved }: ProfileViewProps) {
       bio: draftProfile.bio.trim(),
     };
     try {
+      await authService.updateProfile({
+        fullName: normalized.fullName,
+        phone: normalized.phone,
+        avatar: normalized.avatarDataUrl,
+      });
+
       window.localStorage.setItem(PROFILE_STORAGE_KEY, JSON.stringify(normalized));
       if (normalized.avatarDataUrl) {
         window.localStorage.setItem('admin_avatar', normalized.avatarDataUrl);
@@ -229,7 +233,7 @@ export function ProfileView({ onNameSaved }: ProfileViewProps) {
 
       showToast('Đã lưu hồ sơ quản trị viên thành công.', 'success');
     } catch {
-      showToast('Không thể lưu hồ sơ trên trình duyệt. Hãy thử ảnh nhỏ hơn hoặc kiểm tra quyền lưu trữ.', 'error');
+      showToast('Không thể lưu hồ sơ.', 'error');
     }
   };
 
@@ -246,19 +250,36 @@ export function ProfileView({ onNameSaved }: ProfileViewProps) {
     setShowPassword(false);
   };
 
-  const checkPasswordForm = (event: FormEvent<HTMLFormElement>) => {
+  const checkPasswordForm = async (event: FormEvent<HTMLFormElement>) => {
     event.preventDefault();
     if (!password.current) {
       showToast('Vui lòng nhập mật khẩu hiện tại.', 'error');
-    } else if (password.next.length < 8 || !/[0-9]/.test(password.next)) {
-      showToast('Mật khẩu mới cần từ 8 ký tự và có ít nhất 1 chữ số.', 'error');
-    } else if (password.next === password.current) {
-      showToast('Mật khẩu mới cần khác mật khẩu hiện tại.', 'error');
-    } else if (password.next !== password.confirm) {
+      return;
+    }
+    const validation = validateStrongPassword(password.next);
+    if (!validation.isValid) {
+      showToast(validation.error || 'Mật khẩu mới không đạt chuẩn an toàn.', 'error');
+      return;
+    }
+    if (password.next === password.current) {
+      showToast('Mật khẩu mới không được trùng với mật khẩu hiện tại.', 'error');
+      return;
+    }
+    if (password.next !== password.confirm) {
       showToast('Hai lần nhập mật khẩu mới không trùng nhau.', 'error');
-    } else {
-      showToast('Đổi mật khẩu thành công.', 'success');
+      return;
+    }
+
+    try {
+      await authService.changePassword(password.current, password.next);
+      showToast('Cập nhật mật khẩu thành công! Hệ thống sẽ tự động đăng xuất...', 'success');
       setPassword({ current: '', next: '', confirm: '' });
+      setTimeout(() => {
+        authService.logout();
+        window.location.hash = '#/auth';
+      }, 1500);
+    } catch (err: unknown) {
+      showToast(err instanceof Error ? err.message : 'Đổi mật khẩu thất bại.', 'error');
     }
   };
 
@@ -280,11 +301,6 @@ export function ProfileView({ onNameSaved }: ProfileViewProps) {
   return (
     <section aria-label="Hồ sơ cá nhân Admin" className="relative space-y-5">
       <Toast toast={toast} onClose={() => setToast(null)} />
-
-      <div className="flex items-start gap-3 rounded-xl border border-amber-200 bg-amber-50 p-4 text-sm text-amber-900" role="note">
-        <Info size={19} className="mt-0.5 shrink-0" aria-hidden="true" />
-        <p><strong>Giao diện mẫu:</strong> Thông tin hồ sơ và tùy chọn thông báo chỉ được lưu trên trình duyệt. Không đồng bộ với tài khoản đăng nhập, MongoDB hoặc dịch vụ thông báo. Mật khẩu không được lưu hay gửi đi.</p>
-      </div>
 
       <div className="overflow-hidden rounded-2xl border border-slate-200 bg-white shadow-sm">
         <div role="tablist" aria-label="Các mục hồ sơ cá nhân" className="flex flex-wrap gap-1 border-b border-slate-200 px-3 pt-3 sm:gap-5 sm:px-7">
@@ -343,34 +359,22 @@ export function ProfileView({ onNameSaved }: ProfileViewProps) {
                   </div>
 
                   <div className="space-y-1.5">
-                    <label htmlFor="admin-profile-email" className="text-sm font-semibold text-slate-700">Email <span className="text-red-600">*</span></label>
-                    <input id="admin-profile-email" required type="email" autoComplete="email" maxLength={120} value={draftProfile.email}
-                      onChange={(event) => updateProfile('email', event.target.value)}
-                      aria-invalid={Boolean(fieldErrors.email)} aria-describedby={fieldErrors.email ? 'admin-profile-email-error' : undefined}
-                      className="w-full rounded-lg border border-slate-300 px-3.5 py-2.5 text-sm outline-none focus:border-blue-500 focus:ring-2 focus:ring-blue-100" />
-                    {fieldErrors.email && <p id="admin-profile-email-error" className="text-xs text-red-600">{fieldErrors.email}</p>}
+                    <label htmlFor="admin-profile-email" className="text-sm font-semibold text-slate-700">Email <span className="text-xs font-normal text-slate-500">(Không thể thay đổi)</span></label>
+                    <input id="admin-profile-email" disabled readOnly type="email" value={draftProfile.email}
+                      className="w-full cursor-not-allowed rounded-lg border border-slate-200 bg-slate-100 px-3.5 py-2.5 text-sm text-slate-500 select-none outline-none" />
                   </div>
 
                   <div className="space-y-1.5">
-                    <label htmlFor="admin-profile-phone" className="text-sm font-semibold text-slate-700">Số điện thoại</label>
-                    <input id="admin-profile-phone" type="tel" autoComplete="tel" maxLength={24} value={draftProfile.phone}
-                      onChange={(event) => updateProfile('phone', event.target.value)}
-                      aria-invalid={Boolean(fieldErrors.phone)} aria-describedby={fieldErrors.phone ? 'admin-profile-phone-error' : undefined}
-                      className="w-full rounded-lg border border-slate-300 px-3.5 py-2.5 text-sm outline-none focus:border-blue-500 focus:ring-2 focus:ring-blue-100" />
-                    {fieldErrors.phone && <p id="admin-profile-phone-error" className="text-xs text-red-600">{fieldErrors.phone}</p>}
+                    <label htmlFor="admin-profile-phone" className="text-sm font-semibold text-slate-700">Số điện thoại <span className="text-xs font-normal text-slate-500">(Không thể thay đổi)</span></label>
+                    <input id="admin-profile-phone" disabled readOnly type="tel" value={draftProfile.phone}
+                      className="w-full cursor-not-allowed rounded-lg border border-slate-200 bg-slate-100 px-3.5 py-2.5 text-sm text-slate-500 select-none outline-none" />
                   </div>
 
                   <div className="space-y-1.5 md:col-span-2">
-                    <label htmlFor="admin-profile-role" className="text-sm font-semibold text-slate-700">Chức vụ</label>
-                    <input id="admin-profile-role" value="Administrator" readOnly aria-readonly="true"
-                      className="w-full cursor-not-allowed rounded-lg border border-slate-200 bg-slate-50 px-3.5 py-2.5 text-sm text-slate-600" />
-                  </div>
-                  <div className="space-y-1.5 md:col-span-2">
-                    <label htmlFor="admin-profile-bio" className="text-sm font-semibold text-slate-700">Giới thiệu</label>
-                    <textarea id="admin-profile-bio" rows={4} maxLength={500} value={draftProfile.bio}
-                      onChange={(event) => updateProfile('bio', event.target.value)}
-                      className="w-full resize-y rounded-lg border border-slate-300 px-3.5 py-2.5 text-sm outline-none focus:border-blue-500 focus:ring-2 focus:ring-blue-100" />
-                    <p className="text-right text-xs text-slate-400">{draftProfile.bio.length}/500 ký tự</p>
+                    <label htmlFor="admin-profile-role" className="text-sm font-semibold text-slate-700">Chức vụ <span className="text-xs font-normal text-slate-500">(Không thể thay đổi)</span></label>
+                    <input id="admin-profile-role" value="Quản trị viên (ADMIN)" disabled readOnly aria-readonly="true"
+                      className="w-full cursor-not-allowed rounded-lg border border-slate-200 bg-slate-100 px-3.5 py-2.5 text-sm font-medium text-slate-700 select-none opacity-80" />
+                    <p className="text-xs text-slate-500">Chức vụ do hệ thống phân quyền, cố định và không thể thay đổi.</p>
                   </div>
                 </div>
               </div>
@@ -421,7 +425,7 @@ export function ProfileView({ onNameSaved }: ProfileViewProps) {
                   onChange={(event) => { setPassword((p) => ({ ...p, confirm: event.target.value })); }}
                   className="w-full rounded-lg border border-slate-300 px-3.5 py-2.5 text-sm outline-none focus:border-blue-500 focus:ring-2 focus:ring-blue-100" />
               </div>
-              <p className="text-xs text-slate-500">Tối thiểu 8 ký tự, có ít nhất 1 chữ số.</p>
+              <p className="text-xs text-slate-500">Tối thiểu 8 ký tự, chữ cái đầu viết hoa, gồm chữ thường, chữ số và ký tự đặc biệt (!@#$%...).</p>
               <div className="flex justify-end gap-3 border-t border-slate-100 pt-5">
                 <button type="button" onClick={() => { setPassword({ current: '', next: '', confirm: '' }); }}
                   className="rounded-lg border border-slate-300 px-5 py-2.5 text-sm font-semibold text-slate-700 hover:bg-slate-50">Xóa biểu mẫu</button>

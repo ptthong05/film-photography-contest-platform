@@ -48,6 +48,12 @@ public class UserController {
         return ResponseEntity.ok(userService.updateUser(id, request));
     }
 
+    @org.springframework.web.bind.annotation.PatchMapping("/{id}/status")
+    public ResponseEntity<UserResponse> updateStatus(@PathVariable String id, @RequestBody java.util.Map<String, String> body) {
+        String status = body != null ? body.getOrDefault("status", "ACTIVE") : "ACTIVE";
+        return ResponseEntity.ok(userService.updateStatus(id, status));
+    }
+
     @DeleteMapping("/{id}")
     public ResponseEntity<Void> deleteUser(@PathVariable String id) {
         userService.deleteUser(id);

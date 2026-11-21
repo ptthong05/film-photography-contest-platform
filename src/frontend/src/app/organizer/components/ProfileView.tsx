@@ -4,6 +4,7 @@ import { StateMessage } from "../../../components/StateMessage";
 import { Toast, type ToastNotice } from "../../../components/Toast";
 import { useFetch } from "../../../hooks/useFetch";
 import { profileService } from "../../../services/profileService";
+import { authService, validateStrongPassword } from "../../../services/authService";
 import type { OrganizerProfile } from "../../../types/organizerUser";
 import { OrganizerPageHeader } from "./OrganizerPageHeader";
 
@@ -128,6 +129,7 @@ export function ProfileView({ onNameSaved }: ProfileViewProps) {
     if (Object.keys(errors).length) { showToast("Vui lòng kiểm tra các trường được đánh dấu.", "error"); return; }
     const normalized = { ...candidate, fullName: candidate.fullName.trim(), email: candidate.email.trim().toLowerCase(), phone: candidate.phone.trim(), bio: candidate.bio.trim() };
     try {
+      await authService.updateProfile({ fullName: normalized.fullName });
       await profileService.saveProfile(normalized);
       if (normalized.avatarDataUrl) {
         window.localStorage.setItem('organizer_avatar', normalized.avatarDataUrl);
@@ -160,15 +162,36 @@ export function ProfileView({ onNameSaved }: ProfileViewProps) {
     setPassword({ current: "", next: "", confirm: "" }); setShowPassword(false);
   };
 
-  const checkPassword = (event: FormEvent<HTMLFormElement>) => {
+  const checkPassword = async (event: FormEvent<HTMLFormElement>) => {
     event.preventDefault();
-    if (!password.current) showToast("Vui lòng nhập mật khẩu hiện tại.", "error");
-    else if (password.next.length < 8 || !/[0-9]/.test(password.next)) showToast("Mật khẩu mới cần từ 8 ký tự và có ít nhất một chữ số.", "error");
-    else if (password.next === password.current) showToast("Mật khẩu mới cần khác mật khẩu hiện tại.", "error");
-    else if (password.next !== password.confirm) showToast("Hai lần nhập mật khẩu mới không trùng nhau.", "error");
-    else {
-      showToast("Đổi mật khẩu thành công.", "success");
+    if (!password.current) {
+      showToast("Vui lòng nhập mật khẩu hiện tại.", "error");
+      return;
+    }
+    const validation = validateStrongPassword(password.next);
+    if (!validation.isValid) {
+      showToast(validation.error || "Mật khẩu mới không đạt chuẩn an toàn.", "error");
+      return;
+    }
+    if (password.next === password.current) {
+      showToast("Mật khẩu mới cần khác mật khẩu hiện tại.", "error");
+      return;
+    }
+    if (password.next !== password.confirm) {
+      showToast("Hai lần nhập mật khẩu mới không trùng nhau.", "error");
+      return;
+    }
+
+    try {
+      await authService.changePassword(password.current, password.next);
+      showToast("Cập nhật mật khẩu thành công! Hệ thống sẽ tự động đăng xuất...", "success");
       setPassword({ current: "", next: "", confirm: "" });
+      setTimeout(() => {
+        authService.logout();
+        window.location.hash = "#/auth";
+      }, 1500);
+    } catch (err: unknown) {
+      showToast(err instanceof Error ? err.message : "Đổi mật khẩu thất bại.", "error");
     }
   };
 
@@ -188,10 +211,6 @@ export function ProfileView({ onNameSaved }: ProfileViewProps) {
     <section aria-label="Hồ sơ cá nhân Organizer" className="relative space-y-5">
       <Toast toast={toast} onClose={() => setToast(null)} />
       <OrganizerPageHeader title="Hồ sơ cá nhân" description="Cập nhật thông tin và tùy chọn tài khoản Organizer." />
-      <div className="flex items-start gap-3 rounded-xl border border-amber-200 bg-amber-50 p-4 text-sm text-amber-900" role="note">
-        <Info size={19} className="mt-0.5 shrink-0" aria-hidden="true" />
-        <p><strong>Giao diện mẫu:</strong> Hồ sơ và tùy chọn thông báo được lưu trên trình duyệt. Mật khẩu không được lưu hoặc gửi đi; đổi mật khẩu thật cần API máy chủ.</p>
-      </div>
       {isLoading && <StateMessage message="Đang tải dữ liệu..." />}
       {error && <StateMessage message={error} isError />}
       {profile && (
@@ -221,9 +240,13 @@ export function ProfileView({ onNameSaved }: ProfileViewProps) {
                   </div>
                   <div className="grid min-w-0 gap-5 md:grid-cols-2">
                     <div className="space-y-1.5 md:col-span-2"><label htmlFor="organizer-profile-name" className="text-sm font-semibold text-slate-700">Họ và tên <span className="text-red-600">*</span></label><input id="organizer-profile-name" required maxLength={80} value={editableProfile.fullName} onChange={(event) => updateProfile("fullName", event.target.value)} aria-invalid={Boolean(fieldErrors.fullName)} className="w-full rounded-lg border border-slate-300 px-3.5 py-2.5 text-sm outline-none focus:border-blue-500 focus:ring-2 focus:ring-blue-100" />{fieldErrors.fullName && <p className="text-xs text-red-600">{fieldErrors.fullName}</p>}</div>
-                    <div className="space-y-1.5"><label htmlFor="organizer-profile-email" className="text-sm font-semibold text-slate-700">Email <span className="text-red-600">*</span></label><input id="organizer-profile-email" required type="email" autoComplete="email" maxLength={120} value={editableProfile.email} onChange={(event) => updateProfile("email", event.target.value)} aria-invalid={Boolean(fieldErrors.email)} className="w-full rounded-lg border border-slate-300 px-3.5 py-2.5 text-sm outline-none focus:border-blue-500 focus:ring-2 focus:ring-blue-100" />{fieldErrors.email && <p className="text-xs text-red-600">{fieldErrors.email}</p>}</div>
-                    <div className="space-y-1.5"><label htmlFor="organizer-profile-phone" className="text-sm font-semibold text-slate-700">Số điện thoại</label><input id="organizer-profile-phone" type="tel" autoComplete="tel" maxLength={24} value={editableProfile.phone} onChange={(event) => updateProfile("phone", event.target.value)} aria-invalid={Boolean(fieldErrors.phone)} className="w-full rounded-lg border border-slate-300 px-3.5 py-2.5 text-sm outline-none focus:border-blue-500 focus:ring-2 focus:ring-blue-100" />{fieldErrors.phone && <p className="text-xs text-red-600">{fieldErrors.phone}</p>}</div>
-                    <div className="space-y-1.5 md:col-span-2"><label htmlFor="organizer-profile-role" className="text-sm font-semibold text-slate-700">Chức vụ</label><input id="organizer-profile-role" value={profile.role} readOnly aria-readonly="true" className="w-full cursor-not-allowed rounded-lg border border-slate-200 bg-slate-50 px-3.5 py-2.5 text-sm text-slate-600" /></div>
+                    <div className="space-y-1.5"><label htmlFor="organizer-profile-email" className="text-sm font-semibold text-slate-700">Email <span className="text-xs font-normal text-slate-500">(Không thể thay đổi)</span></label><input id="organizer-profile-email" disabled readOnly type="email" value={editableProfile.email} className="w-full cursor-not-allowed rounded-lg border border-slate-200 bg-slate-100 px-3.5 py-2.5 text-sm text-slate-500 select-none outline-none" /></div>
+                    <div className="space-y-1.5"><label htmlFor="organizer-profile-phone" className="text-sm font-semibold text-slate-700">Số điện thoại <span className="text-xs font-normal text-slate-500">(Không thể thay đổi)</span></label><input id="organizer-profile-phone" disabled readOnly type="tel" value={editableProfile.phone} className="w-full cursor-not-allowed rounded-lg border border-slate-200 bg-slate-100 px-3.5 py-2.5 text-sm text-slate-500 select-none outline-none" /></div>
+                    <div className="space-y-1.5 md:col-span-2">
+                      <label htmlFor="organizer-profile-role" className="text-sm font-semibold text-slate-700">Chức vụ <span className="text-xs font-normal text-slate-500">(Không thể thay đổi)</span></label>
+                      <input id="organizer-profile-role" value="Ban tổ chức (ORGANIZER)" disabled readOnly aria-readonly="true" className="w-full cursor-not-allowed rounded-lg border border-slate-200 bg-slate-100 px-3.5 py-2.5 text-sm font-medium text-slate-700 select-none opacity-80" />
+                      <p className="text-xs text-slate-500">Chức vụ do hệ thống phân quyền, cố định và không thể thay đổi.</p>
+                    </div>
                     <div className="space-y-1.5 md:col-span-2"><label htmlFor="organizer-profile-bio" className="text-sm font-semibold text-slate-700">Giới thiệu</label><textarea id="organizer-profile-bio" rows={4} maxLength={500} value={editableProfile.bio} onChange={(event) => updateProfile("bio", event.target.value)} className="w-full resize-y rounded-lg border border-slate-300 px-3.5 py-2.5 text-sm outline-none focus:border-blue-500 focus:ring-2 focus:ring-blue-100" /><p className="text-right text-xs text-slate-400">{editableProfile.bio.length}/500 ký tự</p></div>
                   </div>
                 </div>
@@ -242,7 +265,7 @@ export function ProfileView({ onNameSaved }: ProfileViewProps) {
                 <div className="space-y-1.5"><label htmlFor="organizer-password-current" className="text-sm font-semibold text-slate-700">Mật khẩu hiện tại</label><input id="organizer-password-current" type="password" autoComplete="off" value={password.current} onChange={(event) => { setPassword((previous) => ({ ...previous, current: event.target.value })); }} className="w-full rounded-lg border border-slate-300 px-3.5 py-2.5 text-sm outline-none focus:border-blue-500 focus:ring-2 focus:ring-blue-100" /></div>
                 <div className="space-y-1.5"><label htmlFor="organizer-password-new" className="text-sm font-semibold text-slate-700">Mật khẩu mới</label><div className="relative"><input id="organizer-password-new" type={showPassword ? "text" : "password"} autoComplete="off" value={password.next} onChange={(event) => { setPassword((previous) => ({ ...previous, next: event.target.value })); }} className="w-full rounded-lg border border-slate-300 px-3.5 py-2.5 pr-12 text-sm outline-none focus:border-blue-500 focus:ring-2 focus:ring-blue-100" /><button type="button" onClick={() => setShowPassword((previous) => !previous)} aria-label={showPassword ? "Ẩn mật khẩu mới" : "Hiện mật khẩu mới"} className="absolute inset-y-0 right-0 flex w-11 items-center justify-center text-slate-500 hover:text-blue-700">{showPassword ? <EyeOff size={19} /> : <Eye size={19} />}</button></div></div>
                 <div className="space-y-1.5"><label htmlFor="organizer-password-confirm" className="text-sm font-semibold text-slate-700">Xác nhận mật khẩu mới</label><input id="organizer-password-confirm" type={showPassword ? "text" : "password"} autoComplete="off" value={password.confirm} onChange={(event) => { setPassword((previous) => ({ ...previous, confirm: event.target.value })); }} className="w-full rounded-lg border border-slate-300 px-3.5 py-2.5 text-sm outline-none focus:border-blue-500 focus:ring-2 focus:ring-blue-100" /></div>
-                <p className="text-xs text-slate-500">Tối thiểu 8 ký tự và có ít nhất 1 chữ số.</p>
+                <p className="text-xs text-slate-500">Tối thiểu 8 ký tự, chữ cái đầu viết hoa, gồm chữ thường, chữ số và ký tự đặc biệt (!@#$%...).</p>
                 <div className="flex justify-end gap-3 border-t border-slate-100 pt-5"><button type="button" onClick={() => { setPassword({ current: "", next: "", confirm: "" }); }} className="rounded-lg border border-slate-300 px-5 py-2.5 text-sm font-semibold text-slate-700 hover:bg-slate-50">Xóa biểu mẫu</button><button type="submit" className="rounded-lg bg-blue-600 px-5 py-2.5 text-sm font-semibold text-white hover:bg-blue-700">Cập nhật mật khẩu</button></div>
               </form>
             </div>

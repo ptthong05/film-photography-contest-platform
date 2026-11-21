@@ -4,6 +4,7 @@ import {
   RotateCcw, Save, ShieldCheck, UserRound, X,
 } from 'lucide-react';
 import { judgeService } from '../../../services/judgeService';
+import { authService, validateStrongPassword } from '../../../services/authService';
 import type { JudgeProfile } from '../../../types/judge';
 import { AsyncState } from './AsyncState';
 import { Toast, type ToastNotice } from '../../../components/Toast';
@@ -161,6 +162,7 @@ export function ProfileView({ profile, onUpdated }: ProfileViewProps) {
 
     setIsSaving(true);
     try {
+      await authService.updateProfile({ fullName: draftProfile.fullName.trim() });
       await judgeService.updateProfile({
         fullName: draftProfile.fullName,
         phone: draftProfile.phone,
@@ -208,19 +210,36 @@ export function ProfileView({ profile, onUpdated }: ProfileViewProps) {
     setShowPassword(false);
   };
 
-  const checkPasswordForm = (event: FormEvent<HTMLFormElement>) => {
+  const checkPasswordForm = async (event: FormEvent<HTMLFormElement>) => {
     event.preventDefault();
     if (!password.current) {
       showToast('Vui lòng nhập mật khẩu hiện tại.', 'error');
-    } else if (password.next.length < 8 || !/[0-9]/.test(password.next)) {
-      showToast('Mật khẩu mới cần từ 8 ký tự và có ít nhất một chữ số.', 'error');
-    } else if (password.next === password.current) {
+      return;
+    }
+    const validation = validateStrongPassword(password.next);
+    if (!validation.isValid) {
+      showToast(validation.error || 'Mật khẩu mới không đạt chuẩn an toàn.', 'error');
+      return;
+    }
+    if (password.next === password.current) {
       showToast('Mật khẩu mới phải khác mật khẩu hiện tại.', 'error');
-    } else if (password.next !== password.confirm) {
+      return;
+    }
+    if (password.next !== password.confirm) {
       showToast('Hai lần nhập mật khẩu mới không trùng khớp.', 'error');
-    } else {
-      showToast('Đổi mật khẩu thành công.', 'success');
+      return;
+    }
+
+    try {
+      await authService.changePassword(password.current, password.next);
+      showToast('Cập nhật mật khẩu thành công! Hệ thống sẽ tự động đăng xuất...', 'success');
       setPassword({ current: '', next: '', confirm: '' });
+      setTimeout(() => {
+        authService.logout();
+        window.location.hash = '#/auth';
+      }, 1500);
+    } catch (err: unknown) {
+      showToast(err instanceof Error ? err.message : 'Đổi mật khẩu thất bại.', 'error');
     }
   };
 
@@ -323,45 +342,45 @@ export function ProfileView({ profile, onUpdated }: ProfileViewProps) {
 
                   <div className="space-y-1.5">
                     <label htmlFor="judge-profile-email" className="text-sm font-semibold text-slate-700">
-                      Email <span className="text-red-600">*</span>
+                      Email <span className="text-xs font-normal text-slate-500">(Không thể thay đổi)</span>
                     </label>
                     <input
                       id="judge-profile-email"
-                      required
+                      disabled
+                      readOnly
                       type="email"
-                      maxLength={120}
                       value={draftProfile.email}
-                      onChange={(e) => updateField('email', e.target.value)}
-                      className="w-full rounded-lg border border-slate-300 px-3.5 py-2.5 text-sm outline-none focus:border-blue-500 focus:ring-2 focus:ring-blue-100"
+                      className="w-full cursor-not-allowed rounded-lg border border-slate-200 bg-slate-100 px-3.5 py-2.5 text-sm text-slate-500 select-none outline-none"
                     />
-                    {fieldErrors.email && <p className="text-xs text-red-600">{fieldErrors.email}</p>}
                   </div>
 
                   <div className="space-y-1.5">
                     <label htmlFor="judge-profile-phone" className="text-sm font-semibold text-slate-700">
-                      Số điện thoại
+                      Số điện thoại <span className="text-xs font-normal text-slate-500">(Không thể thay đổi)</span>
                     </label>
                     <input
                       id="judge-profile-phone"
+                      disabled
+                      readOnly
                       type="tel"
-                      maxLength={24}
                       value={draftProfile.phone}
-                      onChange={(e) => updateField('phone', e.target.value)}
-                      className="w-full rounded-lg border border-slate-300 px-3.5 py-2.5 text-sm outline-none focus:border-blue-500 focus:ring-2 focus:ring-blue-100"
+                      className="w-full cursor-not-allowed rounded-lg border border-slate-200 bg-slate-100 px-3.5 py-2.5 text-sm text-slate-500 select-none outline-none"
                     />
                   </div>
 
                   <div className="space-y-1.5 md:col-span-2">
                     <label htmlFor="judge-profile-role" className="text-sm font-semibold text-slate-700">
-                      Chức vụ
+                      Chức vụ <span className="text-xs font-normal text-slate-500">(Không thể thay đổi)</span>
                     </label>
                     <input
                       id="judge-profile-role"
-                      value="Judge (Giám khảo chấm thi)"
+                      value="Ban giám khảo (JUDGE)"
+                      disabled
                       readOnly
                       aria-readonly="true"
-                      className="w-full cursor-not-allowed rounded-lg border border-slate-200 bg-slate-50 px-3.5 py-2.5 text-sm text-slate-600"
+                      className="w-full cursor-not-allowed rounded-lg border border-slate-200 bg-slate-100 px-3.5 py-2.5 text-sm font-medium text-slate-700 select-none opacity-80"
                     />
+                    <p className="text-xs text-slate-500">Chức vụ do hệ thống phân quyền, cố định và không thể thay đổi.</p>
                   </div>
 
                   <div className="space-y-1.5 md:col-span-2">
@@ -466,7 +485,7 @@ export function ProfileView({ profile, onUpdated }: ProfileViewProps) {
                 />
               </div>
 
-              <p className="text-xs text-slate-500">Tối thiểu 8 ký tự, có ít nhất một chữ số.</p>
+              <p className="text-xs text-slate-500">Tối thiểu 8 ký tự, chữ cái đầu viết hoa, gồm chữ thường, chữ số và ký tự đặc biệt (!@#$%...).</p>
 
               <div className="flex justify-end gap-3 border-t border-slate-100 pt-5">
                 <button

@@ -10,9 +10,7 @@ const AVATAR_COLORS = [
 function initials(name?: string | null): string {
   const parts = (name ?? "Ban tổ chức").trim().split(/\s+/).filter(Boolean);
   if (!parts.length) return "O";
-  return parts.length === 1
-    ? parts[0].slice(0, 2).toLocaleUpperCase("vi-VN")
-    : `${parts[0][0]}${parts[parts.length - 1][0]}`.toLocaleUpperCase("vi-VN");
+  return parts[0].slice(0, 1).toLocaleUpperCase("vi-VN");
 }
 
 function colorFor(name?: string | null): string {

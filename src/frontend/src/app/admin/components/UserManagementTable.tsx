@@ -95,7 +95,10 @@ export function UserManagementTable({
                       <span className="font-semibold text-[#0B356B]">{user.fullName}</span>
                     </div>
                   </td>
-                  <td className="px-3 py-3 text-xs text-slate-600">{user.email}</td>
+                  <td className="px-3 py-3 text-xs text-slate-600">
+                    <div>{user.email}</div>
+                    {user.phone && <div className="text-[11px] text-slate-400 font-mono mt-0.5">{user.phone}</div>}
+                  </td>
                   <td className="px-3 py-3">
                     <span className={`inline-block rounded-md px-2 py-1 text-xs font-semibold ${ROLE_INFO[user.role].classes}`}>
                       {ROLE_INFO[user.role].label}
