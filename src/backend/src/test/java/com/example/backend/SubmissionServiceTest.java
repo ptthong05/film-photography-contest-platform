@@ -4,6 +4,7 @@ import static org.assertj.core.api.Assertions.*;
 import static org.mockito.Mockito.*;
 
 import com.example.backend.enums.Role;
+import com.example.backend.enums.SubmissionStatus;
 import com.example.backend.dto.*;
 import com.example.backend.entity.*;
 import com.example.backend.integration.*;

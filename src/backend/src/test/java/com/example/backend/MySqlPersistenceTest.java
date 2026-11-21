@@ -4,6 +4,7 @@ import static org.assertj.core.api.Assertions.*;
 import static org.mockito.Mockito.*;
 
 import com.example.backend.enums.Role;
+import com.example.backend.enums.SubmissionStatus;
 import com.example.backend.dto.*;
 import com.example.backend.entity.*;
 import com.example.backend.integration.*;
@@ -398,8 +399,7 @@ class MySqlPersistenceTest {
                                 status ->
                                         service.review(
                                                 id,
-                                                new com.example.backend.tv3.dto
-                                                        .SubmissionStatusRequest(
+                                                new SubmissionStatusRequest(
                                                         SubmissionStatus.VERIFIED, null)));
                         return 200;
                     } catch (com.example.backend.exception.Tv3Exception conflict) {

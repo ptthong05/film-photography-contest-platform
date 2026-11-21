@@ -7,6 +7,7 @@ import static org.springframework.test.web.servlet.result.MockMvcResultMatchers.
 import com.example.backend.dto.*;
 import com.example.backend.service.*;
 import com.example.backend.controller.*;
+import com.example.backend.exception.*;
 
 import org.junit.jupiter.api.*;
 import org.springframework.http.MediaType;
