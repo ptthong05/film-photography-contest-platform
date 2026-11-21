@@ -41,8 +41,8 @@ public class UserService {
 
         User user = new User();
         applyRequest(user, request);
-        String rawPassword = (request.password() != null && !request.password().isBlank()) 
-                ? request.password().trim() 
+        String rawPassword = (request.password() != null && !request.password().isBlank())
+                ? request.password().trim()
                 : "123456";
         user.setPassword(passwordEncoder.encode(rawPassword));
         user.setStatus("ACTIVE");
@@ -56,7 +56,7 @@ public class UserService {
         if (!user.getEmail().equalsIgnoreCase(request.email())) {
             ensureEmailNotTaken(request.email());
         }
-        if (request.phone() != null && !request.phone().isBlank() && 
+        if (request.phone() != null && !request.phone().isBlank() &&
             (user.getPhone() == null || !user.getPhone().equals(request.phone().trim()))) {
             if (userRepository.existsByPhoneAndIdNot(request.phone().trim(), user.getId())) {
                 throw new DuplicateResourceException("Số điện thoại đã tồn tại: " + request.phone().trim());

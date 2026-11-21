@@ -43,10 +43,10 @@ export function AdminUserEditPage({ user, onBack, onSave }: AdminUserEditPagePro
       : '';
 
   const phoneCheck = normalizedPhone ? validateVietnamesePhone(normalizedPhone) : { isValid: true, error: '' };
-  const phoneError = !normalizedPhone 
+  const phoneError = !normalizedPhone
     ? 'Vui lòng nhập số điện thoại.'
-    : !phoneCheck.isValid 
-      ? (phoneCheck.error || 'Số điện thoại không hợp lệ.') 
+    : !phoneCheck.isValid
+      ? (phoneCheck.error || 'Số điện thoại không hợp lệ.')
       : '';
 
   const passwordError = (!isEditing && (!draft.password || draft.password.length < 6))

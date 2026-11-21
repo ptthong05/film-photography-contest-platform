@@ -372,7 +372,7 @@ export const authService = {
 
     // 2. Cập nhật vào Storage người dùng
     this.saveSession(updatedUser, this.getToken() || undefined);
-    
+
     // Đồng bộ vào unifiedUserService
     unifiedUserService.updateUser(updatedUser.id, {
       fullName: updatedUser.fullName,
