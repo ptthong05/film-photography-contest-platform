@@ -54,7 +54,18 @@ export const authService = {
     try {
       const raw = localStorage.getItem(AUTH_USER_KEY);
       if (!raw) return null;
-      return JSON.parse(raw) as AuthUser;
+      const user = JSON.parse(raw) as AuthUser;
+      if (!user.avatar && !user.avatarUrl) {
+        const storedAvatar = user.role === 'ORGANIZER' ? localStorage.getItem('organizer_avatar')
+          : user.role === 'JUDGE' ? localStorage.getItem('judge_avatar')
+          : user.role === 'ADMIN' ? localStorage.getItem('admin_avatar')
+          : localStorage.getItem('participant_avatar');
+        if (storedAvatar) {
+          user.avatar = storedAvatar;
+          user.avatarUrl = storedAvatar;
+        }
+      }
+      return user;
     } catch {
       return null;
     }
@@ -220,6 +231,13 @@ export const authService = {
 
       if (response.ok) {
         const data = await response.json();
+        const existingStoredAvatar = typeof window !== 'undefined'
+          ? (data.user?.role === 'ORGANIZER' ? localStorage.getItem('organizer_avatar')
+             : data.user?.role === 'JUDGE' ? localStorage.getItem('judge_avatar')
+             : data.user?.role === 'ADMIN' ? localStorage.getItem('admin_avatar')
+             : localStorage.getItem('participant_avatar'))
+          : null;
+        const finalAvatar = data.user?.avatar || data.user?.avatarUrl || existingStoredAvatar || null;
         const authUser: AuthUser = {
           id: String(data.user?.id || Date.now()),
           fullName: data.user?.name || cleanId,
@@ -227,8 +245,8 @@ export const authService = {
           phone: data.user?.phone || '',
           role: (data.user?.role as UserRole) || 'PARTICIPANT',
           status: data.user?.status || 'ACTIVE',
-          avatar: data.user?.avatar || data.user?.avatarUrl || null,
-          avatarUrl: data.user?.avatar || data.user?.avatarUrl || null,
+          avatar: finalAvatar,
+          avatarUrl: finalAvatar,
           mustChangePassword: Boolean(data.user?.mustChangePassword),
         };
         this.saveSession(authUser, data.accessToken, data.refreshToken);
@@ -258,12 +276,22 @@ export const authService = {
         throw new Error('Tài khoản của bạn đã bị khóa. Vui lòng liên hệ Quản trị viên!');
       }
 
+      const storedAvatar = typeof window !== 'undefined'
+        ? (matched.role === 'ORGANIZER' ? localStorage.getItem('organizer_avatar')
+           : matched.role === 'JUDGE' ? localStorage.getItem('judge_avatar')
+           : matched.role === 'ADMIN' ? localStorage.getItem('admin_avatar')
+           : localStorage.getItem('participant_avatar'))
+        : null;
+      const finalAvatar = matched.avatar || storedAvatar || null;
+
       const authUser: AuthUser = {
         id: matched.id,
         fullName: matched.fullName,
         email: matched.email,
         role: matched.role,
         status: matched.status,
+        avatar: finalAvatar,
+        avatarUrl: finalAvatar,
         mustChangePassword: (matched.role === 'JUDGE' || matched.role === 'ORGANIZER') && !localStorage.getItem(`pwd_changed_${matched.id}`),
       };
 
@@ -350,6 +378,8 @@ export const authService = {
       role: user.role,
       email: user.email,
       phone: user.phone,
+      avatar: data.avatar !== undefined ? data.avatar : (user.avatar ?? null),
+      avatarUrl: data.avatar !== undefined ? data.avatar : (user.avatarUrl ?? null),
     };
 
     // 1. Gửi lên Backend để cập nhật trong CSDL MySQL thật
@@ -377,7 +407,14 @@ export const authService = {
     unifiedUserService.updateUser(updatedUser.id, {
       fullName: updatedUser.fullName,
       email: updatedUser.email,
+      avatar: updatedUser.avatar ?? undefined,
     });
+
+    if (typeof window !== 'undefined') {
+      window.dispatchEvent(new Event('userNameChanged'));
+      window.dispatchEvent(new Event('avatarChanged'));
+      window.dispatchEvent(new Event('storage'));
+    }
 
     return updatedUser;
   },

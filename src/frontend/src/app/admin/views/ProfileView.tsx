@@ -66,12 +66,13 @@ export function readAdminDemoProfile(): DemoAdminProfile {
   try {
     if (typeof window === 'undefined') return { ...DEFAULT_PROFILE };
     const authUser = authService.getCurrentUser();
-    // Ban đầu khi đăng nhập vào mặc định không có avatar (chỉ có khi user đã chủ động cập nhật)
-    const directAvatar: string | null = authUser?.avatar || authUser?.avatarUrl || null;
-
     const raw = window.localStorage.getItem(PROFILE_STORAGE_KEY);
     const parsed: unknown = raw ? JSON.parse(raw) : null;
     const source = (parsed && typeof parsed === 'object' && !Array.isArray(parsed)) ? (parsed as Record<string, unknown>) : {};
+
+    const storedAvatar = (typeof window !== 'undefined' ? window.localStorage.getItem('admin_avatar') : null)
+      || (typeof source.avatarDataUrl === 'string' ? source.avatarDataUrl : null);
+    const directAvatar: string | null = authUser?.avatar || authUser?.avatarUrl || storedAvatar || null;
 
     return {
       fullName: authUser?.fullName || (typeof source.fullName === 'string' ? source.fullName.slice(0, 80) : DEFAULT_PROFILE.fullName),
@@ -83,7 +84,8 @@ export function readAdminDemoProfile(): DemoAdminProfile {
       avatarDataUrl: directAvatar,
     };
   } catch {
-    return { ...DEFAULT_PROFILE, avatarDataUrl: null };
+    const fallback = typeof window !== 'undefined' ? window.localStorage.getItem('admin_avatar') : null;
+    return { ...DEFAULT_PROFILE, avatarDataUrl: fallback };
   }
 }
 

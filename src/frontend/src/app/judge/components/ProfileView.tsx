@@ -66,7 +66,7 @@ export function ProfileView({ profile, onUpdated }: ProfileViewProps) {
     phone: profile?.phone ?? '0912 345 678',
     specialty: profile?.specialty ?? 'Nhiếp ảnh đường phố & tư liệu',
     bio: profile?.bio ?? 'Mỗi bức ảnh phim là một câu chuyện. Hãy cùng tìm kiếm những câu chuyện xứng đáng được tỏa sáng.',
-    avatarUrl: profile?.avatarUrl ?? null,
+    avatarUrl: profile?.avatarUrl || (typeof window !== 'undefined' ? localStorage.getItem('judge_avatar') : null),
   }));
 
   useEffect(() => {
@@ -77,7 +77,7 @@ export function ProfileView({ profile, onUpdated }: ProfileViewProps) {
         phone: profile.phone,
         specialty: profile.specialty,
         bio: profile.bio,
-        avatarUrl: profile.avatarUrl,
+        avatarUrl: profile.avatarUrl || (typeof window !== 'undefined' ? localStorage.getItem('judge_avatar') : null),
       });
     }
   }, [profile]);
@@ -162,7 +162,10 @@ export function ProfileView({ profile, onUpdated }: ProfileViewProps) {
 
     setIsSaving(true);
     try {
-      await authService.updateProfile({ fullName: draftProfile.fullName.trim() });
+      await authService.updateProfile({
+        fullName: draftProfile.fullName.trim(),
+        avatar: draftProfile.avatarUrl ?? null,
+      });
       await judgeService.updateProfile({
         fullName: draftProfile.fullName,
         phone: draftProfile.phone,
@@ -180,6 +183,7 @@ export function ProfileView({ profile, onUpdated }: ProfileViewProps) {
       // Phát sự kiện đồng bộ toàn bộ giao diện Judge (Topbar, Sidebar...)
       window.dispatchEvent(new Event('judgeProfileUpdated'));
       window.dispatchEvent(new Event('userNameChanged'));
+      window.dispatchEvent(new Event('avatarChanged'));
       window.dispatchEvent(new Event('storage'));
 
       await onUpdated();

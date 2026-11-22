@@ -126,10 +126,11 @@ function fail(message: string): Promise<never> {
 function loadStoredProfile(): JudgeProfile {
   try {
     const authUser = authService.getCurrentUser();
-    // Ban đầu khi đăng nhập vào mặc định không có avatar
-    const directAvatar: string | null = authUser?.avatar || authUser?.avatarUrl || null;
     const raw = localStorage.getItem(JUDGE_PROFILE_STORAGE_KEY);
     const parsed = raw ? JSON.parse(raw) : {};
+    const storedAvatar = (typeof window !== 'undefined' ? localStorage.getItem('judge_avatar') : null)
+      || (typeof parsed.avatarUrl === 'string' && parsed.avatarUrl ? parsed.avatarUrl : null);
+    const directAvatar: string | null = authUser?.avatar || authUser?.avatarUrl || storedAvatar || null;
 
     return {
       ...mockProfile,
@@ -144,7 +145,8 @@ function loadStoredProfile(): JudgeProfile {
   } catch {
     // fallback to mockProfile
   }
-  return { ...mockProfile, avatarUrl: '' };
+  const fallback = typeof window !== 'undefined' ? localStorage.getItem('judge_avatar') || '' : '';
+  return { ...mockProfile, avatarUrl: fallback };
 }
 
 function loadStoredNotifications(): JudgeNotification[] {

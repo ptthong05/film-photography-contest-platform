@@ -83,12 +83,13 @@ function readParticipantProfile(): ParticipantProfile {
     if (typeof window === 'undefined') return { ...DEFAULT_PROFILE };
 
     const authUser = authService.getCurrentUser();
-    // Ban đầu khi đăng nhập vào mặc định không có avatar
-    const avatarDataUrl: string | null = authUser?.avatar || authUser?.avatarUrl || null;
-
     const raw = window.localStorage.getItem(PROFILE_STORAGE_KEY);
     const parsed = raw ? JSON.parse(raw) : null;
     const source = (parsed && typeof parsed === 'object') ? (parsed as Record<string, unknown>) : {};
+
+    const storedAvatar = (typeof window !== 'undefined' ? window.localStorage.getItem(AVATAR_STORAGE_KEY) : null)
+      || (typeof source.avatarDataUrl === 'string' ? source.avatarDataUrl : null);
+    const avatarDataUrl: string | null = authUser?.avatar || authUser?.avatarUrl || storedAvatar || null;
 
     return {
       fullName: authUser?.fullName ||
@@ -104,7 +105,8 @@ function readParticipantProfile(): ParticipantProfile {
       avatarDataUrl: avatarDataUrl,
     };
   } catch {
-    return { ...DEFAULT_PROFILE, avatarDataUrl: null };
+    const fallback = typeof window !== 'undefined' ? window.localStorage.getItem(AVATAR_STORAGE_KEY) : null;
+    return { ...DEFAULT_PROFILE, avatarDataUrl: fallback };
   }
 }
 
