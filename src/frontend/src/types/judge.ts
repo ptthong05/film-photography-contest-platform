@@ -37,10 +37,13 @@ export interface JudgeContest {
   isResultPublished: boolean;
 }
 
-/** Metadata kỹ thuật bắt buộc của ảnh phim (SRS 4.1), snapshot tại thời điểm nộp. */
+/**
+ * Metadata kỹ thuật của ảnh phim (SRS 4.1), snapshot tại thời điểm nộp.
+ * Backend (tv3) chưa bắt buộc nhập nên trường chuỗi bị thiếu được judgeService đổi thành "—", ISO thiếu là null.
+ */
 export interface FilmMetadata {
   filmStock: string;
-  iso: number;
+  iso: number | null;
   cameraBody: string;
   lens: string;
   filmFormat: string;

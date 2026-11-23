@@ -4,32 +4,98 @@ import type {
   Evaluation,
   EvaluationHistoryItem,
   EvaluationRequest,
+  FilmMetadata,
   JudgeContest,
   JudgeNotification,
   JudgeProfile,
   JudgeStats,
   JudgingCriterion,
 } from '../types/judge';
-import { calculateWeightedScore } from '../utils/calculateScore';
 import { MOCK_CONTESTS } from '../mocks/organizerData';
-import { isJudgingDeadlinePassed } from './contestSyncService';
+import { request } from './apiClient';
 import { authService } from './authService';
 import {
   mockContests,
   mockEvaluations,
   mockNotifications,
-  mockPreviousRoundHistory,
   mockProfile,
   mockResults,
   mockSubmissions,
 } from './judgeMockData';
 
 /*
- * Backend chưa có module judging nên service tạm dùng dữ liệu mẫu trong bộ nhớ kết hợp localStorage.
- * Cho phép phân công từ Organizer đồng bộ sang Judge theo thời gian thực.
+ * Chấm thi (cuộc thi, bài được phân công, phiếu chấm, lịch sử) gọi backend /api/judge/me/**.
+ * Hồ sơ, thông báo và kết quả công bố chưa có API nên vẫn dùng localStorage.
+ * Các hàm export dùng localStorage bên dưới (loadStoredEvaluations, getAllJudgeAssignedSubmissions...)
+ * được giữ nguyên cho trang Ban tổ chức đến khi phía đó nối API phân công.
  */
 
 const MOCK_LATENCY_MS = 250;
+const MISSING_VALUE = '—';
+const DEFAULT_COVER_URL = 'https://images.unsplash.com/photo-1464822759023-fed622ff2c3b?auto=format&fit=crop&w=600&q=80';
+
+/** Metadata theo entity FilmMetadata của backend (tv3); mọi trường có thể null vì chưa bắt buộc khi nộp */
+interface ApiFilmMetadata {
+  filmBrand?: string | null;
+  filmStock?: string | null;
+  iso?: number | null;
+  camera?: string | null;
+  lens?: string | null;
+  filmFormat?: string | null;
+  frameNumber?: string | null;
+  shootingDate?: string | null;
+  shootingLocation?: string | null;
+  developingLab?: string | null;
+  scanSpec?: string | null;
+}
+
+type ApiAssignedSubmission = Omit<AssignedSubmission, 'metadata'> & { metadata: ApiFilmMetadata | null };
+type ApiJudgeContest = Omit<JudgeContest, 'coverUrl'> & { coverUrl: string | null };
+
+function textOrMissing(value?: string | null): string {
+  return value && value.trim() ? value.trim() : MISSING_VALUE;
+}
+
+/** Ghép hãng + loại phim ("Kodak" + "Portra 400"), tránh lặp khi loại phim đã chứa tên hãng */
+function toFilmStock(brand?: string | null, stock?: string | null): string {
+  const cleanBrand = brand?.trim() ?? '';
+  const cleanStock = stock?.trim() ?? '';
+  if (cleanBrand && cleanStock && !cleanStock.toLowerCase().startsWith(cleanBrand.toLowerCase())) {
+    return `${cleanBrand} ${cleanStock}`;
+  }
+  return textOrMissing(cleanStock || cleanBrand);
+}
+
+function toFilmMetadata(metadata: ApiFilmMetadata | null): FilmMetadata {
+  const source = metadata ?? {};
+  return {
+    filmStock: toFilmStock(source.filmBrand, source.filmStock),
+    iso: source.iso ?? null,
+    cameraBody: textOrMissing(source.camera),
+    lens: textOrMissing(source.lens),
+    filmFormat: textOrMissing(source.filmFormat),
+    frameNumber: textOrMissing(source.frameNumber),
+    shootingDate: textOrMissing(source.shootingDate),
+    shootingLocation: textOrMissing(source.shootingLocation),
+    developingLab: textOrMissing(source.developingLab),
+    scanSpec: textOrMissing(source.scanSpec),
+  };
+}
+
+function toAssignedSubmission(item: ApiAssignedSubmission): AssignedSubmission {
+  return { ...item, metadata: toFilmMetadata(item.metadata) };
+}
+
+function toJudgeContest(item: ApiJudgeContest): JudgeContest {
+  return { ...item, coverUrl: item.coverUrl || DEFAULT_COVER_URL };
+}
+
+/** Báo cho các màn hình đang mở (danh sách bài, trang chấm) tải lại sau khi lưu phiếu */
+function notifyJudgingUpdated() {
+  if (typeof window !== 'undefined') {
+    window.dispatchEvent(new Event('filmcontest:judging-updated'));
+  }
+}
 const JUDGE_NOTIFS_STORAGE_KEY = 'filmcontest.judge.notifications.v1';
 const JUDGE_PROFILE_STORAGE_KEY = 'judge_profile';
 const JUDGE_EVALUATIONS_STORAGE_KEY = 'filmcontest.judge.evaluations.v1';
@@ -114,12 +180,6 @@ export function saveStoredEvaluations(evaluations: Evaluation[]) {
 function respond<T>(data: T): Promise<T> {
   return new Promise((resolve) => {
     setTimeout(() => resolve(structuredClone(data)), MOCK_LATENCY_MS);
-  });
-}
-
-function fail(message: string): Promise<never> {
-  return new Promise((_, reject) => {
-    setTimeout(() => reject(new Error(message)), MOCK_LATENCY_MS);
   });
 }
 
@@ -556,121 +616,66 @@ export const judgeService = {
     return respond(mockProfile);
   },
 
-  /** GET /judges/me/evaluations */
-  getEvaluations: (): Promise<Evaluation[]> => respond(mockEvaluations),
+  /** GET /judge/me/evaluations — toàn bộ phiếu chấm của giám khảo đang đăng nhập */
+  getEvaluations: (): Promise<Evaluation[]> => request<Evaluation[]>('/judge/me/evaluations'),
 
-  /** GET /judges/me/stats */
-  getStats: (): Promise<JudgeStats> => {
-    const contests = getAssignedContestsForJudge();
-    const submissions = getAllAssignedSubmissions();
-    return respond({
+  /** Tổng hợp từ 3 API chấm thi; backend chưa có endpoint thống kê riêng */
+  getStats: async (): Promise<JudgeStats> => {
+    const [contests, submissions, evaluations] = await Promise.all([
+      judgeService.getContests(),
+      judgeService.getAssignedSubmissions(),
+      judgeService.getEvaluations(),
+    ]);
+    return {
       assignedContests: contests.filter((item) => item.status !== 'COMPLETED').length,
       pendingSubmissions: submissions.filter((item) => item.evaluationStatus !== 'FINALIZED').length,
       evaluatedSubmissions: submissions.filter((item) => item.evaluationStatus === 'FINALIZED').length,
-      awaitingNextRound: mockEvaluations.filter((item) => item.status === 'FINALIZED' && item.recommendNextRound).length,
-    });
+      awaitingNextRound: evaluations.filter((item) => item.status === 'FINALIZED' && item.recommendNextRound).length,
+    };
   },
 
-  /** GET /judges/me/contests */
-  getContests: (): Promise<JudgeContest[]> => respond(getAssignedContestsForJudge()),
-
-  /** GET /judges/me/submissions — chỉ trả các bài thuộc phạm vi được phân công (BR-006) */
-  getAssignedSubmissions: (): Promise<AssignedSubmission[]> => respond(getAllAssignedSubmissions()),
-
-  /** GET /judges/me/submissions/{submissionId} */
-  getSubmission: (submissionId: string): Promise<AssignedSubmission> => {
-    const all = getAllAssignedSubmissions();
-    const submission = all.find((item) => item.id === submissionId);
-    return submission ? respond(submission) : fail('Không tìm thấy bài dự thi được phân công');
+  /** GET /judge/me/contests */
+  getContests: async (): Promise<JudgeContest[]> => {
+    const contests = await request<ApiJudgeContest[]>('/judge/me/contests');
+    return contests.map(toJudgeContest);
   },
 
-  /** GET /judges/me/submissions/{submissionId}/evaluation */
-  getEvaluation: (submissionId: string): Promise<Evaluation | null> => respond(findEvaluation(submissionId) ?? null),
+  /** GET /judge/me/submissions — backend chỉ trả các bài thuộc phạm vi được phân công (BR-006) */
+  getAssignedSubmissions: async (): Promise<AssignedSubmission[]> => {
+    const submissions = await request<ApiAssignedSubmission[]>('/judge/me/submissions');
+    return submissions.map(toAssignedSubmission);
+  },
+
+  /** GET /judge/me/submissions/{submissionId} — bài ngoài phạm vi trả 404 */
+  getSubmission: async (submissionId: string): Promise<AssignedSubmission> => {
+    const submission = await request<ApiAssignedSubmission>(
+      `/judge/me/submissions/${encodeURIComponent(submissionId)}`,
+    );
+    return toAssignedSubmission(submission);
+  },
+
+  /** GET /judge/me/submissions/{submissionId}/evaluation — chưa chấm thì backend trả body rỗng (null) */
+  getEvaluation: (submissionId: string): Promise<Evaluation | null> =>
+    request<Evaluation | null>(`/judge/me/submissions/${encodeURIComponent(submissionId)}/evaluation`),
 
   /**
-   * PUT /judges/me/submissions/{submissionId}/evaluation
-   * Phiếu đã gửi chính thức thì bị khóa — backend trả 409.
+   * PUT /judge/me/submissions/{submissionId}/evaluation
+   * Backend kiểm tra điểm theo tiêu chí, hạn chấm của vòng; phiếu đã gửi chính thức bị khóa (409).
    */
-  saveEvaluation: (submissionId: string, request: EvaluationRequest): Promise<Evaluation> => {
-    const all = getAllAssignedSubmissions();
-    const submission = all.find((item) => item.id === submissionId);
-    const contests = getAssignedContestsForJudge();
-    const contest = contests.find((item) => item.id === submission?.contestId || item.title.toLowerCase() === submission?.contestTitle.toLowerCase());
-    if (!submission || !contest) {
-      return fail('Không tìm thấy bài dự thi được phân công');
-    }
-
-    // Kiểm tra thời hạn chấm điểm (Set giờ thật / Hạn chót chấm)
-    if (isJudgingDeadlinePassed({ id: contest.id, judgingEndDate: contest.currentRound?.endDate || contest.endDate })) {
-      return fail('Đã hết thời hạn chấm điểm cho cuộc thi này. Cổng chấm điểm của Giám khảo đã khóa theo quy định.');
-    }
-
-    const deadline = contest.currentRound?.endDate ? new Date(contest.currentRound.endDate) : null;
-    if (deadline) {
-      if (contest.currentRound.endDate.length <= 10) deadline.setHours(23, 59, 59, 999);
-      if (new Date().getTime() > deadline.getTime()) {
-        return fail('Đã hết thời hạn chấm điểm cho vòng thi này. Cổng chấm điểm đã đóng.');
-      }
-    }
-
-    const existing = findEvaluation(submissionId);
-    if (existing?.status === 'FINALIZED') {
-      return fail('Phiếu chấm đã được gửi chính thức, không thể chỉnh sửa');
-    }
-
-    const totalScore = calculateWeightedScore(contest.criteria, request.scores);
-    if (request.isFinal && (totalScore === null || request.comment.trim() === '')) {
-      return fail('Vui lòng chấm đủ tất cả tiêu chí và nhập nhận xét trước khi gửi');
-    }
-
-    const evaluation: Evaluation = {
-      submissionId,
-      roundId: submission.roundId,
-      scores: request.scores,
-      comment: request.comment,
-      recommendNextRound: request.recommendNextRound,
-      status: request.isFinal ? 'FINALIZED' : 'DRAFT',
-      totalScore: request.isFinal ? totalScore : null,
-      updatedAt: new Date().toISOString(),
-    };
-    const evaluations = loadStoredEvaluations();
-    const existingIndex = evaluations.findIndex((item) => item.submissionId === submissionId);
-    if (existingIndex >= 0) {
-      evaluations[existingIndex] = evaluation;
-    } else {
-      evaluations.push(evaluation);
-    }
-    saveStoredEvaluations(evaluations);
-    if (typeof window !== 'undefined') {
-      window.dispatchEvent(new Event('filmcontest:judging-updated'));
-      window.dispatchEvent(new Event('storage'));
-    }
-
-    if (existing) {
-      Object.assign(existing, evaluation);
-    } else {
-      mockEvaluations.push(evaluation);
-    }
-    return respond(evaluation);
+  saveEvaluation: async (submissionId: string, body: EvaluationRequest): Promise<Evaluation> => {
+    const evaluation = await request<Evaluation>(
+      `/judge/me/submissions/${encodeURIComponent(submissionId)}/evaluation`,
+      { method: 'PUT', body: JSON.stringify(body) },
+    );
+    notifyJudgingUpdated();
+    return evaluation;
   },
 
-  /** GET /judges/me/submissions/{submissionId}/evaluation-history */
-  getEvaluationHistory: (submissionId: string): Promise<EvaluationHistoryItem[]> => {
-    const history = [...(mockPreviousRoundHistory[submissionId] ?? [])];
-    const current = findEvaluation(submissionId);
-    const all = getAllAssignedSubmissions();
-    const submission = all.find((item) => item.id === submissionId);
-    if (current?.status === 'FINALIZED' && current.totalScore !== null && current.updatedAt && submission) {
-      history.push({
-        roundName: submission.roundName,
-        totalScore: current.totalScore,
-        comment: current.comment,
-        recommendNextRound: current.recommendNextRound,
-        evaluatedAt: current.updatedAt,
-      });
-    }
-    return respond(history);
-  },
+  /** GET /judge/me/submissions/{submissionId}/evaluation-history — các phiếu đã chốt qua từng vòng */
+  getEvaluationHistory: (submissionId: string): Promise<EvaluationHistoryItem[]> =>
+    request<EvaluationHistoryItem[]>(
+      `/judge/me/submissions/${encodeURIComponent(submissionId)}/evaluation-history`,
+    ),
 
   /** GET /contests/{contestId}/results — chỉ có dữ liệu khi Organizer đã công bố (BR-008), mỗi giải 1 bài, đúng 4 giải 4 bài */
   getContestResults: (contestId: string): Promise<ContestResultEntry[]> => {

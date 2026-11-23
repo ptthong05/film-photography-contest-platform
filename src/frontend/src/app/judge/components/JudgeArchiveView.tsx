@@ -454,7 +454,7 @@ export function JudgeArchiveView() {
                     </div>
                     <div>
                       <span className="text-slate-400">ISO:</span>{" "}
-                      <span className="font-medium text-slate-700">{selected.submission.metadata.iso || "400"}</span>
+                      <span className="font-medium text-slate-700">{selected.submission.metadata.iso ?? "—"}</span>
                     </div>
                     <div>
                       <span className="text-slate-400">Định dạng:</span>{" "}
