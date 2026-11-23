@@ -29,6 +29,7 @@ import org.springframework.stereotype.Service;
 import org.springframework.transaction.annotation.Transactional;
 
 import java.time.Instant;
+import java.time.LocalDateTime;
 import java.util.ArrayList;
 import java.util.Comparator;
 import java.util.HashSet;
@@ -171,6 +172,11 @@ public class JudgeService {
                 .orElseGet(() -> newEvaluation(scope, judgeId));
         if (evaluation.getStatus() == EvaluationStatus.FINALIZED) {
             throw new ConflictException("Phiếu chấm đã được gửi chính thức, không thể chỉnh sửa");
+        }
+        // Giao diện đã khoá ô chấm khi hết hạn; kiểm tra lại ở server để không gọi thẳng API vượt hạn được
+        LocalDateTime roundEnd = scope.round().getEndDate();
+        if (roundEnd != null && LocalDateTime.now().isAfter(roundEnd)) {
+            throw new BadRequestException("Đã hết thời hạn chấm điểm cho vòng thi này");
         }
 
         List<JudgingCriterion> criteria = criterionRepository
