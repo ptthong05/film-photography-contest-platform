@@ -11,6 +11,7 @@ import type {
   JudgeStats,
   JudgingCriterion,
 } from '../types/judge';
+import { PRIZE_LABELS, type PublishedResult } from '../types/judgingAdmin';
 import { MOCK_CONTESTS } from '../mocks/organizerData';
 import { request } from './apiClient';
 import { authService } from './authService';
@@ -19,7 +20,6 @@ import {
   mockEvaluations,
   mockNotifications,
   mockProfile,
-  mockResults,
   mockSubmissions,
 } from './judgeMockData';
 
@@ -677,43 +677,16 @@ export const judgeService = {
       `/judge/me/submissions/${encodeURIComponent(submissionId)}/evaluation-history`,
     ),
 
-  /** GET /contests/{contestId}/results — chỉ có dữ liệu khi Organizer đã công bố (BR-008), mỗi giải 1 bài, đúng 4 giải 4 bài */
-  getContestResults: (contestId: string): Promise<ContestResultEntry[]> => {
-    try {
-      const raw = localStorage.getItem('filmcontest.published_results.v2');
-      if (raw) {
-        const parsed: PublishedResultRecord[] = JSON.parse(raw);
-        if (Array.isArray(parsed) && parsed.length > 0) {
-          const contestMatches = parsed.filter(
-            (p) => p.contestId === contestId || p.contestTitle?.toLowerCase() === contestId.toLowerCase()
-          );
-          if (contestMatches.length > 0) {
-            const top4 = [...contestMatches].sort((a, b) => Number(b.score ?? 0) - Number(a.score ?? 0)).slice(0, 4);
-            const awardLabels = ['Giải Nhất', 'Giải Nhì', 'Giải Ba', 'Giải Khuyến khích'];
-            const entries: ContestResultEntry[] = top4.map((item, idx) => ({
-              rank: idx + 1,
-              submissionTitle: item.title || 'Tác phẩm',
-              authorName: item.authorName || 'Thí sinh',
-              averageScore: Number(item.score ?? 0),
-              award: item.awardLabel || awardLabels[idx] || `Giải ${idx + 1}`,
-            }));
-            return respond(entries);
-          }
-        }
-      }
-    } catch {}
-
-    const fallback = mockResults[contestId];
-    if (fallback && fallback.length > 0) {
-      const top4Fallback = fallback.slice(0, 4).map((f, idx) => ({
-        ...f,
-        rank: idx + 1,
-        award: f.award || (idx === 0 ? 'Giải Nhất' : idx === 1 ? 'Giải Nhì' : idx === 2 ? 'Giải Ba' : 'Giải Khuyến khích'),
-      }));
-      return respond(top4Fallback);
-    }
-
-    return respond([]);
+  /** GET /contests/{contestId}/results — rỗng khi Ban tổ chức chưa công bố (BR-008) */
+  getContestResults: async (contestId: string): Promise<ContestResultEntry[]> => {
+    const results = await request<PublishedResult[]>(`/contests/${encodeURIComponent(contestId)}/results`);
+    return results.map((item) => ({
+      rank: item.ranking,
+      submissionTitle: item.title,
+      authorName: item.authorName ?? 'Thí sinh',
+      averageScore: item.averageScore,
+      award: item.prizeRank ? PRIZE_LABELS[item.prizeRank] : null,
+    }));
   },
 
   /** GET /notifications */
