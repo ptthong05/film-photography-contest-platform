@@ -14,6 +14,8 @@ public interface SubmissionRepository extends JpaRepository<Submission, String> 
 
     List<Submission> findByContestIdIn(java.util.Collection<String> contestIds);
 
+    List<Submission> findByContestIdAndStatus(String contestId, com.example.backend.enums.SubmissionStatus status);
+
     long countByContestIdAndParticipantId(String contestId, String participantId);
 
     boolean existsByFrameId(String frameId);

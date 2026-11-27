@@ -1,5 +1,6 @@
 package com.example.backend.security;
 
+import com.example.backend.enums.Role;
 import jakarta.servlet.FilterChain;
 import jakarta.servlet.ServletException;
 import jakarta.servlet.http.HttpServletRequest;
@@ -32,11 +33,13 @@ public class JwtAuthenticationFilter extends OncePerRequestFilter {
 
         if (StringUtils.hasText(token) && jwtService.validateToken(token)) {
             String userId = jwtService.getUserIdFromToken(token);
+            String email = jwtService.getEmailFromToken(token);
             String role = jwtService.getRoleFromToken(token);
+            AuthenticatedUser principal = new AuthenticatedUser(userId, email, Role.valueOf(role));
 
             SimpleGrantedAuthority authority = new SimpleGrantedAuthority("ROLE_" + role);
             UsernamePasswordAuthenticationToken authentication =
-                    new UsernamePasswordAuthenticationToken(userId, null, Collections.singletonList(authority));
+                    new UsernamePasswordAuthenticationToken(principal, null, Collections.singletonList(authority));
             authentication.setDetails(new WebAuthenticationDetailsSource().buildDetails(request));
 
             SecurityContextHolder.getContext().setAuthentication(authentication);
