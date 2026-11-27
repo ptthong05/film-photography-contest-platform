@@ -19,19 +19,16 @@ import { authService } from './authService';
 import {
   mockContests,
   mockEvaluations,
-  mockNotifications,
   mockProfile,
   mockSubmissions,
 } from './judgeMockData';
 
 /*
- * Chấm thi (cuộc thi, bài được phân công, phiếu chấm, lịch sử) gọi backend /api/judge/me/**.
- * Hồ sơ gọi /api/judge/me/profile; thông báo chưa có API nên vẫn dùng localStorage.
+ * Chấm thi (cuộc thi, bài được phân công, phiếu chấm, lịch sử), hồ sơ và thông báo gọi backend /api/judge/me/**.
  * Các hàm export dùng localStorage bên dưới (loadStoredEvaluations, getAllJudgeAssignedSubmissions...)
  * được giữ nguyên cho trang Ban tổ chức đến khi phía đó nối API phân công.
  */
 
-const MOCK_LATENCY_MS = 250;
 const MISSING_VALUE = '—';
 const DEFAULT_COVER_URL = 'https://images.unsplash.com/photo-1464822759023-fed622ff2c3b?auto=format&fit=crop&w=600&q=80';
 
@@ -91,13 +88,19 @@ function toJudgeContest(item: ApiJudgeContest): JudgeContest {
   return { ...item, coverUrl: item.coverUrl || DEFAULT_COVER_URL };
 }
 
+/** Chuông ở header và trang Tin nhắn cùng tải lại sau khi đánh dấu đã đọc */
+function notifyNotificationsChanged() {
+  if (typeof window !== 'undefined') {
+    window.dispatchEvent(new Event('filmcontest:judge-notifications-changed'));
+  }
+}
+
 /** Báo cho các màn hình đang mở (danh sách bài, trang chấm) tải lại sau khi lưu phiếu */
 function notifyJudgingUpdated() {
   if (typeof window !== 'undefined') {
     window.dispatchEvent(new Event('filmcontest:judging-updated'));
   }
 }
-const JUDGE_NOTIFS_STORAGE_KEY = 'filmcontest.judge.notifications.v1';
 const JUDGE_PROFILE_STORAGE_KEY = 'judge_profile';
 const JUDGE_EVALUATIONS_STORAGE_KEY = 'filmcontest.judge.evaluations.v1';
 
@@ -178,12 +181,6 @@ export function saveStoredEvaluations(evaluations: Evaluation[]) {
   } catch {}
 }
 
-function respond<T>(data: T): Promise<T> {
-  return new Promise((resolve) => {
-    setTimeout(() => resolve(structuredClone(data)), MOCK_LATENCY_MS);
-  });
-}
-
 function loadStoredProfile(): JudgeProfile {
   try {
     const authUser = authService.getCurrentUser();
@@ -234,33 +231,6 @@ function syncAuthSession(profile: JudgeProfile) {
     avatar: profile.avatarUrl || null,
     avatarUrl: profile.avatarUrl || null,
   });
-}
-
-function loadStoredNotifications(): JudgeNotification[] {
-  try {
-    const raw = localStorage.getItem(JUDGE_NOTIFS_STORAGE_KEY);
-    if (raw) {
-      const parsed = JSON.parse(raw);
-      if (Array.isArray(parsed) && parsed.length > 0) return parsed;
-    }
-  } catch {}
-  return [...mockNotifications];
-}
-
-export function addJudgeNotification(notif: { message: string; type?: JudgeNotification['type'] }) {
-  const item: JudgeNotification = {
-    id: `nt-${Date.now()}-${Math.random().toString(36).slice(2, 6)}`,
-    type: notif.type ?? 'ASSIGNMENT',
-    message: notif.message,
-    createdAt: new Date().toISOString(),
-    isRead: false,
-  };
-  mockNotifications.unshift(item);
-  try {
-    const list = loadStoredNotifications();
-    list.unshift(item);
-    localStorage.setItem(JUDGE_NOTIFS_STORAGE_KEY, JSON.stringify(list));
-  } catch {}
 }
 
 function findEvaluation(submissionId: string) {
@@ -708,21 +678,21 @@ export const judgeService = {
     }));
   },
 
-  /** GET /notifications */
-  getNotifications: (): Promise<JudgeNotification[]> => respond(loadStoredNotifications()),
+  /** GET /judge/me/notifications — 50 thông báo mới nhất, mới nhất trước */
+  getNotifications: (): Promise<JudgeNotification[]> => request<JudgeNotification[]>('/judge/me/notifications'),
 
-  /** PATCH /notifications/read-all */
-  markAllNotificationsRead: (): Promise<void> => {
-    const list = loadStoredNotifications();
-    list.forEach((item) => {
-      item.isRead = true;
-    });
-    mockNotifications.forEach((item) => {
-      item.isRead = true;
-    });
-    try {
-      localStorage.setItem(JUDGE_NOTIFS_STORAGE_KEY, JSON.stringify(list));
-    } catch {}
-    return respond(undefined);
+  /** PATCH /judge/me/notifications/read-all */
+  markAllNotificationsRead: async (): Promise<void> => {
+    await request<void>('/judge/me/notifications/read-all', { method: 'PATCH' });
+    notifyNotificationsChanged();
+  },
+
+  /** PATCH /judge/me/notifications/{id}/read */
+  markNotificationRead: async (notificationId: string): Promise<void> => {
+    await request<JudgeNotification>(
+      `/judge/me/notifications/${encodeURIComponent(notificationId)}/read`,
+      { method: 'PATCH' },
+    );
+    notifyNotificationsChanged();
   },
 };

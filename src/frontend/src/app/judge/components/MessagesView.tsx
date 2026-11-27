@@ -6,10 +6,9 @@ import { NotificationItem } from './NotificationItem';
 
 interface MessagesViewProps {
   notifications: JudgeNotification[];
-  onChanged: () => Promise<void>;
 }
 
-export function MessagesView({ notifications, onChanged }: MessagesViewProps) {
+export function MessagesView({ notifications }: MessagesViewProps) {
   const [isUpdating, setIsUpdating] = useState(false);
   const [error, setError] = useState<string | null>(null);
   const hasUnread = notifications.some((item) => !item.isRead);
@@ -18,12 +17,21 @@ export function MessagesView({ notifications, onChanged }: MessagesViewProps) {
     setIsUpdating(true);
     setError(null);
     try {
+      // Service phát sự kiện để trang giám khảo tải lại danh sách
       await judgeService.markAllNotificationsRead();
-      await onChanged();
     } catch (err) {
       setError(err instanceof Error ? err.message : 'Không thể cập nhật thông báo');
     } finally {
       setIsUpdating(false);
+    }
+  };
+
+  const handleMarkRead = async (id: string) => {
+    setError(null);
+    try {
+      await judgeService.markNotificationRead(id);
+    } catch (err) {
+      setError(err instanceof Error ? err.message : 'Không thể cập nhật thông báo');
     }
   };
 
@@ -41,7 +49,7 @@ export function MessagesView({ notifications, onChanged }: MessagesViewProps) {
       ) : (
         <ul className="mt-2 divide-y divide-slate-100">
           {notifications.map((item) => (
-            <NotificationItem key={item.id} notification={item} />
+            <NotificationItem key={item.id} notification={item} onMarkRead={(id) => void handleMarkRead(id)} />
           ))}
         </ul>
       )}

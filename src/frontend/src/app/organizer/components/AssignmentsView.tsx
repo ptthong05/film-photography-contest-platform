@@ -5,7 +5,6 @@ import { StateMessage } from "../../../components/StateMessage";
 import { Toast, type ToastNotice } from "../../../components/Toast";
 import { useFetch } from "../../../hooks/useFetch";
 import { organizerJudgingService, toSubmission } from "../../../services/organizerJudgingService";
-import { addJudgeNotification } from "../../../services/judgeService";
 import type { Contest } from "../../../types/contest";
 import type { AssignmentSetup, CriterionDraft, JudgeAssignmentRecord } from "../../../types/judgingAdmin";
 import type { Judge } from "../../../types/organizerUser";
@@ -202,12 +201,7 @@ export function AssignmentsView(_props: OrganizerViewProps) {
           deadline: assignedDeadline || undefined,
         });
       }
-      const deadlineText = assignedDeadline ? ` Hạn chót chấm bài: ${formatDate(assignedDeadline)}.` : "";
-      // Chuông thông báo của giám khảo chưa có API, vẫn ghi cục bộ như trước
-      addJudgeNotification({
-        message: `Ban tổ chức đã phân công chấm ${eligibleSubmissions.length} bài dự thi thuộc cuộc thi "${selectedContest.name}".${deadlineText}`,
-        type: 'ASSIGNMENT',
-      });
+      // Backend tự tạo thông báo phân công cho từng giám khảo
       await Promise.all([assignmentsQuery.refetch(), loadSetup(selectedContest.id)]);
       showToast(`Đã phân công ${selectedJudges.length} giám khảo chấm ${eligibleSubmissions.length} bài cuộc thi "${selectedContest.name}"`, 'success');
       setDialog(null);

@@ -5,7 +5,6 @@ import type {
   EvaluationHistoryItem,
   FilmMetadata,
   JudgeContest,
-  JudgeNotification,
   JudgeProfile,
   JudgingCriterion,
 } from '../types/judge';
@@ -299,14 +298,3 @@ export const mockResults: Record<string, ContestResultEntry[]> = {
     { rank: 5, submissionTitle: 'Bến đò', authorName: 'Quách Văn X', averageScore: 7.9, award: null },
   ],
 };
-
-function hoursAgo(hours: number): string {
-  return new Date(Date.now() - hours * 60 * 60 * 1000).toISOString();
-}
-
-export const mockNotifications: JudgeNotification[] = [
-  { id: 'nt-1', type: 'ASSIGNMENT', message: 'Bạn được phân công chấm vòng sơ khảo cuộc thi Analog Moments 2025', createdAt: hoursAgo(2), isRead: false },
-  { id: 'nt-2', type: 'DEADLINE', message: 'Hạn chấm điểm vòng sơ khảo Analog Moments 2025 còn 5 ngày', createdAt: hoursAgo(24), isRead: false },
-  { id: 'nt-3', type: 'NEW_SUBMISSION', message: 'Có 4 bài dự thi mới được phân công trong cuộc thi Film & City', createdAt: hoursAgo(26), isRead: true },
-  { id: 'nt-4', type: 'CRITERIA_UPDATE', message: 'Ban tổ chức đã cập nhật tiêu chí chấm cuộc thi Film & City', createdAt: hoursAgo(50), isRead: true },
-];

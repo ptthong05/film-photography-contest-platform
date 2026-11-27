@@ -3,12 +3,15 @@ package com.example.backend.service;
 import com.example.backend.dto.JudgingCriteriaRequest;
 import com.example.backend.dto.JudgingCriterionRequest;
 import com.example.backend.dto.JudgingCriterionResponse;
+import com.example.backend.entity.JudgeAssignment;
 import com.example.backend.entity.JudgingCriterion;
+import com.example.backend.enums.NotificationType;
 import com.example.backend.exception.BadRequestException;
 import com.example.backend.exception.ConflictException;
 import com.example.backend.exception.ResourceNotFoundException;
 import com.example.backend.repository.ContestRepository;
 import com.example.backend.repository.EvaluationRepository;
+import com.example.backend.repository.JudgeAssignmentRepository;
 import com.example.backend.repository.JudgingCriterionRepository;
 import org.springframework.stereotype.Service;
 import org.springframework.transaction.annotation.Transactional;
@@ -29,14 +32,20 @@ public class JudgingCriterionService {
     private final JudgingCriterionRepository criterionRepository;
     private final ContestRepository contestRepository;
     private final EvaluationRepository evaluationRepository;
+    private final JudgeAssignmentRepository assignmentRepository;
+    private final NotificationService notificationService;
 
     public JudgingCriterionService(
             JudgingCriterionRepository criterionRepository,
             ContestRepository contestRepository,
-            EvaluationRepository evaluationRepository) {
+            EvaluationRepository evaluationRepository,
+            JudgeAssignmentRepository assignmentRepository,
+            NotificationService notificationService) {
         this.criterionRepository = criterionRepository;
         this.contestRepository = contestRepository;
         this.evaluationRepository = evaluationRepository;
+        this.assignmentRepository = assignmentRepository;
+        this.notificationService = notificationService;
     }
 
     public List<JudgingCriterionResponse> getByContest(Long contestId) {
@@ -65,9 +74,25 @@ public class JudgingCriterionService {
         List<JudgingCriterion> created = IntStream.range(0, items.size())
                 .mapToObj(index -> toEntity(contestId, items.get(index), index))
                 .toList();
-        return criterionRepository.saveAll(created).stream()
+        List<JudgingCriterionResponse> saved = criterionRepository.saveAll(created).stream()
                 .map(JudgingCriterionResponse::fromEntity)
                 .toList();
+        notifyAssignedJudges(contestId, saved.size());
+        return saved;
+    }
+
+    /** Giám khảo đã được phân công cần biết bộ tiêu chí mới trước khi chấm */
+    private void notifyAssignedJudges(Long contestId, int criterionCount) {
+        String contestTitle = contestRepository.findById(contestId)
+                .map(contest -> contest.getTitle())
+                .orElse("#" + contestId);
+        String message = String.format(
+                "Ban tổ chức đã cập nhật bộ tiêu chí chấm của cuộc thi \"%s\" (%d tiêu chí). Vui lòng xem lại trước khi chấm.",
+                contestTitle, criterionCount);
+        assignmentRepository.findByContestId(contestId).stream()
+                .map(JudgeAssignment::getJudgeId)
+                .distinct()
+                .forEach(judgeId -> notificationService.notify(judgeId, NotificationType.CRITERIA_UPDATE, message));
     }
 
     private static void validate(List<JudgingCriterionRequest> items) {

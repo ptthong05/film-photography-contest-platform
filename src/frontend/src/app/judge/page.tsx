@@ -32,6 +32,7 @@ interface JudgePageProps {
 }
 
 const JUDGE_VIEW_KEY = 'judge_active_view';
+const NOTIFICATION_POLL_MS = 60_000;
 
 export default function JudgePage({ onExit }: JudgePageProps) {
   const [activeView, setActiveView] = useState<JudgeView>(() => {
@@ -49,12 +50,17 @@ export default function JudgePage({ onExit }: JudgePageProps) {
   const { data: profile, refetch: refetchProfile } = useFetch(judgeService.getProfile);
   const { data: notifications, refetch: refetchNotifications } = useFetch(judgeService.getNotifications);
 
+  // Tải lại sau khi đánh dấu đã đọc, và định kỳ để thấy thông báo mới từ Ban tổ chức mà không phải tải lại trang
   useEffect(() => {
     const handleSync = () => {
-      refetchNotifications();
+      void refetchNotifications();
     };
-    window.addEventListener('notificationsRead', handleSync);
-    return () => window.removeEventListener('notificationsRead', handleSync);
+    const timer = window.setInterval(handleSync, NOTIFICATION_POLL_MS);
+    window.addEventListener('filmcontest:judge-notifications-changed', handleSync);
+    return () => {
+      window.clearInterval(timer);
+      window.removeEventListener('filmcontest:judge-notifications-changed', handleSync);
+    };
   }, [refetchNotifications]);
 
   useEffect(() => {
@@ -71,7 +77,6 @@ export default function JudgePage({ onExit }: JudgePageProps) {
     };
   }, [refetchProfile]);
 
-  const unreadCount = notifications?.filter((item) => !item.isRead).length ?? 0;
   const meta = detailSubmissionId
     ? { title: 'Chi tiết tác phẩm', subtitle: 'Xem chi tiết thông số kỹ thuật, ảnh gốc và lịch sử chấm' }
     : VIEW_META[activeView];
@@ -117,7 +122,7 @@ export default function JudgePage({ onExit }: JudgePageProps) {
           title={meta.title}
           subtitle={meta.subtitle}
           profile={profile}
-          unreadCount={unreadCount}
+          notifications={notifications ?? []}
           onOpenMenu={() => setIsMenuOpen(true)}
           onOpenNotifications={() => handleNavigate('MESSAGES')}
           onOpenProfile={() => handleNavigate('PROFILE')}
@@ -161,7 +166,7 @@ export default function JudgePage({ onExit }: JudgePageProps) {
               {activeView === 'ARCHIVE' && <JudgeArchiveView />}
               {activeView === 'ARTICLES' && <JudgeArticlesView profile={profile} />}
               {activeView === 'MESSAGES' && (
-                <MessagesView notifications={notifications ?? []} onChanged={refetchNotifications} />
+                <MessagesView notifications={notifications ?? []} />
               )}
               {activeView === 'PROFILE' && <ProfileView profile={profile} onUpdated={refetchProfile} />}
             </>
