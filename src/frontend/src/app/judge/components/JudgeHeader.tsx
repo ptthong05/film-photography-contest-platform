@@ -28,7 +28,7 @@ export function JudgeHeader({
       subtitle={subtitle}
       userName={profile?.fullName ?? 'Trần Thị Bình'}
       userRole="Giám khảo"
-      avatarUrl={profile?.avatarUrl || (typeof window !== 'undefined' ? localStorage.getItem('judge_avatar') : null)}
+      avatarUrl={profile?.avatarUrl || null}
       unreadCount={unreadCount}
       onOpenProfile={onOpenProfile}
       onGoHome={onExit}

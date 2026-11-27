@@ -73,7 +73,7 @@ export function JudgeSidebar({ activeView, profile, isOpen, onNavigate, onClose 
         >
           <Avatar
             name={profile?.fullName ?? 'Giám khảo'}
-            imageUrl={profile?.avatarUrl || (typeof window !== 'undefined' ? localStorage.getItem('judge_avatar') || '' : '')}
+            imageUrl={profile?.avatarUrl || ''}
           />
           <div className="min-w-0 flex-1">
             <p className="truncate text-sm font-semibold text-white">{profile?.fullName ?? '...'}</p>

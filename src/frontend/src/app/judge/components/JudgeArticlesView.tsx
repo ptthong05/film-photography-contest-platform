@@ -157,10 +157,9 @@ export function JudgeArticlesView({ profile, onViewArticleDetail }: JudgeArticle
       return;
     }
 
-    const judgeName = profile?.fullName || 'Trần Thị Bình';
+    const judgeName = profile?.fullName || 'Giám khảo';
     const judgeAvatar =
       profile?.avatarUrl ||
-      (typeof window !== 'undefined' ? localStorage.getItem('judge_avatar') || '' : '') ||
       'https://images.unsplash.com/photo-1534528741775-53994a69daeb?auto=format&fit=crop&w=200&q=80';
 
     // Tạo HTML từ content

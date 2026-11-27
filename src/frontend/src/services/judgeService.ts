@@ -8,6 +8,7 @@ import type {
   JudgeContest,
   JudgeNotification,
   JudgeProfile,
+  JudgeProfileUpdate,
   JudgeStats,
   JudgingCriterion,
 } from '../types/judge';
@@ -25,7 +26,7 @@ import {
 
 /*
  * Chấm thi (cuộc thi, bài được phân công, phiếu chấm, lịch sử) gọi backend /api/judge/me/**.
- * Hồ sơ, thông báo và kết quả công bố chưa có API nên vẫn dùng localStorage.
+ * Hồ sơ gọi /api/judge/me/profile; thông báo chưa có API nên vẫn dùng localStorage.
  * Các hàm export dùng localStorage bên dưới (loadStoredEvaluations, getAllJudgeAssignedSubmissions...)
  * được giữ nguyên cho trang Ban tổ chức đến khi phía đó nối API phân công.
  */
@@ -207,6 +208,32 @@ function loadStoredProfile(): JudgeProfile {
   }
   const fallback = typeof window !== 'undefined' ? localStorage.getItem('judge_avatar') || '' : '';
   return { ...mockProfile, avatarUrl: fallback };
+}
+
+/**
+ * Hồ sơ đã lưu trên server; các key cũ dùng chung cho mọi giám khảo trên cùng trình duyệt
+ * nên phải xoá để không hiện tên/ảnh của người đăng nhập trước.
+ */
+function clearLegacyProfileStorage() {
+  try {
+    localStorage.removeItem(JUDGE_PROFILE_STORAGE_KEY);
+    localStorage.removeItem('judge_avatar');
+    localStorage.removeItem('judge_user_name');
+  } catch {
+    // Trình duyệt chặn storage thì bỏ qua, dữ liệu hồ sơ vẫn lấy từ server
+  }
+}
+
+/** Cập nhật phiên đăng nhập để header, sidebar và các portal khác thấy tên/ảnh mới */
+function syncAuthSession(profile: JudgeProfile) {
+  const user = authService.getCurrentUser();
+  if (!user || user.id !== profile.id) return;
+  authService.saveSession({
+    ...user,
+    fullName: profile.fullName,
+    avatar: profile.avatarUrl || null,
+    avatarUrl: profile.avatarUrl || null,
+  });
 }
 
 function loadStoredNotifications(): JudgeNotification[] {
@@ -591,29 +618,21 @@ function getAllAssignedSubmissions(): AssignedSubmission[] {
 }
 
 export const judgeService = {
-  /** GET /judges/me */
-  getProfile: (): Promise<JudgeProfile> => {
-    const current = loadStoredProfile();
-    Object.assign(mockProfile, current);
-    return respond(mockProfile);
+  /** GET /judge/me/profile */
+  getProfile: async (): Promise<JudgeProfile> => {
+    const profile = await request<JudgeProfile>('/judge/me/profile');
+    clearLegacyProfileStorage();
+    return profile;
   },
 
-  /** PATCH /judges/me — email do Admin quản lý nên không cho sửa */
-  updateProfile: async (changes: Partial<JudgeProfile>): Promise<JudgeProfile> => {
-    try {
-      await authService.updateProfile({
-        fullName: changes.fullName,
-        phone: changes.phone,
-        avatar: changes.avatarUrl,
-      });
-    } catch {}
-    Object.assign(mockProfile, changes);
-    try {
-      localStorage.setItem(JUDGE_PROFILE_STORAGE_KEY, JSON.stringify(mockProfile));
-    } catch {
-      // ignore storage error
-    }
-    return respond(mockProfile);
+  /** PUT /judge/me/profile — email, số điện thoại và vai trò do hệ thống quản lý nên không gửi lên */
+  updateProfile: async (changes: JudgeProfileUpdate): Promise<JudgeProfile> => {
+    const profile = await request<JudgeProfile>('/judge/me/profile', {
+      method: 'PUT',
+      body: JSON.stringify(changes),
+    });
+    syncAuthSession(profile);
+    return profile;
   },
 
   /** GET /judge/me/evaluations — toàn bộ phiếu chấm của giám khảo đang đăng nhập */

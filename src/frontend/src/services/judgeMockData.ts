@@ -38,7 +38,6 @@ export const mockProfile: JudgeProfile = {
   email: 'tranthibinh@filmcontest.vn',
   phone: '0901 234 567',
   specialty: 'Nhiếp ảnh phim',
-  yearsOfExperience: 12,
   bio: 'Mỗi bức ảnh phim là một câu chuyện. Hãy cùng tìm kiếm những câu chuyện xứng đáng được tỏa sáng.',
   avatarUrl: '',
 };

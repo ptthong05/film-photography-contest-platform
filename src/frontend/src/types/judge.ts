@@ -124,15 +124,24 @@ export interface JudgeStats {
   awaitingNextRound: number;
 }
 
+/** GET /judge/me/profile — trường chưa có dữ liệu là chuỗi rỗng */
 export interface JudgeProfile {
   id: string;
   fullName: string;
   email: string;
   phone: string;
   specialty: string;
-  yearsOfExperience: number;
   bio: string;
-  /** Rỗng khi giám khảo chưa tải ảnh đại diện — UI hiển thị chữ cái đầu tên */
+  /** Data URL của ảnh; rỗng khi giám khảo chưa tải ảnh — UI hiển thị chữ cái đầu tên */
+  avatarUrl: string;
+}
+
+/** PUT /judge/me/profile — email, số điện thoại và vai trò không sửa được tại hồ sơ */
+export interface JudgeProfileUpdate {
+  fullName: string;
+  specialty: string;
+  bio: string;
+  /** Chuỗi rỗng = gỡ ảnh */
   avatarUrl: string;
 }
 
