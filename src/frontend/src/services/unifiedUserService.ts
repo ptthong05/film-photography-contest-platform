@@ -8,6 +8,7 @@ export interface UnifiedUser extends AdminUser {
   specialty?: string;
   isDefault?: boolean;
   submissionCount?: number;
+  avatar?: string | null;
   recentSubmissions?: {
     id: string;
     title: string;

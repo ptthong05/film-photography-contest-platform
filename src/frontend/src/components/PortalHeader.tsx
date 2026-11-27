@@ -1,6 +1,5 @@
 import { useState, useEffect, useMemo, type ReactNode } from 'react';
 import { Bell, Check, ChevronDown, Clock, House, LogOut, Menu, ShieldCheck, UserRound } from 'lucide-react';
-import { judgeService } from '../services/judgeService';
 import { authService } from '../services/authService';
 
 export interface NotificationItem {
@@ -9,6 +8,8 @@ export interface NotificationItem {
   content: string;
   time: string;
   type?: 'info' | 'alert' | 'success';
+  /** Chỉ dùng khi header được điều khiển (có onMarkAllRead): trạng thái đọc lấy từ server */
+  isRead?: boolean;
 }
 
 export interface PortalHeaderProps {
@@ -17,6 +18,7 @@ export interface PortalHeaderProps {
   userName: string;
   userRole: string;
   avatarUrl?: string | null;
+  /** Chỉ dùng ở chế độ điều khiển; chế độ cũ tự đếm từ danh sách */
   unreadCount?: number;
   notifications?: NotificationItem[];
   actions?: ReactNode;
@@ -24,6 +26,12 @@ export interface PortalHeaderProps {
   onGoHome?: () => void;
   onOpenMenu?: () => void;
   onViewAllNotifications?: () => void;
+  /**
+   * Truyền vào thì header hiển thị đúng `notifications` và trạng thái `isRead` của chúng (dữ liệu từ API),
+   * bỏ qua thông báo mẫu và trạng thái đã đọc lưu trong localStorage.
+   */
+  onMarkAllRead?: () => void;
+  onMarkItemRead?: (id: string) => void;
   className?: string;
 }
 
@@ -39,15 +47,18 @@ export function PortalHeader({
   userName,
   userRole,
   avatarUrl,
-  unreadCount: initialUnreadCount = 2,
+  unreadCount: unreadCountProp,
   notifications,
   actions,
   onOpenProfile,
   onGoHome,
   onOpenMenu,
   onViewAllNotifications,
+  onMarkAllRead,
+  onMarkItemRead,
   className = '',
 }: PortalHeaderProps) {
+  const isControlled = onMarkAllRead !== undefined;
   const [isUserMenuOpen, setIsUserMenuOpen] = useState(false);
   const [isNotifOpen, setIsNotifOpen] = useState(false);
 
@@ -84,6 +95,7 @@ export function PortalHeader({
   }, [customNotifsKey]);
 
   const defaultNotifications: NotificationItem[] = useMemo(() => {
+    if (isControlled) return notifications ?? [];
     const base = notifications ?? [
       {
         id: '1',
@@ -101,7 +113,7 @@ export function PortalHeader({
       },
     ];
     return [...customNotifs, ...base];
-  }, [notifications, customNotifs]);
+  }, [isControlled, notifications, customNotifs]);
 
   const [readIds, setReadIds] = useState<string[]>(() => {
     if (typeof window === 'undefined') return [];
@@ -116,7 +128,11 @@ export function PortalHeader({
     return [];
   });
 
-  const unreadCount = defaultNotifications.filter((n) => !readIds.includes(n.id)).length;
+  const isItemRead = (item: NotificationItem) => (isControlled ? Boolean(item.isRead) : readIds.includes(item.id));
+  // Danh sách điều khiển có thể chỉ là phần đầu, nên ưu tiên unreadCount do trang cha đếm
+  const unreadCount = isControlled
+    ? (unreadCountProp ?? defaultNotifications.filter((n) => !n.isRead).length)
+    : defaultNotifications.filter((n) => !readIds.includes(n.id)).length;
 
   useEffect(() => {
     const handleSync = () => {
@@ -133,19 +149,25 @@ export function PortalHeader({
   }, [readIdsKey, storageKey, defaultNotifications]);
 
   const markAllRead = () => {
+    if (isControlled) {
+      onMarkAllRead();
+      return;
+    }
     const allIds = defaultNotifications.map((n) => n.id);
     setReadIds(allIds);
     try {
       localStorage.setItem(readIdsKey, JSON.stringify(allIds));
       localStorage.setItem(storageKey, '0');
-      if (userRole?.toLowerCase().includes('giám khảo') || userRole?.toLowerCase().includes('judge')) {
-        judgeService.markAllNotificationsRead().catch(() => {});
-      }
       window.dispatchEvent(new Event('notificationsRead'));
     } catch {}
   };
 
   const markItemRead = (id: string) => {
+    if (isControlled) {
+      const item = defaultNotifications.find((n) => n.id === id);
+      if (item && !item.isRead) onMarkItemRead?.(id);
+      return;
+    }
     if (readIds.includes(id)) return;
     const next = [...readIds, id];
     setReadIds(next);
@@ -241,8 +263,11 @@ export function PortalHeader({
                 </div>
 
                 <div className="divide-y divide-slate-100 py-1">
+                  {defaultNotifications.length === 0 && (
+                    <p className="px-2 py-6 text-center text-xs text-slate-500">Chưa có thông báo nào.</p>
+                  )}
                   {defaultNotifications.map((notif) => {
-                    const isRead = readIds.includes(notif.id);
+                    const isRead = isItemRead(notif);
                     return (
                       <div
                         key={notif.id}

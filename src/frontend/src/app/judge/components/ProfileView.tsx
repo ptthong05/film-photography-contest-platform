@@ -45,6 +45,17 @@ interface ProfileViewProps {
 
 const JUDGE_PROFILE_TAB_KEY = 'judge_profile_tab';
 
+function toDraft(profile: JudgeProfile | null) {
+  return {
+    fullName: profile?.fullName ?? '',
+    email: profile?.email ?? '',
+    phone: profile?.phone ?? '',
+    specialty: profile?.specialty ?? '',
+    bio: profile?.bio ?? '',
+    avatarUrl: profile?.avatarUrl ?? '',
+  };
+}
+
 export function ProfileView({ profile, onUpdated }: ProfileViewProps) {
   const [activeTab, setActiveTabState] = useState<ProfileTab>(() => {
     if (typeof window !== 'undefined') {
@@ -60,26 +71,10 @@ export function ProfileView({ profile, onUpdated }: ProfileViewProps) {
       localStorage.setItem(JUDGE_PROFILE_TAB_KEY, tab);
     } catch {}
   };
-  const [draftProfile, setDraftProfile] = useState(() => ({
-    fullName: profile?.fullName ?? 'Trần Thị Bình',
-    email: profile?.email ?? 'tranthibinh@example.com',
-    phone: profile?.phone ?? '0912 345 678',
-    specialty: profile?.specialty ?? 'Nhiếp ảnh đường phố & tư liệu',
-    bio: profile?.bio ?? 'Mỗi bức ảnh phim là một câu chuyện. Hãy cùng tìm kiếm những câu chuyện xứng đáng được tỏa sáng.',
-    avatarUrl: profile?.avatarUrl ?? null,
-  }));
+  const [draftProfile, setDraftProfile] = useState(() => toDraft(profile));
 
   useEffect(() => {
-    if (profile) {
-      setDraftProfile({
-        fullName: profile.fullName,
-        email: profile.email,
-        phone: profile.phone,
-        specialty: profile.specialty,
-        bio: profile.bio,
-        avatarUrl: profile.avatarUrl,
-      });
-    }
+    if (profile) setDraftProfile(toDraft(profile));
   }, [profile]);
   const [savedNotifications, setSavedNotifications] = useState<NotificationPreferences>({
     newAssignment: true,
@@ -151,9 +146,6 @@ export function ProfileView({ profile, onUpdated }: ProfileViewProps) {
     if (draftProfile.fullName.trim().length < 2 || draftProfile.fullName.trim().length > 80) {
       errors.fullName = 'Họ và tên phải có từ 2 đến 80 ký tự.';
     }
-    if (draftProfile.email.trim().length > 120 || !/^[^\s@]+@[^\s@]+\.[^\s@]+$/.test(draftProfile.email.trim())) {
-      errors.email = 'Vui lòng nhập email hợp lệ.';
-    }
     setFieldErrors(errors);
     if (Object.keys(errors).length > 0) {
       showToast('Vui lòng kiểm tra lại các trường được đánh dấu.', 'error');
@@ -162,26 +154,13 @@ export function ProfileView({ profile, onUpdated }: ProfileViewProps) {
 
     setIsSaving(true);
     try {
-      await authService.updateProfile({ fullName: draftProfile.fullName.trim() });
       await judgeService.updateProfile({
-        fullName: draftProfile.fullName,
-        phone: draftProfile.phone,
-        specialty: draftProfile.specialty,
-        bio: draftProfile.bio,
-        avatarUrl: draftProfile.avatarUrl ?? '',
+        fullName: draftProfile.fullName.trim(),
+        specialty: draftProfile.specialty.trim(),
+        bio: draftProfile.bio.trim(),
+        avatarUrl: draftProfile.avatarUrl,
       });
-      if (draftProfile.avatarUrl) {
-        window.localStorage.setItem('judge_avatar', draftProfile.avatarUrl);
-      } else {
-        window.localStorage.removeItem('judge_avatar');
-      }
-      window.localStorage.setItem('judge_user_name', draftProfile.fullName);
-
-      // Phát sự kiện đồng bộ toàn bộ giao diện Judge (Topbar, Sidebar...)
-      window.dispatchEvent(new Event('judgeProfileUpdated'));
-      window.dispatchEvent(new Event('userNameChanged'));
-      window.dispatchEvent(new Event('storage'));
-
+      // Header và sidebar nhận hồ sơ mới qua prop profile sau khi tải lại
       await onUpdated();
       showToast('Đã cập nhật hồ sơ giám khảo thành công.', 'success');
     } catch (err) {
@@ -192,14 +171,7 @@ export function ProfileView({ profile, onUpdated }: ProfileViewProps) {
   };
 
   const cancelProfile = () => {
-    setDraftProfile({
-      fullName: profile.fullName,
-      email: profile.email,
-      phone: profile.phone,
-      specialty: profile.specialty,
-      bio: profile.bio,
-      avatarUrl: profile.avatarUrl,
-    });
+    setDraftProfile(toDraft(profile));
     setFieldErrors({});
     showToast('Đã khôi phục thông tin ban đầu.', 'info');
   };
@@ -307,7 +279,7 @@ export function ProfileView({ profile, onUpdated }: ProfileViewProps) {
                   {draftProfile.avatarUrl && (
                     <button
                       type="button"
-                      onClick={() => setDraftProfile((p) => ({ ...p, avatarUrl: null }))}
+                      onClick={() => setDraftProfile((p) => ({ ...p, avatarUrl: '' }))}
                       className="inline-flex items-center gap-1 text-xs text-slate-500 hover:text-red-600 cursor-pointer"
                     >
                       <X size={14} aria-hidden="true" /> Gỡ ảnh

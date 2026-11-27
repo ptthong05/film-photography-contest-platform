@@ -8,12 +8,13 @@ const PROFILE_STORAGE_KEY = "filmcontest-organizer-profile-demo-v1";
 export function readOrganizerProfile(): OrganizerProfile {
   try {
     const authUser = authService.getCurrentUser();
-    // Ban đầu khi đăng nhập vào mặc định không có avatar
-    const directAvatar: string | null = authUser?.avatar || authUser?.avatarUrl || null;
-
     const raw = window.localStorage.getItem(PROFILE_STORAGE_KEY);
     const value: unknown = raw ? JSON.parse(raw) : null;
     const source = (value && typeof value === "object" && !Array.isArray(value)) ? (value as Record<string, unknown>) : {};
+
+    const storedAvatar = (typeof window !== 'undefined' ? window.localStorage.getItem('organizer_avatar') : null)
+      || (typeof source.avatarDataUrl === "string" ? source.avatarDataUrl : null);
+    const directAvatar: string | null = authUser?.avatar || authUser?.avatarUrl || storedAvatar || null;
 
     return {
       fullName: authUser?.fullName || (typeof source.fullName === "string" ? source.fullName.slice(0, 80) : MOCK_PROFILE.fullName),
@@ -26,7 +27,8 @@ export function readOrganizerProfile(): OrganizerProfile {
       avatarDataUrl: directAvatar,
     };
   } catch {
-    return { ...MOCK_PROFILE, role: "Ban tổ chức (ORGANIZER)", avatarDataUrl: null };
+    const fallbackAvatar = typeof window !== 'undefined' ? window.localStorage.getItem('organizer_avatar') : null;
+    return { ...MOCK_PROFILE, role: "Ban tổ chức (ORGANIZER)", avatarDataUrl: fallbackAvatar };
   }
 }
 
@@ -40,7 +42,17 @@ export const profileService = {
         avatar: profile.avatarDataUrl,
       });
     } catch {}
+    if (profile.avatarDataUrl) {
+      window.localStorage.setItem('organizer_avatar', profile.avatarDataUrl);
+    } else {
+      window.localStorage.removeItem('organizer_avatar');
+    }
     window.localStorage.setItem(PROFILE_STORAGE_KEY, JSON.stringify(profile));
+    if (typeof window !== 'undefined') {
+      window.dispatchEvent(new Event('storage'));
+      window.dispatchEvent(new Event('userNameChanged'));
+      window.dispatchEvent(new Event('avatarChanged'));
+    }
     return mockRequest(profile, 100);
   },
 };

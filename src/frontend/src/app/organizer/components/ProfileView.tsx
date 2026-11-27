@@ -129,7 +129,7 @@ export function ProfileView({ onNameSaved }: ProfileViewProps) {
     if (Object.keys(errors).length) { showToast("Vui lòng kiểm tra các trường được đánh dấu.", "error"); return; }
     const normalized = { ...candidate, fullName: candidate.fullName.trim(), email: candidate.email.trim().toLowerCase(), phone: candidate.phone.trim(), bio: candidate.bio.trim() };
     try {
-      await authService.updateProfile({ fullName: normalized.fullName });
+      await authService.updateProfile({ fullName: normalized.fullName, avatar: normalized.avatarDataUrl });
       await profileService.saveProfile(normalized);
       if (normalized.avatarDataUrl) {
         window.localStorage.setItem('organizer_avatar', normalized.avatarDataUrl);
@@ -145,6 +145,7 @@ export function ProfileView({ onNameSaved }: ProfileViewProps) {
       // Phát sự kiện đồng bộ toàn bộ giao diện Organizer (Topbar, Sidebar...)
       window.dispatchEvent(new Event('organizerProfileUpdated'));
       window.dispatchEvent(new Event('userNameChanged'));
+      window.dispatchEvent(new Event('avatarChanged'));
       window.dispatchEvent(new Event('storage'));
 
       showToast("Đã lưu hồ sơ ban tổ chức thành công.", "success");

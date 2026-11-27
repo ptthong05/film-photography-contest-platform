@@ -22,9 +22,7 @@
 	</properties>
 
 	<dependencies>
-        <!-- TV3 image and migration dependencies -->
-        <dependency><groupId>org.flywaydb</groupId><artifactId>flyway-core</artifactId></dependency>
-        <dependency><groupId>org.flywaydb</groupId><artifactId>flyway-mysql</artifactId></dependency>
+        <!-- Image handling dependencies -->
         <dependency><groupId>com.cloudinary</groupId><artifactId>cloudinary-http44</artifactId><version>1.39.0</version></dependency>
         <dependency><groupId>org.sejda.imageio</groupId><artifactId>webp-imageio</artifactId><version>0.1.6</version></dependency>
 
