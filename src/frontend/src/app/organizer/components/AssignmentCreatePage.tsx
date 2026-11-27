@@ -16,11 +16,13 @@ import {
   X,
 } from "lucide-react";
 import type { Contest } from "../../../types/contest";
+import type { JudgingCriterion } from "../../../types/judge";
+import type { CriterionDraft } from "../../../types/judgingAdmin";
 import type { Judge } from "../../../types/organizerUser";
 import type { Submission } from "../../../types/submission";
 import { OrganizerAvatar } from "./OrganizerAvatar";
 import { PageHeader } from "./PageHeader";
-import { readContestSettings } from "./contestManagementStorage";
+import { JudgingCriteriaEditor } from "./JudgingCriteriaEditor";
 import { formatDate } from "../../../utils/formatDate";
 
 export type DistributionMethod = "ALL_JUDGE_ALL" | "EQUAL" | "SPECIALTY";
@@ -36,6 +38,12 @@ interface AssignmentCreatePageProps {
   onSelectAllJudges: () => void;
   onClearJudges: () => void;
   eligibleSubmissions: Submission[];
+  /** Vòng chấm hiện tại của cuộc thi (null = chưa có vòng, hệ thống tạo khi xác nhận phân công) */
+  roundName: string | null;
+  roundEndDate: string | null;
+  criteria: JudgingCriterion[];
+  onSaveCriteria: (items: CriterionDraft[]) => Promise<void>;
+  isSubmitting: boolean;
   onConfirm: (deadline?: string) => void;
   onBack: () => void;
 }
@@ -51,6 +59,11 @@ export function AssignmentCreatePage({
   onSelectAllJudges,
   onClearJudges,
   eligibleSubmissions,
+  roundName,
+  roundEndDate,
+  criteria,
+  onSaveCriteria,
+  isSubmitting,
   onConfirm,
   onBack,
 }: AssignmentCreatePageProps) {
@@ -64,7 +77,8 @@ export function AssignmentCreatePage({
 
   useEffect(() => {
     if (selectedContest) {
-      const existing = readContestSettings(selectedContest.id)?.judgingEndDate;
+      // Hạn chấm = ngày kết thúc của vòng chấm hiện tại
+      const existing = roundEndDate?.slice(0, 10);
       if (existing) {
         setDeadline(existing);
       } else {
@@ -74,7 +88,7 @@ export function AssignmentCreatePage({
         setDeadline(d.toISOString().slice(0, 10));
       }
     }
-  }, [selectedContest]);
+  }, [selectedContest, roundEndDate]);
 
   const setDaysFromNow = (days: number) => {
     const d = new Date();
@@ -87,10 +101,7 @@ export function AssignmentCreatePage({
     [activeJudges, judgeIds]
   );
 
-  const contestDeadline = useMemo(() => {
-    if (!selectedContest) return null;
-    return readContestSettings(selectedContest.id)?.judgingEndDate ?? null;
-  }, [selectedContest]);
+  const contestDeadline = selectedContest ? roundEndDate : null;
 
   // Phân bổ danh sách bài cho từng giám khảo
   const previewAssignments = useMemo(() => {
@@ -130,7 +141,9 @@ export function AssignmentCreatePage({
     });
   }, [selectedJudges, eligibleSubmissions, distributionMode]);
 
-  const canSubmit = Boolean(selectedContest && selectedJudges.length > 0 && eligibleSubmissions.length > 0);
+  const canSubmit = Boolean(
+    selectedContest && selectedJudges.length > 0 && eligibleSubmissions.length > 0 && criteria.length > 0 && !isSubmitting,
+  );
 
   return (
     <div className="space-y-6 pb-12">
@@ -240,7 +253,11 @@ export function AssignmentCreatePage({
                 <span className="flex size-7 items-center justify-center rounded-lg bg-blue-100 text-xs font-bold text-blue-700">2</span>
                 <div>
                   <h2 className="font-bold text-[#0B356B]">Thiết lập Hạn chót chấm bài (Deadline)</h2>
-                  <p className="text-xs text-slate-500">Giám khảo cần hoàn thành tất cả bảng điểm trước thời hạn này</p>
+                  <p className="text-xs text-slate-500">
+                    {roundName
+                      ? `Là ngày kết thúc của ${roundName}; đổi hạn sẽ áp dụng cho mọi giám khảo của vòng này`
+                      : "Cuộc thi chưa có vòng chấm: hệ thống tạo \"Vòng chấm 1\" kết thúc vào ngày này"}
+                  </p>
                 </div>
               </div>
               <Calendar className="size-5 text-slate-400" />
@@ -307,6 +324,22 @@ export function AssignmentCreatePage({
               )}
             </div>
           </section>
+
+          {/* TIÊU CHÍ CHẤM: bắt buộc có trước khi giám khảo chấm */}
+          {selectedContest && (
+            <section className="rounded-2xl border border-slate-200 bg-white p-5 sm:p-6 shadow-sm">
+              <div className="flex items-center justify-between pb-4 border-b border-slate-100">
+                <div>
+                  <h2 className="font-bold text-[#0B356B]">Tiêu chí chấm điểm</h2>
+                  <p className="text-xs text-slate-500">Áp dụng cho mọi giám khảo của cuộc thi; không sửa được khi đã có phiếu chấm</p>
+                </div>
+                <Award className="size-5 text-slate-400" />
+              </div>
+              <div className="mt-4">
+                <JudgingCriteriaEditor criteria={criteria} onSave={onSaveCriteria} />
+              </div>
+            </section>
+          )}
 
           {/* BƯỚC 3: CHỌN GIÁM KHẢO */}
           <section className="rounded-2xl border border-slate-200 bg-white p-5 sm:p-6 shadow-sm">

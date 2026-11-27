@@ -20,6 +20,7 @@ import com.example.backend.exception.BadRequestException;
 import com.example.backend.exception.ConflictException;
 import com.example.backend.exception.ResourceNotFoundException;
 import com.example.backend.repository.ContestRepository;
+import com.example.backend.repository.ContestResultRepository;
 import com.example.backend.repository.EvaluationRepository;
 import com.example.backend.repository.JudgeAssignmentRepository;
 import com.example.backend.repository.JudgingCriterionRepository;
@@ -29,6 +30,7 @@ import org.springframework.stereotype.Service;
 import org.springframework.transaction.annotation.Transactional;
 
 import java.time.Instant;
+import java.time.LocalDateTime;
 import java.util.ArrayList;
 import java.util.Comparator;
 import java.util.HashSet;
@@ -63,6 +65,7 @@ public class JudgeService {
     private final SubmissionRepository submissionRepository;
     private final EvaluationRepository evaluationRepository;
     private final JudgingCriterionRepository criterionRepository;
+    private final ContestResultRepository resultRepository;
 
     public JudgeService(
             JudgeAssignmentRepository judgeAssignmentRepository,
@@ -70,13 +73,15 @@ public class JudgeService {
             RoundRepository roundRepository,
             SubmissionRepository submissionRepository,
             EvaluationRepository evaluationRepository,
-            JudgingCriterionRepository criterionRepository) {
+            JudgingCriterionRepository criterionRepository,
+            ContestResultRepository resultRepository) {
         this.judgeAssignmentRepository = judgeAssignmentRepository;
         this.contestRepository = contestRepository;
         this.roundRepository = roundRepository;
         this.submissionRepository = submissionRepository;
         this.evaluationRepository = evaluationRepository;
         this.criterionRepository = criterionRepository;
+        this.resultRepository = resultRepository;
     }
 
     public List<JudgeSubmissionResponse> getAssignedSubmissions(String judgeId) {
@@ -121,8 +126,7 @@ public class JudgeService {
                             .toList(),
                     scopes.size(),
                     evaluatedCount,
-                    // Chưa có module công bố kết quả trong develop; cập nhật khi có cờ công bố trên Contest.
-                    false);
+                    resultRepository.existsByContestId(contest.getId()));
         }).toList();
     }
 
@@ -171,6 +175,15 @@ public class JudgeService {
                 .orElseGet(() -> newEvaluation(scope, judgeId));
         if (evaluation.getStatus() == EvaluationStatus.FINALIZED) {
             throw new ConflictException("Phiếu chấm đã được gửi chính thức, không thể chỉnh sửa");
+        }
+        // Kết quả đã chụp điểm lúc công bố; cho chấm tiếp sẽ làm phiếu lệch với kết quả chính thức
+        if (resultRepository.existsByContestId(scope.contest().getId())) {
+            throw new ConflictException("Cuộc thi đã công bố kết quả, không thể chấm thêm");
+        }
+        // Giao diện đã khoá ô chấm khi hết hạn; kiểm tra lại ở server để không gọi thẳng API vượt hạn được
+        LocalDateTime roundEnd = scope.round().getEndDate();
+        if (roundEnd != null && LocalDateTime.now().isAfter(roundEnd)) {
+            throw new BadRequestException("Đã hết thời hạn chấm điểm cho vòng thi này");
         }
 
         List<JudgingCriterion> criteria = criterionRepository

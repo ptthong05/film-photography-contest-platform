@@ -46,7 +46,7 @@ import { useFetch } from "../../../hooks/useFetch";
 import { contestService } from "../../../services/contestService";
 import { organizerUserService } from "../../../services/organizerUserService";
 import { submissionService } from "../../../services/submissionService";
-import { addJudgeNotification, loadStoredEvaluations } from "../../../services/judgeService";
+import { loadStoredEvaluations } from "../../../services/judgeService";
 import {
   setContestTimeSimulation,
   readTimeSimulation,
@@ -482,11 +482,8 @@ export function ContestDetailPage({ contestId, onBack }: ContestDetailPageProps)
     setDraft(updatedDraft);
     saveContestSettings(contest.id, updatedDraft);
 
+    // Chỉ lưu cấu hình cục bộ; giám khảo nhận thông báo khi được phân công bài thật ở trang Phân công
     if (!isCurrentlyAssigned) {
-      addJudgeNotification({
-        message: `Ban tổ chức đã phân công bạn chấm cuộc thi "${contest.name}". Hãy vào xem danh sách bài thi và bắt đầu chấm điểm!`,
-        type: 'ASSIGNMENT',
-      });
       showToast(`Đã phân công giám khảo ${judge.fullName}`, "success");
     } else {
       showToast(`Đã hủy phân công giám khảo ${judge.fullName}`, "info");

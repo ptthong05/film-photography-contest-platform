@@ -1,4 +1,4 @@
-import React, { useEffect, useMemo, useState } from "react";
+import { useMemo, useState } from "react";
 import {
   Award,
   CalendarDays,
@@ -12,9 +12,12 @@ import {
   UserRound,
   X,
 } from "lucide-react";
-import { getOrganizerPublishedArchives, type StoredOrganizerArchiveItem } from "../../../services/publishedAwardService";
+import { judgeService } from "../../../services/judgeService";
+import { useFetch } from "../../../hooks/useFetch";
+import type { AwardArchiveItem } from "../../../types/judge";
 import type { AwardLevel } from "../../../types/result";
 import { AWARD_LEVEL } from "../../../utils/awardLevels";
+import { AsyncState } from "./AsyncState";
 
 type PrizeFilter = "ALL" | AwardLevel;
 const PAGE_SIZE = 8;
@@ -50,70 +53,43 @@ export function JudgeArchiveView() {
   const [contestName, setContestName] = useState("ALL");
   const [year, setYear] = useState("ALL");
   const [page, setPage] = useState(1);
-  const [selected, setSelected] = useState<StoredOrganizerArchiveItem | null>(null);
-  const [archives, setArchives] = useState<StoredOrganizerArchiveItem[]>(getOrganizerPublishedArchives);
-
-  useEffect(() => {
-    setArchives(getOrganizerPublishedArchives());
-    const handleSync = () => {
-      setArchives(getOrganizerPublishedArchives());
-    };
-    window.addEventListener("storage", handleSync);
-    window.addEventListener("filmcontest:published-results-updated", handleSync);
-    return () => {
-      window.removeEventListener("storage", handleSync);
-      window.removeEventListener("filmcontest:published-results-updated", handleSync);
-    };
-  }, []);
-
-  const safeArchives = useMemo(() => {
-    return (archives || []).filter((item) => item && item.result && item.contest);
-  }, [archives]);
+  const [selected, setSelected] = useState<AwardArchiveItem | null>(null);
+  const { data, isLoading, error, refetch } = useFetch(judgeService.getAwardArchive);
+  const archives = useMemo(() => data ?? [], [data]);
 
   const contests = useMemo(
-    () => [...new Set(safeArchives.map((item) => item.contest?.name).filter(Boolean) as string[])].sort((a, b) => a.localeCompare(b, "vi")),
-    [safeArchives]
+    () => [...new Set(archives.map((item) => item.contestTitle))].sort((a, b) => a.localeCompare(b, "vi")),
+    [archives]
   );
 
-  const years = useMemo(
-    () => [...new Set(safeArchives.map((item) => item.year).filter(Boolean))].sort((a, b) => b - a),
-    [safeArchives]
-  );
+  const years = useMemo(() => [...new Set(archives.map((item) => item.year))].sort((a, b) => b - a), [archives]);
 
   const counts = useMemo(
     () => ({
-      ALL: safeArchives.length,
-      FIRST: safeArchives.filter((item) => item.result?.award === "FIRST").length,
-      SECOND: safeArchives.filter((item) => item.result?.award === "SECOND").length,
-      THIRD: safeArchives.filter((item) => item.result?.award === "THIRD").length,
-      HONORABLE: safeArchives.filter((item) => item.result?.award === "HONORABLE").length,
+      ALL: archives.length,
+      FIRST: archives.filter((item) => item.prizeRank === "FIRST").length,
+      SECOND: archives.filter((item) => item.prizeRank === "SECOND").length,
+      THIRD: archives.filter((item) => item.prizeRank === "THIRD").length,
+      HONORABLE: archives.filter((item) => item.prizeRank === "HONORABLE").length,
     }),
-    [safeArchives]
+    [archives]
   );
 
+  // Backend đã sắp năm mới nhất trước rồi theo thứ hạng, chỉ cần lọc
   const filtered = useMemo(() => {
     const term = normalize(search);
-    return safeArchives
-      .filter((item) => {
-        if (prize !== "ALL" && item.result?.award !== prize) return false;
-        if (contestName !== "ALL" && item.contest?.name !== contestName) return false;
-        if (year !== "ALL" && item.year !== Number(year)) return false;
-        return (
-          !term ||
-          [
-            item.result?.title ?? "",
-            item.result?.authorName ?? "",
-            item.contest?.name ?? "",
-            item.submission?.code ?? "",
-            item.submission?.metadata?.filmStock ?? "",
-          ].some((val) => normalize(val).includes(term))
-        );
-      })
-      .sort((a, b) => {
-        if (b.year !== a.year) return b.year - a.year;
-        return (a.result?.rank ?? 0) - (b.result?.rank ?? 0);
-      });
-  }, [safeArchives, search, prize, contestName, year]);
+    return archives.filter((item) => {
+      if (prize !== "ALL" && item.prizeRank !== prize) return false;
+      if (contestName !== "ALL" && item.contestTitle !== contestName) return false;
+      if (year !== "ALL" && item.year !== Number(year)) return false;
+      return (
+        !term ||
+        [item.title, item.authorName ?? "", item.contestTitle, item.code, item.metadata.filmStock].some((val) =>
+          normalize(val).includes(term)
+        )
+      );
+    });
+  }, [archives, search, prize, contestName, year]);
 
   const pageCount = Math.max(1, Math.ceil(filtered.length / PAGE_SIZE));
   const currentPage = Math.min(page, pageCount);
@@ -141,7 +117,7 @@ export function JudgeArchiveView() {
             <div>
               <h2 className="font-bold text-[#0B356B]">Kho dữ liệu tác phẩm đạt giải</h2>
               <p className="text-xs text-slate-500">
-                Lưu trữ chính thức {archives.length} tác phẩm đạt giải (mỗi giải 1 bài, 4 giải 4 bài: Nhất, Nhì, Ba, Khuyến khích) khi công bố kết quả
+                Lưu trữ chính thức {archives.length} tác phẩm đạt giải (Nhất, Nhì, Ba, Khuyến khích) khi ban tổ chức công bố kết quả
               </p>
             </div>
           </div>
@@ -254,20 +230,24 @@ export function JudgeArchiveView() {
       </div>
 
       {/* Grid danh sách tác phẩm đạt giải */}
-      {visible.length ? (
+      {isLoading || error ? (
+        <div className="rounded-2xl border border-slate-200 bg-white">
+          <AsyncState isLoading={isLoading} error={error} onRetry={() => void refetch()} />
+        </div>
+      ) : visible.length ? (
         <div className="grid grid-cols-1 gap-4 sm:grid-cols-2 lg:grid-cols-3 xl:grid-cols-4">
           {visible.map((item) => {
-            const photoUrl = item.imageUrl || item.submission?.imageUrl;
+            const photoUrl = item.imageUrl;
             return (
               <article
-                key={item.result.id}
+                key={item.submissionId}
                 className="group flex min-w-0 flex-col overflow-hidden rounded-2xl border border-slate-200 bg-white shadow-xs transition-shadow hover:shadow-md"
               >
                 <div className="relative aspect-[4/3] w-full overflow-hidden bg-slate-100">
                   {photoUrl ? (
                     <img
                       src={photoUrl}
-                      alt={item.result.title}
+                      alt={item.title}
                       className="h-full w-full object-cover group-hover:scale-105 transition-transform duration-300"
                     />
                   ) : (
@@ -277,33 +257,33 @@ export function JudgeArchiveView() {
                   )}
                   <span
                     className={`absolute left-3 top-3 inline-flex items-center gap-1 rounded-full px-2.5 py-1 text-[11px] font-semibold shadow-xs ${
-                      PRIZE_STYLE[item.result.award as AwardLevel] || "bg-blue-100 text-blue-700"
+                      PRIZE_STYLE[item.prizeRank]
                     }`}
                   >
                     <Award size={13} aria-hidden="true" />
-                    {AWARD_LEVEL[item.result.award as AwardLevel] || "Đạt giải"}
+                    {AWARD_LEVEL[item.prizeRank]}
                   </span>
                   <span className="absolute right-3 top-3 rounded-full bg-white/95 px-2.5 py-1 text-xs font-black text-[#0B356B] shadow-xs">
-                    #{item.result.rank}
+                    #{item.ranking}
                   </span>
                 </div>
 
                 <div className="flex flex-1 flex-col gap-2 p-3.5">
-                  <p className="truncate text-sm font-bold text-[#0B356B]" title={item.result.title}>
-                    {item.result.title}
+                  <p className="truncate text-sm font-bold text-[#0B356B]" title={item.title}>
+                    {item.title}
                   </p>
-                  <p className="flex items-center gap-1.5 truncate text-xs text-slate-600" title={item.result.authorName}>
+                  <p className="flex items-center gap-1.5 truncate text-xs text-slate-600" title={item.authorName ?? undefined}>
                     <UserRound size={13} className="shrink-0 text-slate-400" aria-hidden="true" />
-                    {item.result.authorName}
+                    {item.authorName ?? "Thí sinh"}
                   </p>
-                  <p className="truncate text-xs text-slate-500" title={item.contest.name}>
-                    {item.contest.name} · {item.year || "Năm chưa rõ"}
+                  <p className="truncate text-xs text-slate-500" title={item.contestTitle}>
+                    {item.contestTitle} · {item.year}
                   </p>
 
                   <div className="mt-1 flex items-center justify-between border-t border-slate-100 pt-2 text-xs">
                     <span className="text-slate-500">Điểm đánh giá</span>
                     <span className="font-bold tabular-nums text-[#0B356B]">
-                      {Number(item.result?.score ?? 0).toFixed(1)}
+                      {item.averageScore.toFixed(1)}
                       <span className="ml-1 text-[11px] font-medium text-slate-400">/ 10</span>
                     </span>
                   </div>
@@ -330,7 +310,7 @@ export function JudgeArchiveView() {
           <p className="mt-1 text-sm text-slate-500 max-w-md mx-auto">
             {archives.length
               ? "Thử đổi bộ lọc hoặc xóa điều kiện tìm kiếm."
-              : "Kho dữ liệu chỉ lưu và hiển thị mỗi giải 1 bài (đúng 4 giải 4 bài: Giải Nhất, Giải Nhì, Giải Ba, Giải Khuyến khích) sau khi ban tổ chức công bố kết quả cuộc thi."}
+              : "Tác phẩm đạt giải (Nhất, Nhì, Ba và Khuyến khích) sẽ tự xuất hiện ở đây sau khi ban tổ chức công bố kết quả cuộc thi."}
           </p>
           {archives.length > 0 && (
             <button
@@ -394,26 +374,26 @@ export function JudgeArchiveView() {
             <div className="mt-4 space-y-4">
               <div className="relative aspect-video max-h-72 w-full overflow-hidden rounded-xl bg-slate-900">
                 <img
-                  src={selected.imageUrl || selected.submission?.imageUrl}
-                  alt={selected.result.title}
+                  src={selected.imageUrl ?? undefined}
+                  alt={selected.title}
                   className="h-full w-full object-contain"
                 />
               </div>
 
               <div className="flex flex-wrap items-start justify-between gap-3">
                 <div>
-                  <h4 className="text-lg font-bold text-[#0B356B]">{selected.result.title}</h4>
+                  <h4 className="text-lg font-bold text-[#0B356B]">{selected.title}</h4>
                   <p className="text-xs text-slate-500">
-                    {selected.result.authorName} · {selected.contest.name}
+                    {selected.authorName ?? "Thí sinh"} · {selected.contestTitle}
                   </p>
                 </div>
                 <span
                   className={`inline-flex items-center gap-1.5 rounded-full px-3 py-1.5 text-xs font-semibold ${
-                    PRIZE_STYLE[selected.result.award]
+                    PRIZE_STYLE[selected.prizeRank]
                   }`}
                 >
                   <Award size={14} />
-                  {AWARD_LEVEL[selected.result.award]}
+                  {AWARD_LEVEL[selected.prizeRank]}
                 </span>
               </div>
 
@@ -421,56 +401,43 @@ export function JudgeArchiveView() {
                 <div className="rounded-xl border border-slate-200 p-3 bg-slate-50">
                   <dt className="text-slate-500">Điểm số đạt giải</dt>
                   <dd className="mt-0.5 text-base font-bold text-[#0B356B]">
-                    {Number(selected.result?.score ?? 0).toFixed(1)} / 10
+                    {selected.averageScore.toFixed(1)} / 10
                   </dd>
                 </div>
                 <div className="rounded-xl border border-slate-200 p-3 bg-slate-50">
                   <dt className="text-slate-500">Năm tổ chức cuộc thi</dt>
-                  <dd className="mt-0.5 font-semibold text-slate-800">{selected.year || "2025"}</dd>
+                  <dd className="mt-0.5 font-semibold text-slate-800">{selected.year}</dd>
                 </div>
                 <div className="rounded-xl border border-slate-200 p-3 bg-slate-50">
                   <dt className="text-slate-500">Mã bài dự thi</dt>
-                  <dd className="mt-0.5 font-semibold text-slate-800">{selected.submission?.code ?? "Chưa rõ"}</dd>
+                  <dd className="mt-0.5 font-semibold text-slate-800">{selected.code}</dd>
                 </div>
                 <div className="rounded-xl border border-slate-200 p-3 bg-slate-50">
                   <dt className="text-slate-500">Loại phim / Film stock</dt>
                   <dd className="mt-0.5 font-semibold text-slate-800">
-                    {selected.submission?.metadata?.filmStock || "Kodak Portra 400"}
+                    {selected.metadata.filmStock}
                   </dd>
                 </div>
               </dl>
 
-              {selected.submission?.metadata && (
-                <div className="rounded-xl border border-slate-200 p-3.5 space-y-2">
-                  <p className="text-xs font-bold text-[#0B356B]">Thông số kỹ thuật ảnh phim</p>
-                  <div className="grid grid-cols-2 gap-2 text-xs text-slate-600 sm:grid-cols-3">
-                    <div>
-                      <span className="text-slate-400">Máy ảnh:</span>{" "}
-                      <span className="font-medium text-slate-700">{selected.submission.metadata.camera || "Chưa rõ"}</span>
+              <div className="rounded-xl border border-slate-200 p-3.5 space-y-2">
+                <p className="text-xs font-bold text-[#0B356B]">Thông số kỹ thuật ảnh phim</p>
+                <div className="grid grid-cols-2 gap-2 text-xs text-slate-600 sm:grid-cols-3">
+                  {[
+                    ["Máy ảnh", selected.metadata.cameraBody],
+                    ["Ống kính", selected.metadata.lens],
+                    ["ISO", selected.metadata.iso ?? "—"],
+                    ["Định dạng", selected.metadata.filmFormat],
+                    ["Frame", selected.metadata.frameNumber],
+                    ["Lab tráng", selected.metadata.developingLab],
+                  ].map(([label, value]) => (
+                    <div key={label}>
+                      <span className="text-slate-400">{label}:</span>{" "}
+                      <span className="font-medium text-slate-700">{value}</span>
                     </div>
-                    <div>
-                      <span className="text-slate-400">Ống kính:</span>{" "}
-                      <span className="font-medium text-slate-700">{selected.submission.metadata.lens || "Chưa rõ"}</span>
-                    </div>
-                    <div>
-                      <span className="text-slate-400">ISO:</span>{" "}
-                      <span className="font-medium text-slate-700">{selected.submission.metadata.iso || "400"}</span>
-                    </div>
-                    <div>
-                      <span className="text-slate-400">Định dạng:</span>{" "}
-                      <span className="font-medium text-slate-700">{selected.submission.metadata.format || "35mm"}</span>
-                    </div>
-                    <div>
-                      <span className="text-slate-400">Frame:</span>{" "}
-                      <span className="font-medium text-slate-700">{selected.submission.metadata.frame || "01"}</span>
-                    </div>
-                    <div>
-                      <span className="text-slate-400">Lab tráng:</span>{" "}
-                      <span className="font-medium text-slate-700">{selected.submission.metadata.lab || "Lab Sài Gòn"}</span>
-                    </div>
-                  </div>
+                  ))}
                 </div>
-              )}
+              </div>
 
               <div className="flex justify-end pt-2">
                 <button

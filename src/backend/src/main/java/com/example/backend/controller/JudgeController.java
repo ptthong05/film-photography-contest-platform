@@ -4,14 +4,20 @@ import com.example.backend.dto.EvaluationHistoryResponse;
 import com.example.backend.dto.EvaluationRequest;
 import com.example.backend.dto.EvaluationResponse;
 import com.example.backend.dto.JudgeContestResponse;
+import com.example.backend.dto.JudgeProfileRequest;
+import com.example.backend.dto.JudgeProfileResponse;
 import com.example.backend.dto.JudgeSubmissionResponse;
+import com.example.backend.dto.NotificationResponse;
 import com.example.backend.security.AuthenticatedUser;
+import com.example.backend.service.JudgeProfileService;
 import com.example.backend.service.JudgeService;
+import com.example.backend.service.NotificationService;
 import jakarta.validation.Valid;
 import org.springframework.http.ResponseEntity;
 import org.springframework.security.access.prepost.PreAuthorize;
 import org.springframework.security.core.annotation.AuthenticationPrincipal;
 import org.springframework.web.bind.annotation.GetMapping;
+import org.springframework.web.bind.annotation.PatchMapping;
 import org.springframework.web.bind.annotation.PathVariable;
 import org.springframework.web.bind.annotation.PutMapping;
 import org.springframework.web.bind.annotation.RequestBody;
@@ -30,9 +36,47 @@ import java.util.List;
 public class JudgeController {
 
     private final JudgeService judgeService;
+    private final JudgeProfileService profileService;
+    private final NotificationService notificationService;
 
-    public JudgeController(JudgeService judgeService) {
+    public JudgeController(
+            JudgeService judgeService,
+            JudgeProfileService profileService,
+            NotificationService notificationService) {
         this.judgeService = judgeService;
+        this.profileService = profileService;
+        this.notificationService = notificationService;
+    }
+
+    @GetMapping("/profile")
+    public ResponseEntity<JudgeProfileResponse> getProfile(@AuthenticationPrincipal AuthenticatedUser currentUser) {
+        return ResponseEntity.ok(profileService.getProfile(currentUser.id()));
+    }
+
+    @PutMapping("/profile")
+    public ResponseEntity<JudgeProfileResponse> updateProfile(
+            @AuthenticationPrincipal AuthenticatedUser currentUser,
+            @Valid @RequestBody JudgeProfileRequest request) {
+        return ResponseEntity.ok(profileService.updateProfile(currentUser.id(), request));
+    }
+
+    @GetMapping("/notifications")
+    public ResponseEntity<List<NotificationResponse>> getNotifications(
+            @AuthenticationPrincipal AuthenticatedUser currentUser) {
+        return ResponseEntity.ok(notificationService.getForUser(currentUser.id()));
+    }
+
+    @PatchMapping("/notifications/read-all")
+    public ResponseEntity<Void> markAllNotificationsRead(@AuthenticationPrincipal AuthenticatedUser currentUser) {
+        notificationService.markAllRead(currentUser.id());
+        return ResponseEntity.noContent().build();
+    }
+
+    @PatchMapping("/notifications/{notificationId}/read")
+    public ResponseEntity<NotificationResponse> markNotificationRead(
+            @AuthenticationPrincipal AuthenticatedUser currentUser,
+            @PathVariable String notificationId) {
+        return ResponseEntity.ok(notificationService.markRead(currentUser.id(), notificationId));
     }
 
     @GetMapping("/contests")

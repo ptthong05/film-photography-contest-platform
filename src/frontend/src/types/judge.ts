@@ -37,10 +37,13 @@ export interface JudgeContest {
   isResultPublished: boolean;
 }
 
-/** Metadata kỹ thuật bắt buộc của ảnh phim (SRS 4.1), snapshot tại thời điểm nộp. */
+/**
+ * Metadata kỹ thuật của ảnh phim (SRS 4.1), snapshot tại thời điểm nộp.
+ * Backend (tv3) chưa bắt buộc nhập nên trường chuỗi bị thiếu được judgeService đổi thành "—", ISO thiếu là null.
+ */
 export interface FilmMetadata {
   filmStock: string;
-  iso: number;
+  iso: number | null;
   cameraBody: string;
   lens: string;
   filmFormat: string;
@@ -121,15 +124,24 @@ export interface JudgeStats {
   awaitingNextRound: number;
 }
 
+/** GET /judge/me/profile — trường chưa có dữ liệu là chuỗi rỗng */
 export interface JudgeProfile {
   id: string;
   fullName: string;
   email: string;
   phone: string;
   specialty: string;
-  yearsOfExperience: number;
   bio: string;
-  /** Rỗng khi giám khảo chưa tải ảnh đại diện — UI hiển thị chữ cái đầu tên */
+  /** Data URL của ảnh; rỗng khi giám khảo chưa tải ảnh — UI hiển thị chữ cái đầu tên */
+  avatarUrl: string;
+}
+
+/** PUT /judge/me/profile — email, số điện thoại và vai trò không sửa được tại hồ sơ */
+export interface JudgeProfileUpdate {
+  fullName: string;
+  specialty: string;
+  bio: string;
+  /** Chuỗi rỗng = gỡ ảnh */
   avatarUrl: string;
 }
 
@@ -139,6 +151,24 @@ export interface ContestResultEntry {
   authorName: string;
   averageScore: number;
   award: string | null;
+}
+
+/** GET /results/awards — tác phẩm đạt giải của các cuộc thi đã công bố kết quả */
+export interface AwardArchiveItem {
+  submissionId: string;
+  code: string;
+  contestId: string;
+  contestTitle: string;
+  year: number;
+  ranking: number;
+  prizeRank: 'FIRST' | 'SECOND' | 'THIRD' | 'HONORABLE';
+  averageScore: number;
+  title: string;
+  authorName: string | null;
+  category: string | null;
+  imageUrl: string | null;
+  metadata: FilmMetadata;
+  publishedAt: string;
 }
 
 export type JudgeView = 'OVERVIEW' | 'CONTESTS' | 'ASSIGNED' | 'SCORING' | 'RESULTS' | 'ARCHIVE' | 'ARTICLES' | 'MESSAGES' | 'PROFILE';

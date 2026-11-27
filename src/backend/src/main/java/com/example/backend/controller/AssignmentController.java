@@ -2,6 +2,7 @@ package com.example.backend.controller;
 
 import com.example.backend.dto.AssignmentRequest;
 import com.example.backend.dto.AssignmentResponse;
+import com.example.backend.dto.AssignmentSetupResponse;
 import com.example.backend.dto.ReassignRequest;
 import com.example.backend.security.AuthenticatedUser;
 import com.example.backend.service.AssignmentService;
@@ -17,6 +18,7 @@ import org.springframework.web.bind.annotation.PostMapping;
 import org.springframework.web.bind.annotation.PutMapping;
 import org.springframework.web.bind.annotation.RequestBody;
 import org.springframework.web.bind.annotation.RequestMapping;
+import org.springframework.web.bind.annotation.RequestParam;
 import org.springframework.web.bind.annotation.RestController;
 
 import java.util.List;
@@ -35,6 +37,11 @@ public class AssignmentController {
     @GetMapping
     public ResponseEntity<List<AssignmentResponse>> getAll() {
         return ResponseEntity.ok(assignmentService.getAll());
+    }
+
+    @GetMapping("/setup")
+    public ResponseEntity<AssignmentSetupResponse> getSetup(@RequestParam String contestId) {
+        return ResponseEntity.ok(assignmentService.getSetup(contestId));
     }
 
     @PostMapping

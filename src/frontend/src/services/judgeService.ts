@@ -1,36 +1,108 @@
 import type {
   AssignedSubmission,
+  AwardArchiveItem,
   ContestResultEntry,
   Evaluation,
   EvaluationHistoryItem,
   EvaluationRequest,
+  FilmMetadata,
   JudgeContest,
   JudgeNotification,
   JudgeProfile,
+  JudgeProfileUpdate,
   JudgeStats,
   JudgingCriterion,
 } from '../types/judge';
-import { calculateWeightedScore } from '../utils/calculateScore';
+import { PRIZE_LABELS, type PublishedResult } from '../types/judgingAdmin';
 import { MOCK_CONTESTS } from '../mocks/organizerData';
-import { isJudgingDeadlinePassed } from './contestSyncService';
+import { request } from './apiClient';
 import { authService } from './authService';
 import {
   mockContests,
   mockEvaluations,
-  mockNotifications,
-  mockPreviousRoundHistory,
   mockProfile,
-  mockResults,
   mockSubmissions,
 } from './judgeMockData';
 
 /*
- * Backend chưa có module judging nên service tạm dùng dữ liệu mẫu trong bộ nhớ kết hợp localStorage.
- * Cho phép phân công từ Organizer đồng bộ sang Judge theo thời gian thực.
+ * Chấm thi (cuộc thi, bài được phân công, phiếu chấm, lịch sử), hồ sơ và thông báo gọi backend /api/judge/me/**.
+ * Các hàm export dùng localStorage bên dưới (loadStoredEvaluations, getAllJudgeAssignedSubmissions...)
+ * được giữ nguyên cho trang Ban tổ chức đến khi phía đó nối API phân công.
  */
 
-const MOCK_LATENCY_MS = 250;
-const JUDGE_NOTIFS_STORAGE_KEY = 'filmcontest.judge.notifications.v1';
+const MISSING_VALUE = '—';
+const DEFAULT_COVER_URL = 'https://images.unsplash.com/photo-1464822759023-fed622ff2c3b?auto=format&fit=crop&w=600&q=80';
+
+/** Metadata theo entity FilmMetadata của backend (tv3); mọi trường có thể null vì chưa bắt buộc khi nộp */
+interface ApiFilmMetadata {
+  filmBrand?: string | null;
+  filmStock?: string | null;
+  iso?: number | null;
+  camera?: string | null;
+  lens?: string | null;
+  filmFormat?: string | null;
+  frameNumber?: string | null;
+  shootingDate?: string | null;
+  shootingLocation?: string | null;
+  developingLab?: string | null;
+  scanSpec?: string | null;
+}
+
+type ApiAssignedSubmission = Omit<AssignedSubmission, 'metadata'> & { metadata: ApiFilmMetadata | null };
+type ApiAwardArchiveItem = Omit<AwardArchiveItem, 'metadata'> & { metadata: ApiFilmMetadata | null };
+type ApiJudgeContest = Omit<JudgeContest, 'coverUrl'> & { coverUrl: string | null };
+
+function textOrMissing(value?: string | null): string {
+  return value && value.trim() ? value.trim() : MISSING_VALUE;
+}
+
+/** Ghép hãng + loại phim ("Kodak" + "Portra 400"), tránh lặp khi loại phim đã chứa tên hãng */
+function toFilmStock(brand?: string | null, stock?: string | null): string {
+  const cleanBrand = brand?.trim() ?? '';
+  const cleanStock = stock?.trim() ?? '';
+  if (cleanBrand && cleanStock && !cleanStock.toLowerCase().startsWith(cleanBrand.toLowerCase())) {
+    return `${cleanBrand} ${cleanStock}`;
+  }
+  return textOrMissing(cleanStock || cleanBrand);
+}
+
+function toFilmMetadata(metadata: ApiFilmMetadata | null): FilmMetadata {
+  const source = metadata ?? {};
+  return {
+    filmStock: toFilmStock(source.filmBrand, source.filmStock),
+    iso: source.iso ?? null,
+    cameraBody: textOrMissing(source.camera),
+    lens: textOrMissing(source.lens),
+    filmFormat: textOrMissing(source.filmFormat),
+    frameNumber: textOrMissing(source.frameNumber),
+    shootingDate: textOrMissing(source.shootingDate),
+    shootingLocation: textOrMissing(source.shootingLocation),
+    developingLab: textOrMissing(source.developingLab),
+    scanSpec: textOrMissing(source.scanSpec),
+  };
+}
+
+function toAssignedSubmission(item: ApiAssignedSubmission): AssignedSubmission {
+  return { ...item, metadata: toFilmMetadata(item.metadata) };
+}
+
+function toJudgeContest(item: ApiJudgeContest): JudgeContest {
+  return { ...item, coverUrl: item.coverUrl || DEFAULT_COVER_URL };
+}
+
+/** Chuông ở header và trang Tin nhắn cùng tải lại sau khi đánh dấu đã đọc */
+function notifyNotificationsChanged() {
+  if (typeof window !== 'undefined') {
+    window.dispatchEvent(new Event('filmcontest:judge-notifications-changed'));
+  }
+}
+
+/** Báo cho các màn hình đang mở (danh sách bài, trang chấm) tải lại sau khi lưu phiếu */
+function notifyJudgingUpdated() {
+  if (typeof window !== 'undefined') {
+    window.dispatchEvent(new Event('filmcontest:judging-updated'));
+  }
+}
 const JUDGE_PROFILE_STORAGE_KEY = 'judge_profile';
 const JUDGE_EVALUATIONS_STORAGE_KEY = 'filmcontest.judge.evaluations.v1';
 
@@ -111,18 +183,6 @@ export function saveStoredEvaluations(evaluations: Evaluation[]) {
   } catch {}
 }
 
-function respond<T>(data: T): Promise<T> {
-  return new Promise((resolve) => {
-    setTimeout(() => resolve(structuredClone(data)), MOCK_LATENCY_MS);
-  });
-}
-
-function fail(message: string): Promise<never> {
-  return new Promise((_, reject) => {
-    setTimeout(() => reject(new Error(message)), MOCK_LATENCY_MS);
-  });
-}
-
 function loadStoredProfile(): JudgeProfile {
   try {
     const authUser = authService.getCurrentUser();
@@ -149,31 +209,30 @@ function loadStoredProfile(): JudgeProfile {
   return { ...mockProfile, avatarUrl: fallback };
 }
 
-function loadStoredNotifications(): JudgeNotification[] {
+/**
+ * Hồ sơ đã lưu trên server; các key cũ dùng chung cho mọi giám khảo trên cùng trình duyệt
+ * nên phải xoá để không hiện tên/ảnh của người đăng nhập trước.
+ */
+function clearLegacyProfileStorage() {
   try {
-    const raw = localStorage.getItem(JUDGE_NOTIFS_STORAGE_KEY);
-    if (raw) {
-      const parsed = JSON.parse(raw);
-      if (Array.isArray(parsed) && parsed.length > 0) return parsed;
-    }
-  } catch {}
-  return [...mockNotifications];
+    localStorage.removeItem(JUDGE_PROFILE_STORAGE_KEY);
+    localStorage.removeItem('judge_avatar');
+    localStorage.removeItem('judge_user_name');
+  } catch {
+    // Trình duyệt chặn storage thì bỏ qua, dữ liệu hồ sơ vẫn lấy từ server
+  }
 }
 
-export function addJudgeNotification(notif: { message: string; type?: JudgeNotification['type'] }) {
-  const item: JudgeNotification = {
-    id: `nt-${Date.now()}-${Math.random().toString(36).slice(2, 6)}`,
-    type: notif.type ?? 'ASSIGNMENT',
-    message: notif.message,
-    createdAt: new Date().toISOString(),
-    isRead: false,
-  };
-  mockNotifications.unshift(item);
-  try {
-    const list = loadStoredNotifications();
-    list.unshift(item);
-    localStorage.setItem(JUDGE_NOTIFS_STORAGE_KEY, JSON.stringify(list));
-  } catch {}
+/** Cập nhật phiên đăng nhập để header, sidebar và các portal khác thấy tên/ảnh mới */
+function syncAuthSession(profile: JudgeProfile) {
+  const user = authService.getCurrentUser();
+  if (!user || user.id !== profile.id) return;
+  authService.saveSession({
+    ...user,
+    fullName: profile.fullName,
+    avatar: profile.avatarUrl || null,
+    avatarUrl: profile.avatarUrl || null,
+  });
 }
 
 function findEvaluation(submissionId: string) {
@@ -531,201 +590,117 @@ function getAllAssignedSubmissions(): AssignedSubmission[] {
 }
 
 export const judgeService = {
-  /** GET /judges/me */
-  getProfile: (): Promise<JudgeProfile> => {
-    const current = loadStoredProfile();
-    Object.assign(mockProfile, current);
-    return respond(mockProfile);
+  /** GET /judge/me/profile */
+  getProfile: async (): Promise<JudgeProfile> => {
+    const profile = await request<JudgeProfile>('/judge/me/profile');
+    clearLegacyProfileStorage();
+    return profile;
   },
 
-  /** PATCH /judges/me — email do Admin quản lý nên không cho sửa */
-  updateProfile: async (changes: Partial<JudgeProfile>): Promise<JudgeProfile> => {
-    try {
-      await authService.updateProfile({
-        fullName: changes.fullName,
-        phone: changes.phone,
-        avatar: changes.avatarUrl,
-      });
-    } catch {}
-    Object.assign(mockProfile, changes);
-    try {
-      localStorage.setItem(JUDGE_PROFILE_STORAGE_KEY, JSON.stringify(mockProfile));
-    } catch {
-      // ignore storage error
-    }
-    return respond(mockProfile);
+  /** PUT /judge/me/profile — email, số điện thoại và vai trò do hệ thống quản lý nên không gửi lên */
+  updateProfile: async (changes: JudgeProfileUpdate): Promise<JudgeProfile> => {
+    const profile = await request<JudgeProfile>('/judge/me/profile', {
+      method: 'PUT',
+      body: JSON.stringify(changes),
+    });
+    syncAuthSession(profile);
+    return profile;
   },
 
-  /** GET /judges/me/evaluations */
-  getEvaluations: (): Promise<Evaluation[]> => respond(mockEvaluations),
+  /** GET /judge/me/evaluations — toàn bộ phiếu chấm của giám khảo đang đăng nhập */
+  getEvaluations: (): Promise<Evaluation[]> => request<Evaluation[]>('/judge/me/evaluations'),
 
-  /** GET /judges/me/stats */
-  getStats: (): Promise<JudgeStats> => {
-    const contests = getAssignedContestsForJudge();
-    const submissions = getAllAssignedSubmissions();
-    return respond({
+  /** Tổng hợp từ 3 API chấm thi; backend chưa có endpoint thống kê riêng */
+  getStats: async (): Promise<JudgeStats> => {
+    const [contests, submissions, evaluations] = await Promise.all([
+      judgeService.getContests(),
+      judgeService.getAssignedSubmissions(),
+      judgeService.getEvaluations(),
+    ]);
+    return {
       assignedContests: contests.filter((item) => item.status !== 'COMPLETED').length,
       pendingSubmissions: submissions.filter((item) => item.evaluationStatus !== 'FINALIZED').length,
       evaluatedSubmissions: submissions.filter((item) => item.evaluationStatus === 'FINALIZED').length,
-      awaitingNextRound: mockEvaluations.filter((item) => item.status === 'FINALIZED' && item.recommendNextRound).length,
-    });
+      awaitingNextRound: evaluations.filter((item) => item.status === 'FINALIZED' && item.recommendNextRound).length,
+    };
   },
 
-  /** GET /judges/me/contests */
-  getContests: (): Promise<JudgeContest[]> => respond(getAssignedContestsForJudge()),
-
-  /** GET /judges/me/submissions — chỉ trả các bài thuộc phạm vi được phân công (BR-006) */
-  getAssignedSubmissions: (): Promise<AssignedSubmission[]> => respond(getAllAssignedSubmissions()),
-
-  /** GET /judges/me/submissions/{submissionId} */
-  getSubmission: (submissionId: string): Promise<AssignedSubmission> => {
-    const all = getAllAssignedSubmissions();
-    const submission = all.find((item) => item.id === submissionId);
-    return submission ? respond(submission) : fail('Không tìm thấy bài dự thi được phân công');
+  /** GET /judge/me/contests */
+  getContests: async (): Promise<JudgeContest[]> => {
+    const contests = await request<ApiJudgeContest[]>('/judge/me/contests');
+    return contests.map(toJudgeContest);
   },
 
-  /** GET /judges/me/submissions/{submissionId}/evaluation */
-  getEvaluation: (submissionId: string): Promise<Evaluation | null> => respond(findEvaluation(submissionId) ?? null),
+  /** GET /judge/me/submissions — backend chỉ trả các bài thuộc phạm vi được phân công (BR-006) */
+  getAssignedSubmissions: async (): Promise<AssignedSubmission[]> => {
+    const submissions = await request<ApiAssignedSubmission[]>('/judge/me/submissions');
+    return submissions.map(toAssignedSubmission);
+  },
+
+  /** GET /judge/me/submissions/{submissionId} — bài ngoài phạm vi trả 404 */
+  getSubmission: async (submissionId: string): Promise<AssignedSubmission> => {
+    const submission = await request<ApiAssignedSubmission>(
+      `/judge/me/submissions/${encodeURIComponent(submissionId)}`,
+    );
+    return toAssignedSubmission(submission);
+  },
+
+  /** GET /judge/me/submissions/{submissionId}/evaluation — chưa chấm thì backend trả body rỗng (null) */
+  getEvaluation: (submissionId: string): Promise<Evaluation | null> =>
+    request<Evaluation | null>(`/judge/me/submissions/${encodeURIComponent(submissionId)}/evaluation`),
 
   /**
-   * PUT /judges/me/submissions/{submissionId}/evaluation
-   * Phiếu đã gửi chính thức thì bị khóa — backend trả 409.
+   * PUT /judge/me/submissions/{submissionId}/evaluation
+   * Backend kiểm tra điểm theo tiêu chí, hạn chấm của vòng; phiếu đã gửi chính thức bị khóa (409).
    */
-  saveEvaluation: (submissionId: string, request: EvaluationRequest): Promise<Evaluation> => {
-    const all = getAllAssignedSubmissions();
-    const submission = all.find((item) => item.id === submissionId);
-    const contests = getAssignedContestsForJudge();
-    const contest = contests.find((item) => item.id === submission?.contestId || item.title.toLowerCase() === submission?.contestTitle.toLowerCase());
-    if (!submission || !contest) {
-      return fail('Không tìm thấy bài dự thi được phân công');
-    }
-
-    // Kiểm tra thời hạn chấm điểm (Set giờ thật / Hạn chót chấm)
-    if (isJudgingDeadlinePassed({ id: contest.id, judgingEndDate: contest.currentRound?.endDate || contest.endDate })) {
-      return fail('Đã hết thời hạn chấm điểm cho cuộc thi này. Cổng chấm điểm của Giám khảo đã khóa theo quy định.');
-    }
-
-    const deadline = contest.currentRound?.endDate ? new Date(contest.currentRound.endDate) : null;
-    if (deadline) {
-      if (contest.currentRound.endDate.length <= 10) deadline.setHours(23, 59, 59, 999);
-      if (new Date().getTime() > deadline.getTime()) {
-        return fail('Đã hết thời hạn chấm điểm cho vòng thi này. Cổng chấm điểm đã đóng.');
-      }
-    }
-
-    const existing = findEvaluation(submissionId);
-    if (existing?.status === 'FINALIZED') {
-      return fail('Phiếu chấm đã được gửi chính thức, không thể chỉnh sửa');
-    }
-
-    const totalScore = calculateWeightedScore(contest.criteria, request.scores);
-    if (request.isFinal && (totalScore === null || request.comment.trim() === '')) {
-      return fail('Vui lòng chấm đủ tất cả tiêu chí và nhập nhận xét trước khi gửi');
-    }
-
-    const evaluation: Evaluation = {
-      submissionId,
-      roundId: submission.roundId,
-      scores: request.scores,
-      comment: request.comment,
-      recommendNextRound: request.recommendNextRound,
-      status: request.isFinal ? 'FINALIZED' : 'DRAFT',
-      totalScore: request.isFinal ? totalScore : null,
-      updatedAt: new Date().toISOString(),
-    };
-    const evaluations = loadStoredEvaluations();
-    const existingIndex = evaluations.findIndex((item) => item.submissionId === submissionId);
-    if (existingIndex >= 0) {
-      evaluations[existingIndex] = evaluation;
-    } else {
-      evaluations.push(evaluation);
-    }
-    saveStoredEvaluations(evaluations);
-    if (typeof window !== 'undefined') {
-      window.dispatchEvent(new Event('filmcontest:judging-updated'));
-      window.dispatchEvent(new Event('storage'));
-    }
-
-    if (existing) {
-      Object.assign(existing, evaluation);
-    } else {
-      mockEvaluations.push(evaluation);
-    }
-    return respond(evaluation);
+  saveEvaluation: async (submissionId: string, body: EvaluationRequest): Promise<Evaluation> => {
+    const evaluation = await request<Evaluation>(
+      `/judge/me/submissions/${encodeURIComponent(submissionId)}/evaluation`,
+      { method: 'PUT', body: JSON.stringify(body) },
+    );
+    notifyJudgingUpdated();
+    return evaluation;
   },
 
-  /** GET /judges/me/submissions/{submissionId}/evaluation-history */
-  getEvaluationHistory: (submissionId: string): Promise<EvaluationHistoryItem[]> => {
-    const history = [...(mockPreviousRoundHistory[submissionId] ?? [])];
-    const current = findEvaluation(submissionId);
-    const all = getAllAssignedSubmissions();
-    const submission = all.find((item) => item.id === submissionId);
-    if (current?.status === 'FINALIZED' && current.totalScore !== null && current.updatedAt && submission) {
-      history.push({
-        roundName: submission.roundName,
-        totalScore: current.totalScore,
-        comment: current.comment,
-        recommendNextRound: current.recommendNextRound,
-        evaluatedAt: current.updatedAt,
-      });
-    }
-    return respond(history);
+  /** GET /judge/me/submissions/{submissionId}/evaluation-history — các phiếu đã chốt qua từng vòng */
+  getEvaluationHistory: (submissionId: string): Promise<EvaluationHistoryItem[]> =>
+    request<EvaluationHistoryItem[]>(
+      `/judge/me/submissions/${encodeURIComponent(submissionId)}/evaluation-history`,
+    ),
+
+  /** GET /contests/{contestId}/results — rỗng khi Ban tổ chức chưa công bố (BR-008) */
+  getContestResults: async (contestId: string): Promise<ContestResultEntry[]> => {
+    const results = await request<PublishedResult[]>(`/contests/${encodeURIComponent(contestId)}/results`);
+    return results.map((item) => ({
+      rank: item.ranking,
+      submissionTitle: item.title,
+      authorName: item.authorName ?? 'Thí sinh',
+      averageScore: item.averageScore,
+      award: item.prizeRank ? PRIZE_LABELS[item.prizeRank] : null,
+    }));
   },
 
-  /** GET /contests/{contestId}/results — chỉ có dữ liệu khi Organizer đã công bố (BR-008), mỗi giải 1 bài, đúng 4 giải 4 bài */
-  getContestResults: (contestId: string): Promise<ContestResultEntry[]> => {
-    try {
-      const raw = localStorage.getItem('filmcontest.published_results.v2');
-      if (raw) {
-        const parsed: PublishedResultRecord[] = JSON.parse(raw);
-        if (Array.isArray(parsed) && parsed.length > 0) {
-          const contestMatches = parsed.filter(
-            (p) => p.contestId === contestId || p.contestTitle?.toLowerCase() === contestId.toLowerCase()
-          );
-          if (contestMatches.length > 0) {
-            const top4 = [...contestMatches].sort((a, b) => Number(b.score ?? 0) - Number(a.score ?? 0)).slice(0, 4);
-            const awardLabels = ['Giải Nhất', 'Giải Nhì', 'Giải Ba', 'Giải Khuyến khích'];
-            const entries: ContestResultEntry[] = top4.map((item, idx) => ({
-              rank: idx + 1,
-              submissionTitle: item.title || 'Tác phẩm',
-              authorName: item.authorName || 'Thí sinh',
-              averageScore: Number(item.score ?? 0),
-              award: item.awardLabel || awardLabels[idx] || `Giải ${idx + 1}`,
-            }));
-            return respond(entries);
-          }
-        }
-      }
-    } catch {}
-
-    const fallback = mockResults[contestId];
-    if (fallback && fallback.length > 0) {
-      const top4Fallback = fallback.slice(0, 4).map((f, idx) => ({
-        ...f,
-        rank: idx + 1,
-        award: f.award || (idx === 0 ? 'Giải Nhất' : idx === 1 ? 'Giải Nhì' : idx === 2 ? 'Giải Ba' : 'Giải Khuyến khích'),
-      }));
-      return respond(top4Fallback);
-    }
-
-    return respond([]);
+  /** GET /results/awards — Kho dữ liệu: tác phẩm đạt giải, năm mới nhất trước */
+  getAwardArchive: async (): Promise<AwardArchiveItem[]> => {
+    const items = await request<ApiAwardArchiveItem[]>('/results/awards');
+    return items.map((item) => ({ ...item, metadata: toFilmMetadata(item.metadata) }));
   },
 
-  /** GET /notifications */
-  getNotifications: (): Promise<JudgeNotification[]> => respond(loadStoredNotifications()),
+  /** GET /judge/me/notifications — 50 thông báo mới nhất, mới nhất trước */
+  getNotifications: (): Promise<JudgeNotification[]> => request<JudgeNotification[]>('/judge/me/notifications'),
 
-  /** PATCH /notifications/read-all */
-  markAllNotificationsRead: (): Promise<void> => {
-    const list = loadStoredNotifications();
-    list.forEach((item) => {
-      item.isRead = true;
-    });
-    mockNotifications.forEach((item) => {
-      item.isRead = true;
-    });
-    try {
-      localStorage.setItem(JUDGE_NOTIFS_STORAGE_KEY, JSON.stringify(list));
-    } catch {}
-    return respond(undefined);
+  /** PATCH /judge/me/notifications/read-all */
+  markAllNotificationsRead: async (): Promise<void> => {
+    await request<void>('/judge/me/notifications/read-all', { method: 'PATCH' });
+    notifyNotificationsChanged();
+  },
+
+  /** PATCH /judge/me/notifications/{id}/read */
+  markNotificationRead: async (notificationId: string): Promise<void> => {
+    await request<JudgeNotification>(
+      `/judge/me/notifications/${encodeURIComponent(notificationId)}/read`,
+      { method: 'PATCH' },
+    );
+    notifyNotificationsChanged();
   },
 };
