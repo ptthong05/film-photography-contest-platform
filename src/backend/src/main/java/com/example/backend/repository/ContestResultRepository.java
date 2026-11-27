@@ -11,6 +11,8 @@ public interface ContestResultRepository extends JpaRepository<ContestResult, St
 
     List<ContestResult> findByContestIdOrderByRankingAsc(Long contestId);
 
+    List<ContestResult> findByPrizeRankIsNotNull();
+
     boolean existsByContestId(Long contestId);
 
     void deleteByContestId(Long contestId);

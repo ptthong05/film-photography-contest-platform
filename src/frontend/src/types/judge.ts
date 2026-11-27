@@ -153,4 +153,22 @@ export interface ContestResultEntry {
   award: string | null;
 }
 
+/** GET /results/awards — tác phẩm đạt giải của các cuộc thi đã công bố kết quả */
+export interface AwardArchiveItem {
+  submissionId: string;
+  code: string;
+  contestId: string;
+  contestTitle: string;
+  year: number;
+  ranking: number;
+  prizeRank: 'FIRST' | 'SECOND' | 'THIRD' | 'HONORABLE';
+  averageScore: number;
+  title: string;
+  authorName: string | null;
+  category: string | null;
+  imageUrl: string | null;
+  metadata: FilmMetadata;
+  publishedAt: string;
+}
+
 export type JudgeView = 'OVERVIEW' | 'CONTESTS' | 'ASSIGNED' | 'SCORING' | 'RESULTS' | 'ARCHIVE' | 'ARTICLES' | 'MESSAGES' | 'PROFILE';

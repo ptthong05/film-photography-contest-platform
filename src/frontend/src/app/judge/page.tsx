@@ -21,7 +21,7 @@ const VIEW_META: Record<JudgeView, { title: string; subtitle: string }> = {
   ASSIGNED: { title: '3. Danh sách bài thi', subtitle: 'Tìm kiếm, lọc và bắt đầu chấm các bài dự thi' },
   SCORING: { title: '4. Chấm điểm bài dự thi', subtitle: 'Đánh giá ảnh theo tiêu chí của cuộc thi' },
   RESULTS: { title: '5. Kết quả & Lịch sử', subtitle: 'Xem lại các phiếu chấm đã gửi và kết quả cuộc thi' },
-  ARCHIVE: { title: '6. Kho dữ liệu', subtitle: 'Thư viện lưu trữ các tác phẩm đạt giải khi công bố kết quả (mỗi giải 1 bài, 4 giải 4 bài)' },
+  ARCHIVE: { title: '6. Kho dữ liệu', subtitle: 'Thư viện lưu trữ các tác phẩm đạt giải khi ban tổ chức công bố kết quả' },
   ARTICLES: { title: '7. Viết bài chuyên môn', subtitle: 'Soạn thảo và xuất bản bài viết, nhận định chuyên môn lên mục Tin tức trang chủ' },
   MESSAGES: { title: '8. Tin nhắn & Thông báo', subtitle: 'Thông báo từ ban tổ chức và hệ thống' },
   PROFILE: { title: '9. Hồ sơ cá nhân', subtitle: 'Quản lý thông tin tài khoản giám khảo' },

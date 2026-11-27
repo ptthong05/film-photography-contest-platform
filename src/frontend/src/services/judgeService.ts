@@ -1,5 +1,6 @@
 import type {
   AssignedSubmission,
+  AwardArchiveItem,
   ContestResultEntry,
   Evaluation,
   EvaluationHistoryItem,
@@ -48,6 +49,7 @@ interface ApiFilmMetadata {
 }
 
 type ApiAssignedSubmission = Omit<AssignedSubmission, 'metadata'> & { metadata: ApiFilmMetadata | null };
+type ApiAwardArchiveItem = Omit<AwardArchiveItem, 'metadata'> & { metadata: ApiFilmMetadata | null };
 type ApiJudgeContest = Omit<JudgeContest, 'coverUrl'> & { coverUrl: string | null };
 
 function textOrMissing(value?: string | null): string {
@@ -676,6 +678,12 @@ export const judgeService = {
       averageScore: item.averageScore,
       award: item.prizeRank ? PRIZE_LABELS[item.prizeRank] : null,
     }));
+  },
+
+  /** GET /results/awards — Kho dữ liệu: tác phẩm đạt giải, năm mới nhất trước */
+  getAwardArchive: async (): Promise<AwardArchiveItem[]> => {
+    const items = await request<ApiAwardArchiveItem[]>('/results/awards');
+    return items.map((item) => ({ ...item, metadata: toFilmMetadata(item.metadata) }));
   },
 
   /** GET /judge/me/notifications — 50 thông báo mới nhất, mới nhất trước */

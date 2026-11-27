@@ -1,5 +1,6 @@
 package com.example.backend.service;
 
+import com.example.backend.dto.AwardArchiveResponse;
 import com.example.backend.dto.ContestResultResponse;
 import com.example.backend.dto.ContestScoringResponse;
 import com.example.backend.dto.JudgeScoreResponse;
@@ -31,6 +32,7 @@ import org.springframework.stereotype.Service;
 import org.springframework.transaction.annotation.Transactional;
 
 import java.time.Instant;
+import java.time.ZoneId;
 import java.util.ArrayList;
 import java.util.Comparator;
 import java.util.EnumSet;
@@ -173,6 +175,58 @@ public class ResultService {
                             result.getPublishedAt());
                 })
                 .toList();
+    }
+
+    /**
+     * Tác phẩm đạt giải của mọi cuộc thi đã công bố, năm mới nhất trước rồi theo thứ hạng.
+     * Bài hoặc cuộc thi đã bị xoá sau khi công bố thì bỏ qua.
+     */
+    public List<AwardArchiveResponse> getAwardArchive() {
+        List<ContestResult> awarded = resultRepository.findByPrizeRankIsNotNull();
+        if (awarded.isEmpty()) {
+            return List.of();
+        }
+        Map<Long, Contest> contests = contestRepository
+                .findAllById(awarded.stream().map(ContestResult::getContestId).distinct().toList()).stream()
+                .collect(Collectors.toMap(Contest::getId, Function.identity()));
+        Map<String, Submission> submissions = submissionRepository
+                .findAllById(awarded.stream().map(ContestResult::getSubmissionId).toList()).stream()
+                .collect(Collectors.toMap(Submission::getId, Function.identity()));
+        Map<String, String> authorNames = userNames(submissions.values().stream().map(Submission::getParticipantId));
+        return awarded.stream()
+                .filter(result -> contests.containsKey(result.getContestId())
+                        && submissions.containsKey(result.getSubmissionId()))
+                .map(result -> {
+                    Contest contest = contests.get(result.getContestId());
+                    Submission submission = submissions.get(result.getSubmissionId());
+                    SubmissionSummaryResponse summary = SubmissionSummaryResponse.fromEntity(submission);
+                    return new AwardArchiveResponse(
+                            summary.id(),
+                            summary.code(),
+                            String.valueOf(contest.getId()),
+                            contest.getTitle(),
+                            archiveYear(contest, result),
+                            result.getRanking(),
+                            result.getPrizeRank(),
+                            result.getAverageScore(),
+                            summary.title(),
+                            authorNames.get(submission.getParticipantId()),
+                            summary.category(),
+                            summary.imageUrl(),
+                            submission.getMetadata(),
+                            result.getPublishedAt());
+                })
+                .sorted(Comparator.comparingInt(AwardArchiveResponse::year).reversed()
+                        .thenComparing(AwardArchiveResponse::contestTitle, Comparator.nullsLast(Comparator.naturalOrder()))
+                        .thenComparingInt(AwardArchiveResponse::ranking))
+                .toList();
+    }
+
+    private static int archiveYear(Contest contest, ContestResult result) {
+        if (contest.getEndDate() != null) {
+            return contest.getEndDate().getYear();
+        }
+        return result.getPublishedAt().atZone(ZoneId.systemDefault()).getYear();
     }
 
     private List<ScoringEntryResponse> buildEntries(Contest contest, Map<String, ContestResult> resultBySubmission) {
