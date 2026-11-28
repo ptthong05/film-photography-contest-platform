@@ -14,6 +14,12 @@ export function MyContestsView({ onOpenContest }: MyContestsViewProps) {
   return (
     <div className="space-y-4">
       <AsyncState isLoading={isLoading} error={error} onRetry={refetch} />
+      {contests && contests.length === 0 && (
+        <div className="rounded-xl border border-dashed border-slate-200 bg-white p-12 text-center text-slate-500">
+          <p className="text-base font-medium text-slate-700">Chưa có cuộc thi nào được phân công</p>
+          <p className="mt-1 text-sm text-slate-500">Khi Ban tổ chức phân công chấm thi cho bạn, các cuộc thi sẽ hiển thị tại đây.</p>
+        </div>
+      )}
       {contests?.map((contest) => (
         <section key={contest.id} className="judge-card px-5">
           <ContestProgressItem contest={contest} onOpenContest={onOpenContest} />

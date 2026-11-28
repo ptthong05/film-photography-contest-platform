@@ -57,7 +57,7 @@ export function UsersView() {
             phone: u.phone,
             role: u.role,
             status: (u.status === 'LOCKED' ? 'LOCKED' : u.status === 'SUSPENDED' ? 'SUSPENDED' : 'ACTIVE') as UserStatus,
-            contestCount: u.role === 'ADMIN' ? 8 : u.role === 'ORGANIZER' ? 4 : u.role === 'JUDGE' ? 3 : 1,
+            contestCount: u.role === 'ADMIN' ? 8 : u.role === 'ORGANIZER' ? 4 : 0,
             joinedAt: '2025-01-10',
             submissionCount: u.role === 'PARTICIPANT' ? 2 : 0,
           }));

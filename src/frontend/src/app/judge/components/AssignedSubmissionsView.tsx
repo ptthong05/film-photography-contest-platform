@@ -172,7 +172,13 @@ export function AssignedSubmissionsView({ initialContestId, onStartScoring, onVi
 
       <div className="mt-4">
         <AsyncState isLoading={isLoading} error={error} onRetry={refetch} />
-        {data && visible.length === 0 && (
+        {data && data.length === 0 && (
+          <div className="rounded-xl border border-dashed border-slate-200 bg-white p-12 text-center text-slate-500">
+            <p className="text-base font-medium text-slate-700">Chưa có bài dự thi nào được phân công</p>
+            <p className="mt-1 text-sm text-slate-500">Khi Ban tổ chức phân công bài chấm cho bạn, danh sách bài thi sẽ hiển thị tại đây.</p>
+          </div>
+        )}
+        {data && data.length > 0 && visible.length === 0 && (
           <p className="py-12 text-center text-sm text-slate-500">Không có bài dự thi nào phù hợp với bộ lọc.</p>
         )}
         {data && visible.length > 0 && (

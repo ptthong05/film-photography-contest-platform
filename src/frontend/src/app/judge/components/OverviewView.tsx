@@ -31,7 +31,7 @@ export function OverviewView({ profile, notifications, onNavigate, onOpenContest
   const contests = useFetch(judgeService.getContests);
 
   const activeContests = (contests.data ?? []).filter((item) => item.status !== 'COMPLETED');
-  const bioText = (profile?.bio ?? '').trim() || 'Mỗi bức ảnh phim là một câu chuyện. Hãy cùng tìm kiếm những câu chuyện xứng đáng được tỏa sáng.';
+  const bioText = (profile?.bio ?? '').trim() || 'Chào mừng bạn đến với hội đồng giám khảo cuộc thi nhiếp ảnh phim.';
   const displayBio = bioText.startsWith('“') || bioText.startsWith('"') ? bioText : `“${bioText}”`;
 
   return (
@@ -82,9 +82,13 @@ export function OverviewView({ profile, notifications, onNavigate, onOpenContest
               </button>
             </div>
             <ul className="divide-y divide-slate-100">
-              {notifications.slice(0, 4).map((item) => (
-                <NotificationItem key={item.id} notification={item} />
-              ))}
+              {notifications.length === 0 ? (
+                <li className="py-8 text-center text-sm text-slate-500">Chưa có thông báo nào.</li>
+              ) : (
+                notifications.slice(0, 4).map((item) => (
+                  <NotificationItem key={item.id} notification={item} />
+                ))
+              )}
             </ul>
           </section>
 
