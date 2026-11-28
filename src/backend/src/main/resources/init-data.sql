@@ -61,3 +61,69 @@ INSERT IGNORE INTO rounds (id, contest_id, name, round_order, start_date, end_da
 (3, 2, 'Vòng chấm điểm chuyên môn', 1, '2026-08-15 00:00:00', '2026-10-31 23:59:59', 'Đánh giá nghệ thuật ảnh đường phố', NOW()),
 (4, 3, 'Vòng chấm điểm chuyên môn', 1, '2026-10-01 00:00:00', '2026-12-15 23:59:59', 'Đánh giá phong cách vintage và tone màu', NOW()),
 (5, 4, 'Vòng sơ loại', 1, '2026-11-01 00:00:00', '2026-12-31 23:59:59', 'Sơ loại ảnh phong cảnh', NOW());
+
+-- Cuộn phim (Film Rolls)
+INSERT IGNORE INTO film_rolls (id, created_at, updated_at, version, brand, camera_body, format, iso, name, participant_id, total_frames) VALUES
+('roll-001', NOW(), NOW(), 0, 'Kodak', 'Nikon FM2', '35mm', 400, 'Kodak Portra 400 - Hà Nội Phố', 'u-part-01', 36),
+('roll-002', NOW(), NOW(), 0, 'Fujifilm', 'Canon AE-1', '35mm', 200, 'Fujicolor C200 - Đà Lạt Sương', 'u-part-02', 36),
+('roll-003', NOW(), NOW(), 0, 'Ilford', 'Leica M6', '35mm', 400, 'Ilford HP5 Plus - Sài Gòn Mono', 'u-part-01', 36),
+('roll-004', NOW(), NOW(), 0, 'Kodak', 'Olympus OM-1', '35mm', 100, 'Kodak Ektar 100 - Biển Nắng', 'u-part-02', 36);
+
+-- Khung hình (Frames)
+INSERT IGNORE INTO frames (id, created_at, updated_at, version, frame_number, notes, film_roll_id) VALUES
+('frm-001', NOW(), NOW(), 0, 12, 'Khung hình góc phố Tràng Tiền buổi sớm', 'roll-001'),
+('frm-002', NOW(), NOW(), 0, 15, 'Góc cà phê đường tàu', 'roll-001'),
+('frm-003', NOW(), NOW(), 0, 8, 'Đồi chè Cầu Đất lúc bình minh', 'roll-002'),
+('frm-004', NOW(), NOW(), 0, 20, 'Gánh hàng rong trên phố đi bộ', 'roll-003'),
+('frm-005', NOW(), NOW(), 0, 22, 'Bác đạp xích lô nghỉ trưa bên hông chợ', 'roll-003'),
+('frm-006', NOW(), NOW(), 0, 5, 'Bình minh trên biển Nha Trang', 'roll-004');
+
+-- Bài dự thi (Submissions)
+INSERT IGNORE INTO submissions (id, created_at, updated_at, version, category, contest_id, description, image_public_id, image_url, camera, developing_lab, film_brand, film_format, film_stock, frame_number, iso, lens, scan_spec, shooting_date, shooting_location, participant_id, status, title, frame_id) VALUES
+('sub-001', NOW(), NOW(), 0, 'Đời sống', '1', 'Khoảnh khắc bình minh trên phố cổ Hà Nội.', 'img_001', 'https://images.unsplash.com/photo-1464822759023-fed622ff2c3b?auto=format&fit=crop&w=800&q=80', 'Nikon FM2', 'Lab 35', 'Kodak', '35mm', 'Kodak Portra 400', '12', 400, '50mm f/1.4', 'Noritsu HS-1800', '2026-09-15', 'Hà Nội', 'u-part-01', 'VERIFIED', 'Bình minh Phố Cổ', 'frm-001'),
+('sub-002', NOW(), NOW(), 0, 'Đường phố', '2', 'Nhịp sống hối hả lúc chiều tan tầm.', 'img_002', 'https://images.unsplash.com/photo-1514565131-fce0801e5785?auto=format&fit=crop&w=800&q=80', 'Canon AE-1', 'Croplab', 'Fujifilm', '35mm', 'Fujicolor C200', '15', 200, '35mm f/2.0', 'Fuji Frontier SP-3000', '2026-08-20', 'TP. Hồ Chí Minh', 'u-part-02', 'VERIFIED', 'Sắc màu Đô Thị', 'frm-002'),
+('sub-003', NOW(), NOW(), 0, 'Phong cảnh & Thiên nhiên', '4', 'Sương sớm bảng lảng phủ trên thung lũng thông.', 'img_003', 'https://images.unsplash.com/photo-1506744038136-46273834b3fb?auto=format&fit=crop&w=800&q=80', 'Canon AE-1', 'Llab', 'Fujifilm', '35mm', 'Fujicolor C200', '8', 200, '50mm f/1.8', 'Noritsu HS-1800', '2026-11-05', 'Đà Lạt', 'u-part-02', 'PENDING', 'Thung Lũng Sương', 'frm-003'),
+('sub-004', NOW(), NOW(), 0, 'Đen trắng & Nghệ thuật', '5', 'Tương phản đen trắng mạnh mẽ thể hiện dáng vẻ nhọc nhằn.', 'img_004', 'https://images.unsplash.com/photo-1507525428034-b723cf961d3e?auto=format&fit=crop&w=800&q=80', 'Leica M6', 'Nadir Lab', 'Ilford', '35mm', 'Ilford HP5 Plus', '20', 400, '35mm f/1.4 Summilux', 'Noritsu HS-1800', '2026-04-10', 'Hà Nội', 'u-part-01', 'VERIFIED', 'Gánh Hàng Rong', 'frm-004'),
+('sub-005', NOW(), NOW(), 0, 'Chân dung', '3', 'Ánh mắt người thợ may già bên khung cửa gỗ cổ kính.', 'img_005', 'https://images.unsplash.com/photo-1519501025264-65ba15a82390?auto=format&fit=crop&w=800&q=80', 'Nikon FM2', 'Lab 35', 'Kodak', '35mm', 'Kodak Portra 400', '22', 400, '85mm f/1.8', 'Fuji Frontier SP-3000', '2026-10-12', 'Hội An', 'u-part-01', 'VERIFIED', 'Người Thợ May Cũ', 'frm-005'),
+('sub-006', NOW(), NOW(), 0, 'Phong cảnh & Thiên nhiên', '4', 'Mặt trời mọc đỏ ối đường chân trời biển sớm.', 'img_006', 'https://images.unsplash.com/photo-1448375240586-882707db888b?auto=format&fit=crop&w=800&q=80', 'Olympus OM-1', 'Croplab', 'Kodak', '35mm', 'Kodak Ektar 100', '5', 100, '28mm f/2.8', 'Noritsu HS-1800', '2026-02-15', 'Nha Trang', 'u-part-02', 'VERIFIED', 'Bình Minh Trên Sóng', 'frm-006');
+
+-- Tiêu chí chấm điểm (Judging Criteria)
+INSERT IGNORE INTO judging_criteria (id, created_at, updated_at, version, contest_id, description, display_order, max_score, name, weight) VALUES
+('crit-001', NOW(), NOW(), 0, 1, 'Bố cục đường dẫn, điểm nhấn và tỷ lệ khung hình phim', 1, 10.0, 'Bố cục & Ánh sáng', 0.3),
+('crit-002', NOW(), NOW(), 0, 1, 'Chất lượng kiểm soát độ sáng, hạt phim và độ nét thủ công', 2, 10.0, 'Kỹ thuật ảnh phim', 0.3),
+('crit-003', NOW(), NOW(), 0, 1, 'Thông điệp, cảm xúc và tính chân thực của khoảnh khắc đời sống', 3, 10.0, 'Cảm xúc & Nội dung', 0.4),
+('crit-004', NOW(), NOW(), 0, 2, 'Bố cục và tương tác nhân vật trong không gian đô thị', 1, 10.0, 'Bố cục đường phố', 0.35),
+('crit-005', NOW(), NOW(), 0, 2, 'Khoảnh khắc bấm máy quyết định (The Decisive Moment)', 2, 10.0, 'Khoảnh khắc bắt hình', 0.45),
+('crit-006', NOW(), NOW(), 0, 2, 'Độ hòa hợp màu sắc và tone phim đặc trưng', 3, 10.0, 'Sắc màu analog', 0.20);
+
+-- Phân công Giám khảo (Judge Assignments)
+INSERT IGNORE INTO judge_assignments (id, created_at, updated_at, version, assigned_by, contest_id, judge_id, reminders_sent, round_id) VALUES
+('asgn-001', NOW(), NOW(), 0, 'u-org-01', 1, 'u-judge-01', 0, 1),
+('asgn-002', NOW(), NOW(), 0, 'u-org-01', 1, 'u-judge-02', 0, 1),
+('asgn-003', NOW(), NOW(), 0, 'u-org-01', 1, 'u-judge-01', 0, 2),
+('asgn-004', NOW(), NOW(), 0, 'u-org-01', 2, 'u-judge-02', 0, 3);
+
+-- Chấm điểm & Đánh giá (Evaluations)
+INSERT IGNORE INTO evaluations (id, created_at, updated_at, version, comment, contest_id, finalized_at, judge_id, private_note, recommend_next_round, round_id, status, submission_id, total_score) VALUES
+('eval-001', NOW(), NOW(), 0, 'Ánh sáng và cảm xúc bức ảnh rất chân thật, độ nổi hạt phim đẹp.', 1, NOW(), 'u-judge-01', 'Ứng viên tiềm năng cho giải Nhất', b'1', 1, 'FINALIZED', 'sub-001', 9.2),
+('eval-002', NOW(), NOW(), 0, 'Bắt trọn khoảnh khắc vàng, màu sắc Portra đặc trưng.', 1, NOW(), 'u-judge-02', 'Cần kiểm tra kỹ âm bản', b'1', 1, 'FINALIZED', 'sub-001', 8.8),
+('eval-003', NOW(), NOW(), 0, 'Độ tương phản đen trắng ấn tượng, thông điệp sâu sắc.', 1, NOW(), 'u-judge-01', 'Tác phẩm đạt chuẩn vòng sau', b'1', 1, 'FINALIZED', 'sub-004', 9.0);
+
+-- Bài viết / Tin tức Giám khảo (Articles)
+INSERT IGNORE INTO articles (id, author_id, content, cover_image, created_at, published_at, status, summary, title, updated_at, contest_id) VALUES
+(1, 1, 'Nhiếp ảnh phim không chỉ là bấm máy mà là nghệ thuật quan sát kiên nhẫn. Trong cuộc thi Analog Moments 2026, ban giám khảo đánh giá cao tính chân thực và kỹ thuật phơi sáng thủ công của các thí sinh...', 'https://images.unsplash.com/photo-1464822759023-fed622ff2c3b?auto=format&fit=crop&w=600&q=80', NOW(), NOW(), 'PUBLISHED', 'Chia sẻ của Giám khảo về tiêu chí đánh giá tác phẩm phim xuất sắc.', 'Bí quyết chụp ảnh phim chân thật & giàu cảm xúc', NOW(), 1),
+(2, 1, 'Kỹ thuật chọn phim đen trắng ISO 400 cho nhiếp ảnh đường phố giúp kiểm soát hạt phim mịn và tương phản ánh sáng gắt...', 'https://images.unsplash.com/photo-1507525428034-b723cf961d3e?auto=format&fit=crop&w=600&q=80', NOW(), NOW(), 'PUBLISHED', 'Hướng dẫn kỹ thuật chụp monochrome và lưu ý khi tráng phim.', 'Nghệ thuật tương phản qua cuộn phim đen trắng', NOW(), 5),
+(3, 2, 'Tổng kết cuộc thi Black & White Stories 2026 với hơn 600 bài thi ấn tượng. Cùng nhìn lại các tác phẩm đoạt giải cao nhất...', 'https://images.unsplash.com/photo-1514565131-fce0801e5785?auto=format&fit=crop&w=600&q=80', NOW(), NOW(), 'PUBLISHED', 'Nhìn lại hành trình cảm xúc của cuộc thi phim đen trắng vừa qua.', 'Công bố tác phẩm xuất sắc Black & White Stories 2026', NOW(), 5);
+
+-- Kho lưu trữ số tác phẩm đoạt giải (Digital Archives)
+INSERT IGNORE INTO digital_archives (id, archive_year, author_id, award_name, created_at, description, image_url, title, contest_id) VALUES
+(1, 2026, 1, 'Giải Nhất', NOW(), 'Tác phẩm đoạt giải Nhất cuộc thi Black & White Stories 2026. Phim Ilford HP5 400.', 'https://images.unsplash.com/photo-1507525428034-b723cf961d3e?auto=format&fit=crop&w=800&q=80', 'Gánh Hàng Rong Phố Cổ', 5),
+(2, 2026, 2, 'Giải Nhì', NOW(), 'Tác phẩm đoạt giải Nhì cuộc thi Black & White Stories 2026. Phim Kodak Tri-X 400.', 'https://images.unsplash.com/photo-1514565131-fce0801e5785?auto=format&fit=crop&w=800&q=80', 'Bước Chân Qua Cầu Cũ', 5),
+(3, 2026, 1, 'Giải Ba', NOW(), 'Tác phẩm giải Ba cuộc thi Spring Film Diary 2026.', 'https://images.unsplash.com/photo-1448375240586-882707db888b?auto=format&fit=crop&w=800&q=80', 'Sắc Xuân Vùng Cao', 10),
+(4, 2025, 2, 'Giải Nhất', NOW(), 'Tác phẩm giải Nhất cuộc thi ảnh đường phố thường niên 2025.', 'https://images.unsplash.com/photo-1519501025264-65ba15a82390?auto=format&fit=crop&w=800&q=80', 'Góc Phố Trầm Mặc', 2);
+
+-- Đăng ký tham gia (Contest Registrations)
+INSERT IGNORE INTO contest_registrations (id, note, registered_at, reviewed_at, status, user_id, contest_id) VALUES
+(1, 'Đăng ký tham gia hạng mục ảnh đời sống', NOW(), NOW(), 'APPROVED', 1, 1),
+(2, 'Đăng ký tham gia ảnh đường phố thành phố', NOW(), NOW(), 'APPROVED', 2, 2),
+(3, 'Đăng ký tham gia chụp ảnh cổ điển', NOW(), NULL, 'PENDING', 1, 3);
