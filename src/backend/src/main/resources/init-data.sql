@@ -8,6 +8,7 @@ CREATE DATABASE IF NOT EXISTS film_photography_contest_management_db
 CHARACTER SET utf8mb4 COLLATE utf8mb4_unicode_ci;
 
 USE film_photography_contest_management_db;
+SET NAMES utf8mb4 COLLATE utf8mb4_unicode_ci;
 
 CREATE TABLE IF NOT EXISTS users (
     id VARCHAR(36) PRIMARY KEY,
