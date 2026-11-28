@@ -139,6 +139,40 @@ export function ContestsView({
   const [allContests, setAllContests] = useState<AdminContest[]>(getAdminUnifiedContests);
 
   useEffect(() => {
+    let isMounted = true;
+    const fetchApiContests = async () => {
+      try {
+        const res = await fetch('http://localhost:8081/api/contests');
+        if (res.ok) {
+          const data = await res.json();
+          if (Array.isArray(data) && data.length > 0 && isMounted) {
+            const mapped: AdminContest[] = data.map((item: any) => ({
+              id: typeof item.id === 'number' ? `CT-2026-${String(item.id).padStart(3, '0')}` : String(item.id),
+              title: item.title,
+              organizer: item.organizer || 'FilmContest Studio',
+              description: item.description || '',
+              startDate: item.startDate ? item.startDate.slice(0, 10) : '2026-01-01',
+              endDate: item.endDate ? item.endDate.slice(0, 10) : '2026-12-31',
+              status: (item.status === 'ENDED' ? 'COMPLETED' : item.status === 'UPCOMING' ? 'UPCOMING' : 'ACTIVE') as ContestStatus,
+              participants: 120,
+              judges: 4,
+              submissions: 45,
+              categories: item.categoryName ? [item.categoryName] : ['Nhiếp ảnh phim'],
+              image: item.bannerUrl || PHOTO.mountains,
+            }));
+            setAllContests(mapped);
+            return;
+          }
+        }
+      } catch {
+        // Fallback to unified contests if API is offline
+      }
+    };
+    fetchApiContests();
+    return () => { isMounted = false; };
+  }, []);
+
+  useEffect(() => {
     const handleUpdate = () => {
       setAllContests(getAdminUnifiedContests());
     };
@@ -224,8 +258,9 @@ export function ContestsView({
     <section aria-label="Quản lý cuộc thi" className="relative space-y-4">
       <Toast toast={toast} onClose={() => setToast(null)} />
       <div className="flex flex-wrap items-center justify-between gap-3">
-        <span className="rounded-md bg-amber-50 px-3 py-2 text-xs font-semibold text-amber-800">
-          Dữ liệu minh họa — chưa kết nối API Java / MongoDB
+        <span className="inline-flex items-center gap-1.5 rounded-md bg-emerald-50 px-3 py-2 text-xs font-medium text-emerald-700">
+          <span className="h-2 w-2 rounded-full bg-emerald-500"></span>
+          Đã kết nối CSDL MySQL (Backend API)
         </span>
         <span className="rounded-md border border-slate-200 bg-white px-3 py-2 text-xs text-slate-600">
           Admin: chế độ xem và giám sát

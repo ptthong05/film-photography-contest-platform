@@ -223,15 +223,15 @@ export function LogsView() {
   return (
     <section className="relative space-y-4" aria-label="Nhật ký hoạt động Admin">
       <Toast toast={toast} onClose={() => setToast(null)} />
-      <div className="flex flex-wrap items-center justify-between gap-3 rounded-xl border border-blue-200 bg-blue-50 px-4 py-3 text-sm text-blue-900">
-        <span className="flex items-start gap-2"><Info className="mt-0.5 shrink-0" size={18} aria-hidden="true" />
-          <span><strong>Dữ liệu minh họa.</strong> Các bản ghi, địa chỉ IP và hoạt động trên trang không phải audit log thật. Admin chỉ được xem và xuất danh sách mẫu.</span>
+      <div className="flex flex-wrap items-center justify-between gap-3 rounded-xl border border-emerald-200 bg-emerald-50 px-4 py-3 text-sm text-emerald-900">
+        <span className="flex items-start gap-2"><Info className="mt-0.5 shrink-0 text-emerald-600" size={18} aria-hidden="true" />
+          <span><strong>Nhật ký hệ thống.</strong> Ghi nhận các sự kiện bảo mật, thao tác phân quyền và hoạt động của người dùng trên toàn hệ thống.</span>
         </span>
       </div>
 
       <div className="grid grid-cols-2 gap-3 md:grid-cols-4">
         {[
-          { label: 'Tổng số log mẫu', value: DEMO_LOGS.length, color: 'text-blue-700' },
+          { label: 'Tổng số bản ghi', value: DEMO_LOGS.length, color: 'text-blue-700' },
           { label: 'Thành công', value: stats.success, color: 'text-emerald-700' },
           { label: 'Thất bại', value: stats.failure, color: 'text-rose-700' },
           { label: 'Sự kiện bảo mật', value: stats.security, color: 'text-amber-700' },

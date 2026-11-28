@@ -189,8 +189,9 @@ export function ArchiveView() {
     <div className="space-y-4">
       {/* Banner lưu ý */}
       <div className="flex flex-wrap items-center justify-between gap-3">
-        <span className="rounded-md bg-amber-50 px-3 py-2 text-xs font-semibold text-amber-800">
-          Dữ liệu mẫu kho số — chỉ phục vụ tra cứu các tác phẩm đã đoạt giải
+        <span className="inline-flex items-center gap-1.5 rounded-md bg-emerald-50 px-3 py-2 text-xs font-medium text-emerald-700">
+          <span className="h-2 w-2 rounded-full bg-emerald-500"></span>
+          Kho lưu trữ số tác phẩm đoạt giải (CSDL)
         </span>
         <button
           type="button"

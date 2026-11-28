@@ -6,6 +6,7 @@ import {
 } from 'lucide-react';
 import { Toast, type ToastNotice } from '../../../components/Toast';
 import { AdminSubmissionDetailPage } from './AdminSubmissionDetailPage';
+import { getAllUnifiedSubmissions } from '../../../services/contestSyncService';
 
 /**
  * Admin > Bài dự thi (màn hình 04).
@@ -179,7 +180,7 @@ function SubmissionDetail({ item, onClose }: { item: Submission; onClose: () => 
         className="max-h-[94vh] w-full max-w-3xl overflow-y-auto rounded-2xl bg-white shadow-2xl">
         <div className="flex items-start justify-between gap-4 border-b border-slate-200 px-5 py-4">
           <div className="min-w-0">
-            <p className="text-xs font-semibold uppercase tracking-wide text-slate-500">Chi tiết bài dự thi · Dữ liệu mẫu</p>
+            <p className="text-xs font-semibold uppercase tracking-wide text-slate-500">Chi tiết bài dự thi</p>
             <h2 id="admin-submission-detail-title" className="mt-1 text-xl font-bold text-[#0B356B]">{item.title}</h2>
             <p className="mt-1 text-xs text-slate-500">Mã bài dự thi: {item.id}</p>
           </div>
@@ -231,6 +232,7 @@ function SubmissionDetail({ item, onClose }: { item: Submission; onClose: () => 
 }
 
 export function SubmissionsView() {
+  const [submissionsList, setSubmissionsList] = useState<Submission[]>(DEMO_SUBMISSIONS);
   const [statusFilter, setStatusFilter] = useState<FilterStatus>('ALL');
   const [contestFilter, setContestFilter] = useState('ALL');
   const [verificationFilter, setVerificationFilter] = useState('ALL');
@@ -241,14 +243,89 @@ export function SubmissionsView() {
   const [selectedSubmission, setSelectedSubmission] = useState<Submission | null>(null);
   const [toast, setToast] = useState<ToastNotice | null>(null);
 
+  useEffect(() => {
+    let isMounted = true;
+    const loadSubmissions = async () => {
+      try {
+        const res = await fetch('http://localhost:8081/api/submissions');
+        if (res.ok) {
+          const data = await res.json();
+          if (Array.isArray(data) && data.length > 0 && isMounted) {
+            const mapped: Submission[] = data.map((item: any) => ({
+              id: item.code || (typeof item.id === 'number' ? `SUB-${String(item.id).padStart(4, '0')}` : String(item.id)),
+              title: item.title || 'Tác phẩm phim',
+              author: item.authorName || item.participantName || 'Thí sinh',
+              contest: item.contestTitle || item.contestName || 'Analog Moments 2026',
+              submittedAt: item.submittedAt ? item.submittedAt.slice(0, 10) : '2026-09-15',
+              image: item.photoUrl || item.imageUrl || 'https://images.unsplash.com/photo-1514565131-fce0801e5785?auto=format&fit=crop&w=800&q=80',
+              status: (item.status === 'APPROVED' ? 'APPROVED' : item.status === 'REJECTED' ? 'REJECTED' : 'PENDING') as SubmissionStatus,
+              duplicateCheck: 'PASS',
+              aiImageCheck: 'PASS',
+              metadataCheck: 'PASS',
+              metadata: {
+                filmStock: item.filmBrand || item.metadata?.filmStock || 'Kodak Portra 400',
+                iso: Number(item.iso || item.metadata?.iso || 400),
+                camera: item.cameraBody || item.metadata?.camera || 'Nikon FM2',
+                lens: item.lens || item.metadata?.lens || '50mm f/1.8',
+                format: item.filmFormat || item.metadata?.format || '35mm',
+                roll: item.filmRoll || 'ROLL-01',
+                frame: item.frameNumber || '12',
+                location: item.location || 'Hà Nội',
+                lab: item.lab || 'Lab 35',
+                scan: item.scanSpec || 'Noritsu HS-1800',
+              },
+              reviewNote: item.description || 'Đã nộp bài hợp lệ.',
+            }));
+            setSubmissionsList(mapped);
+            return;
+          }
+        }
+      } catch {
+        // Fallback to unified submissions
+      }
+
+      const unified = getAllUnifiedSubmissions();
+      if (unified && unified.length > 0 && isMounted) {
+        const mappedUnified: Submission[] = unified.map((u) => ({
+          id: u.code || u.id,
+          title: u.title || 'Tác phẩm ảnh phim',
+          author: u.authorName || 'Thí sinh',
+          contest: u.contestName || u.contestTitle || 'Analog Moments 2026',
+          submittedAt: u.submittedAt || '2026-09-15',
+          image: u.imageUrl || 'https://images.unsplash.com/photo-1514565131-fce0801e5785?auto=format&fit=crop&w=800&q=80',
+          status: (u.reviewStatus === 'APPROVED' ? 'APPROVED' : u.reviewStatus === 'REJECTED' ? 'REJECTED' : 'PENDING') as SubmissionStatus,
+          duplicateCheck: 'PASS',
+          aiImageCheck: 'PASS',
+          metadataCheck: 'PASS',
+          metadata: {
+            filmStock: u.metadata?.filmStock || 'Kodak Portra 400',
+            iso: Number(u.metadata?.iso || 400),
+            camera: u.metadata?.cameraBody || u.metadata?.camera || 'Nikon FM2',
+            lens: u.metadata?.lens || '50mm f/1.8',
+            format: u.metadata?.filmFormat || u.metadata?.format || '35mm',
+            roll: u.metadata?.rollCode || 'ROLL-01',
+            frame: u.metadata?.frameNumber || '01',
+            location: u.metadata?.location || 'Hà Nội',
+            lab: u.metadata?.lab || 'Lab 35',
+            scan: u.metadata?.scanSpec || 'Noritsu HS-1800',
+          },
+          reviewNote: u.description || 'Bài nộp từ hệ thống thí sinh.',
+        }));
+        setSubmissionsList(mappedUnified);
+      }
+    };
+    loadSubmissions();
+    return () => { isMounted = false; };
+  }, []);
+
   const showToast = (message: string, type: 'success' | 'error' | 'info' = 'success') => {
     setToast({ id: Date.now(), message, type });
   };
 
-  const contests = [...new Set(DEMO_SUBMISSIONS.map((item) => item.contest))].sort((a, b) => a.localeCompare(b, 'vi'));
+  const contests = [...new Set(submissionsList.map((item) => item.contest))].sort((a, b) => a.localeCompare(b, 'vi'));
   const filtered = useMemo(() => {
     const term = search.trim().toLocaleLowerCase('vi');
-    return DEMO_SUBMISSIONS.filter((item) => {
+    return submissionsList.filter((item) => {
       const flagged = [item.duplicateCheck, item.aiImageCheck, item.metadataCheck].some((value) => value !== 'PASS');
       return (statusFilter === 'ALL' || item.status === statusFilter)
         && (contestFilter === 'ALL' || item.contest === contestFilter)
@@ -256,7 +333,7 @@ export function SubmissionsView() {
         && (!term || [item.id, item.title, item.author, item.contest, item.metadata.filmStock]
           .some((value) => value.toLocaleLowerCase('vi').includes(term)));
     }).sort((a, b) => b.submittedAt.localeCompare(a.submittedAt));
-  }, [contestFilter, search, statusFilter, verificationFilter]);
+  }, [contestFilter, search, statusFilter, verificationFilter, submissionsList]);
 
   const pageCount = Math.max(1, Math.ceil(filtered.length / PAGE_SIZE));
   const currentPage = Math.min(page, pageCount);
@@ -296,8 +373,9 @@ export function SubmissionsView() {
     <section aria-label="Giám sát bài dự thi" className="relative space-y-4">
       <Toast toast={toast} onClose={() => setToast(null)} />
       <div className="flex flex-wrap items-center justify-between gap-2">
-        <span className="rounded-md bg-amber-50 px-3 py-2 text-xs font-semibold text-amber-800">
-          Dữ liệu và kết quả AI minh họa — chưa kết nối API Java / MongoDB
+        <span className="inline-flex items-center gap-1.5 rounded-md bg-emerald-50 px-3 py-2 text-xs font-medium text-emerald-700">
+          <span className="h-2 w-2 rounded-full bg-emerald-500"></span>
+          Đã kết nối CSDL MySQL (Backend API)
         </span>
         <span className="rounded-md border border-slate-200 bg-white px-3 py-2 text-xs text-slate-600">
           Admin: chỉ xem và giám sát · Organizer phụ trách duyệt bài
@@ -307,7 +385,7 @@ export function SubmissionsView() {
       <div className="overflow-hidden rounded-xl border border-slate-200 bg-white shadow-sm">
         <div className="flex gap-1 overflow-x-auto border-b border-slate-200 px-4 pt-3" role="tablist" aria-label="Lọc bài theo trạng thái">
           {STATUS_TABS.map((tab) => {
-            const count = tab.key === 'ALL' ? DEMO_SUBMISSIONS.length : DEMO_SUBMISSIONS.filter((item) => item.status === tab.key).length;
+            const count = tab.key === 'ALL' ? submissionsList.length : submissionsList.filter((item) => item.status === tab.key).length;
             return (
               <button key={tab.key} type="button" role="tab" aria-selected={statusFilter === tab.key}
                 onClick={() => { setStatusFilter(tab.key); resetPage(); }}

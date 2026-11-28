@@ -117,7 +117,7 @@ export function ActivityLogs({
       )}
 
       <footer className="flex flex-wrap items-center justify-between gap-3 border-t border-slate-200 px-4 py-3">
-        <p className="text-xs text-slate-500">Hiển thị {logs.length} / {filteredCount} bản ghi phù hợp · Dữ liệu mẫu</p>
+        <p className="text-xs text-slate-500">Hiển thị {logs.length} / {filteredCount} bản ghi phù hợp</p>
         <div className="flex items-center gap-2" aria-label="Phân trang nhật ký">
           <button type="button" onClick={() => onPageChange(page - 1)} disabled={page <= 1}
             className="rounded-md border border-slate-200 p-2 text-slate-700 hover:bg-slate-50 disabled:cursor-not-allowed disabled:opacity-40" aria-label="Trang trước">

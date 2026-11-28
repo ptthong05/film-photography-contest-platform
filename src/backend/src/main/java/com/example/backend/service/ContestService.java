@@ -5,6 +5,7 @@ import java.util.List;
 import java.util.stream.Collectors;
 
 import org.springframework.stereotype.Service;
+import org.springframework.transaction.annotation.Transactional;
 
 import com.example.backend.dto.ContestRequest;
 import com.example.backend.dto.ContestResponse;
@@ -16,6 +17,7 @@ import com.example.backend.repository.CategoryRepository;
 import com.example.backend.repository.ContestRepository;
 
 @Service
+@Transactional
 public class ContestService {
 
     private final ContestRepository contestRepository;
@@ -116,6 +118,9 @@ public class ContestService {
     }
 
     private ContestStatus calculateRealtimeStatus(LocalDateTime startDate, LocalDateTime endDate) {
+        if (startDate == null || endDate == null) {
+            return ContestStatus.UPCOMING;
+        }
         LocalDateTime now = LocalDateTime.now();
         if (now.isBefore(startDate)) {
             return ContestStatus.UPCOMING;
